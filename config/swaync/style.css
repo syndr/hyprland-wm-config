@@ -185,6 +185,10 @@
     border-radius: 0px;
 }
 
+scrollbar {
+    opacity: 0;
+}
+
 .control-center-list {
     background: transparent;
 }
@@ -384,4 +388,35 @@ scale slider {
     border-radius: 0px;
     min-height: 12px;
     min-width: 12px;
+}
+
+/* Notification groups */
+.notification-group {
+    background: @noti-bg;
+    border: 1px solid @fg;
+    border-radius: 0px;
+}
+
+.notification-group-buttons button {
+    background: @noti-bg;
+    color: @text-color;
+    border: 1px solid @fg;
+    border-radius: 0px;
+    padding: 4px 12px;
+    margin: 2px;
+}
+
+.notification-group-buttons button:hover {
+    background: @fg;
+    color: @bg_dark;
+}
+
+.notification-group-close-button .close-button {
+    background: @fg_accent;
+    color: @bg_dark;
+    border-radius: 0px;
+}
+
+.notification-group-headers {
+    color: @text-color;
 }
