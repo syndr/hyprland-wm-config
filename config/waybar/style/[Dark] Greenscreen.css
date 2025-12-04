@@ -1,0 +1,397 @@
+/* ----------- Greenscreen Terminal Style -------- */
+/* Based on stolen-style, modified for green terminal aesthetic */
+/* Matches base16-greenscreen rofi theme */
+
+/* ============ CONFIGURATION ============ */
+/* Colors */
+@define-color bg_dark rgba(0, 0, 0, 0.9);
+@define-color bg_light #010902;
+@define-color fg_dim #005500;
+@define-color fg_muted #007700;
+@define-color fg_mid #009900;
+@define-color fg #00bb00;
+@define-color fg_bright #00dd00;
+@define-color fg_accent #00ff00;
+
+/* Corner radius - GTK CSS doesn't support non-color vars, so search/replace:
+ *   RADIUS_NONE: 0px      (current: square corners)
+ *   RADIUS_SM:   0px      (current: square corners)
+ *   RADIUS_MD:   0px      (current: square corners)
+ *   RADIUS_LG:   0px      (current: square corners)
+ * To restore rounded corners, replace 0px with: 3px, 5px, 16px, 20px respectively
+ */
+/* ======================================= */
+
+* {
+    font-family: "JetBrainsMono Nerd Font";
+    font-weight: bold;
+    min-height: 0;
+    font-size: 97%;
+    font-feature-settings: '"zero", "ss01", "ss02", "ss03", "ss04", "ss05", "cv31"';
+}
+
+window#waybar {
+  transition-property: background-color;
+  transition-duration: 0.5s;
+  background: @bg_dark;
+  border: none;
+  border-bottom: 1px solid @fg;
+  border-radius: 0px; /* RADIUS_SM */
+}
+
+window#waybar.hidden {
+  opacity: 0.2;
+}
+
+window#waybar.empty,
+window#waybar.empty #window {
+  background-color: @bg_dark;
+  padding: 0px;
+  border: 0px;
+}
+
+#backlight,
+#backlight-slider,
+#battery,
+#bluetooth,
+#clock,
+#cpu,
+#disk,
+#idle_inhibitor,
+#keyboard-state,
+#memory,
+#mode,
+#mpris,
+#network,
+#power-profiles-daemon,
+#pulseaudio,
+#pulseaudio-slider,
+#taskbar button,
+#taskbar,
+#temperature,
+#tray,
+#window,
+#wireplumber,
+#workspaces,
+#custom-backlight,
+#custom-cycle_wall,
+#custom-github,
+#custom-hint,
+#custom-hyprWindowMode,
+#custom-keyboard,
+#custom-light_dark,
+#custom-lock,
+#custom-menu,
+#custom-power,
+#custom-power_vertical,
+#custom-speaker,
+#custom-swaync,
+#custom-updater,
+#custom-weather,
+#custom-weather.clearNight,
+#custom-weather.cloudyFoggyDay,
+#custom-weather.cloudyFoggyNight,
+#custom-weather.default,
+#custom-weather.rainyDay,
+#custom-weather.rainyNight,
+#custom-weather.severe,
+#custom-weather.showyIcyDay,
+#custom-weather.snowyIcyNight,
+#custom-weather.sunnyDay {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  padding-right: 6px;
+  padding-left: 6px;
+}
+
+#workspaces button {
+  padding-left: 10px;
+  padding-right: 10px;
+  color: @fg_muted;
+  animation: gradient_f 20s ease-in infinite;
+  transition: all 0.1s linear;
+}
+
+#workspaces button.persistent {
+  color: @fg_mid;
+}
+
+#workspaces button.empty {
+  color: @fg_dim;
+}
+
+#workspaces button.active {
+  color: @fg_bright;
+  border: 2px solid @fg;
+  border-radius: 0px; /* RADIUS_MD */
+  background: alpha(@bg_light, 0.5);
+}
+
+#workspaces button.urgent {
+  color: @fg_accent;
+  border: 2px solid @fg_accent;
+  border-radius: 0px; /* RADIUS_MD */
+  background: alpha(@bg_light, 0.7);
+}
+
+#workspaces button:hover {
+  color: @fg_bright;
+  border: 2px solid @fg;
+  border-radius: 0px; /* RADIUS_MD */
+}
+
+#idle_inhibitor {
+  color: @fg;
+}
+
+#backlight {
+  color: @fg;
+}
+
+#bluetooth {
+  color: @fg_mid;
+}
+
+#clock {
+  color: @fg_bright;
+  padding-right: 7px;
+}
+
+#custom-swaync {
+  color: @fg_bright;
+  border: 2px solid @fg;
+  border-radius: 0px; /* RADIUS_LG */
+  padding-left: 13px;
+  padding-right: 12px;
+}
+
+#custom-keyboard {
+  color: @fg;
+  border: 2px solid @fg_muted;
+  border-radius: 0px; /* RADIUS_LG */
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+#custom-cycle_wall {
+  color: @fg;
+  padding-left: 7px;
+  padding-right: 4px;
+}
+
+#custom-hint {
+  color: @fg;
+  padding-left: 0px;
+  padding-right: 4px;
+}
+
+#custom-github {
+  color: @fg;
+  padding-left: 0px;
+  padding-right: 4px;
+}
+
+#custom-hyprWindowMode {
+  color: @fg;
+  padding-left: 6px;
+}
+
+#custom-niflveil {
+  color: @fg_bright;
+  padding-left: 0px;
+  padding-right: 10px;
+}
+
+#custom-niflveil.empty {
+  color: @fg_muted;
+}
+
+#cpu {
+  padding-left: 10px;
+  padding-right: 3px;
+  color: @fg;
+  border-top: 2px solid @fg;
+  border-bottom: 2px solid @fg;
+  border-left: 2px solid @fg;
+  border-radius: 0px; /* RADIUS_LG 0px 0px RADIUS_LG */
+}
+
+#memory {
+  color: @fg;
+  padding-right: 8px;
+  border-bottom: 2px solid @fg;
+  border-top: 2px solid @fg;
+  border-radius: 0px; /* RADIUS_NONE */
+}
+
+#temperature {
+  color: @fg;
+  border-bottom: 2px solid @fg;
+  border-top: 2px solid @fg;
+  border-radius: 0px; /* RADIUS_NONE */
+}
+
+#disk {
+  padding-right: 16px;
+  color: @fg;
+  border-top: 2px solid @fg;
+  border-bottom: 2px solid @fg;
+  border-right: 2px solid @fg;
+  border-radius: 0px; /* 0px RADIUS_LG RADIUS_LG 0px */
+}
+
+#temperature.critical {
+  background-color: @bg_light;
+  color: @fg_accent;
+}
+
+#tray > .passive {
+  -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+  -gtk-icon-effect: highlight;
+}
+
+#keyboard-state {
+  color: @fg;
+}
+
+#custom-cava_mviz {
+  color: @fg_bright;
+}
+
+#custom-menu {
+  color: @fg_bright;
+  padding-left: 14px;
+  padding-right: 12px;
+}
+
+#custom-power {
+  color: @fg_accent;
+  padding-left: 8px;
+  padding-right: 17px;
+}
+
+#custom-updater {
+  color: @fg_bright;
+  border: 2px solid @fg;
+  border-radius: 0px; /* RADIUS_LG */
+  padding-left: 10pt;
+  padding-right: 12px;
+}
+
+#custom-light_dark {
+  color: @fg;
+}
+
+#custom-weather {
+  color: @fg_bright;
+}
+
+#custom-speaker {
+  color: @fg_mid;
+}
+
+#pulseaudio {
+  color: @fg;
+}
+
+#pulseaudio.bluetooth {
+  color: @fg_bright;
+}
+
+#pulseaudio.muted {
+  color: @fg_dim;
+}
+
+#window {
+  font-size: 100%;
+  color: @fg;
+}
+
+#mpris {
+  color: @fg_bright;
+}
+
+#network {
+  color: @fg;
+}
+
+#network.disconnected,
+#network.disabled {
+  background-color: @bg_light;
+  color: @fg_muted;
+}
+
+#pulseaudio-slider slider {
+  min-width: 0px;
+  min-height: 0px;
+  opacity: 0;
+  background-image: none;
+  border: none;
+  box-shadow: none;
+}
+
+#pulseaudio-slider trough {
+  min-width: 80px;
+  min-height: 5px;
+  border-radius: 0px; /* RADIUS_SM */
+  background: @bg_light;
+}
+
+#pulseaudio-slider highlight {
+  min-height: 10px;
+  border-radius: 0px; /* RADIUS_SM */
+  background: @fg;
+}
+
+#backlight-slider slider {
+  min-width: 0px;
+  min-height: 0px;
+  opacity: 0;
+  background-image: none;
+  border: none;
+  box-shadow: none;
+}
+
+#backlight-slider trough {
+  min-width: 80px;
+  min-height: 10px;
+  border-radius: 0px; /* RADIUS_SM */
+  background: @bg_light;
+}
+
+#backlight-slider highlight {
+  min-width: 10px;
+  border-radius: 0px; /* RADIUS_SM */
+  background: @fg;
+}
+
+#custom-separator {
+  padding-left: 6px;
+  color: @fg;
+}
+
+#battery {
+  color: @fg;
+}
+
+#battery.charging {
+  color: @fg_bright;
+}
+
+#battery.warning:not(.charging) {
+  color: @fg_mid;
+}
+
+#battery.critical:not(.charging) {
+  color: @fg_accent;
+  animation: blink 0.5s linear infinite alternate;
+}
+
+@keyframes blink {
+  to {
+    color: @bg_light;
+  }
+}
