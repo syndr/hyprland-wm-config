@@ -6,6 +6,20 @@
 # Since that is the work space rules being sourced by hyprland
 # use nwg-displays to handle your workspace rules.
 
+# ---- split-monitor-workspaces plugin ----
+# https://github.com/Duckonaut/split-monitor-workspaces
+#
+# Each monitor gets its own independent set of workspaces (1-N) instead of
+# global workspace numbers.
+#
+# Config location: ~/.config/hypr/UserConfigs/UserSettings.conf
+# Keybinds:        ~/.config/hypr/UserConfigs/UserKeybinds.conf
+#
+# Dispatchers (replace standard workspace commands):
+#   split-workspace N              - switch to workspace N on current monitor
+#   split-movetoworkspace N        - move window to workspace N (follow)
+#   split-movetoworkspacesilent N  - move window silently
+
 # You can set workspace rules to achieve workspace-specific behaviors. 
 # For instance, you can define a workspace where all windows are drawn without borders or gaps.
 

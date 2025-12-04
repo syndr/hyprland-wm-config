@@ -67,4 +67,4 @@ Key Changes:
 - [SherLock707](https://github.com/SherLock707)
 - [SVIGHNESH](https://github.com/SVIGHNESH)
 
-If you have any questions, feel free to contact via [GitHub Discussions](https://github.com/JaKooLit/Hyprland-Dots/discussions) or [Through Discord Server](https://discord.gg/kool-tech-world)
+If you have any questions, feel free to contact via [GitHub Discussions](https://github.com/syndr/hyprland-wm-config/discussions) or the upstream project's [Discord Server](https://discord.gg/kool-tech-world)

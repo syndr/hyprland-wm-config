@@ -3,8 +3,8 @@
 
 clear
 wallpaper=$HOME/.config/hypr/wallpaper_effects/.wallpaper_current
-waybar_style="$HOME/.config/waybar/style/[Extra] Neon Circuit.css"
-waybar_config="$HOME/.config/waybar/configs/[TOP] Default"
+waybar_style="$HOME/.config/waybar/style/[Dark] Greenscreen.css"
+waybar_config="$HOME/.config/waybar/configs/[TOP] Everforest"
 waybar_config_laptop="$HOME/.config/waybar/configs/[TOP] Default Laptop"
 
 # Set some colors for output messages
@@ -687,7 +687,7 @@ if [ ! -d "config" ]; then
   exit 1
 fi
 
-DIR="btop cava hypr Kvantum qt5ct qt6ct swappy wallust wlogout"
+DIR="btop cava copyq hypr Kvantum qt5ct qt6ct swappy wallust wezterm wlogout"
 
 for DIR_NAME in $DIR; do
   DIRPATH="$HOME/.config/$DIR_NAME"
@@ -1037,6 +1037,18 @@ if cp -r wallpapers $HOME/Pictures/; then
   echo "${OK} Some ${MAGENTA}wallpapers${RESET} copied successfully!" | tee -a "$LOG"
 else
   echo "${ERROR} Failed to copy some ${YELLOW}wallpapers${RESET}" | tee -a "$LOG"
+fi
+
+# cursor themes
+cursor_DIR="$HOME/.local/share/icons"
+if [ ! -d "$cursor_DIR" ]; then
+  mkdir -p "$cursor_DIR"
+fi
+
+if cp -r assets/cursors/* "$cursor_DIR/"; then
+  echo "${OK} Cursor themes copied successfully." 2>&1 | tee -a "$LOG"
+else
+  echo "${ERROR} Failed to copy cursor themes" 2>&1 | tee -a "$LOG"
 fi
 
 # Set some files as executable

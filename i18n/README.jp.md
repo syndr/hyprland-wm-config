@@ -1,30 +1,29 @@
-[![en](https://img.shields.io/badge/lang-en-yellow.svg)](https://github.com/JaKooLit/Hyprland-Dots/blob/main/README.md)
-[![ro](https://img.shields.io/badge/lang-ro-green.svg)](https://github.com/JaKooLit/Hyprland-Dots/blob/main/i18n/README.ro.md)
-[![ru](https://img.shields.io/badge/lang-ru-red.svg)](https://github.com/JaKooLit/Hyprland-Dots/blob/main/i18n/README.ru.md)
-[![ua](https://img.shields.io/badge/lang-ua-white.svg)](https://github.com/JaKooLit/Hyprland-Dots/blob/main/i18n/README.ua.md)
-[![de](https://img.shields.io/badge/lang-de-magenta.svg)](https://github.com/JaKooLit/Hyprland-Dots/blob/main/i18n/README.de.md)
+[![en](https://img.shields.io/badge/lang-en-yellow.svg)](https://github.com/syndr/hyprland-wm-config/blob/main/README.md)
+[![ro](https://img.shields.io/badge/lang-ro-green.svg)](https://github.com/syndr/hyprland-wm-config/blob/main/i18n/README.ro.md)
+[![ru](https://img.shields.io/badge/lang-ru-red.svg)](https://github.com/syndr/hyprland-wm-config/blob/main/i18n/README.ru.md)
+[![ua](https://img.shields.io/badge/lang-ua-white.svg)](https://github.com/syndr/hyprland-wm-config/blob/main/i18n/README.ua.md)
+[![de](https://img.shields.io/badge/lang-de-magenta.svg)](https://github.com/syndr/hyprland-wm-config/blob/main/i18n/README.de.md)
 
 <h3 align="center">
 <img align="center" width="80%" src=https://github.com/user-attachments/assets/bc18bd4d-944b-4d5f-a119-7578fa38f9b4 />
 </h3>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/JaKooLit/Hyprland-Dots/main/assets/latte.png" width="400" />
+  <img src="https://raw.githubusercontent.com/syndr/hyprland-wm-config/main/assets/latte.png" width="400" />
 </p>
 
 <div align="center">
 <br>
   <a href="#-コピー--インストール--アップデート手順-"><kbd> <br> Installation <br> </kbd></a>&ensp;&ensp;
-  <a href="https://www.youtube.com/playlist?list=PLDtGd5Fw5_GjXCznR0BzCJJDIQSZJRbxx"><kbd> <br> Youtube <br> </kbd></a>&ensp;&ensp;
-  <a href="https://github.com/JaKooLit/Hyprland-Dots/wiki"><kbd> <br> Wiki <br> </kbd></a>&ensp;&ensp;
-  <a href="https://github.com/JaKooLit/Hyprland-Dots/discussions"><kbd> <br> Discussions <br> </kbd></a>&ensp;&ensp;
-  <a href="https://github.com/JaKooLit/Hyprland-Dots/wiki/Keybinds"><kbd> <br> Keybinds <br> </kbd></a>&ensp;&ensp;
-  <a href="https://discord.gg/kool-tech-world"><kbd> <br> Discord <br> </kbd></a>
+  <a href="https://www.youtube.com/playlist?list=PLDtGd5Fw5_GjXCznR0BzCJJDIQSZJRbxx"><kbd> <br> Videos (JaKooLit) <br> </kbd></a>&ensp;&ensp;
+  <a href="https://github.com/syndr/hyprland-wm-config/wiki"><kbd> <br> Wiki <br> </kbd></a>&ensp;&ensp;
+  <a href="https://github.com/syndr/hyprland-wm-config/discussions"><kbd> <br> Discussions <br> </kbd></a>&ensp;&ensp;
+  <a href="https://github.com/syndr/hyprland-wm-config/wiki/Keybinds"><kbd> <br> Keybinds <br> </kbd></a>&ensp;&ensp;
 </div><br>
 
 <div align="center">
 
-![GitHub Repo stars](https://img.shields.io/github/stars/JaKooLit/Hyprland-Dots?style=for-the-badge&color=cba6f7) ![GitHub last commit](https://img.shields.io/github/last-commit/JaKooLit/Hyprland-Dots?style=for-the-badge&color=b4befe) ![GitHub repo size](https://img.shields.io/github/repo-size/JaKooLit/Hyprland-Dots?style=for-the-badge&color=cba6f7) <a href="https://discord.gg/kool-tech-world"> <img src="https://img.shields.io/discord/1151869464405606400?style=for-the-badge&logo=discord&color=cba6f7&link=https%3A%2F%2Fdiscord.gg%kool-tech-world"> </a>
+![GitHub Repo stars](https://img.shields.io/github/stars/syndr/hyprland-wm-config?style=for-the-badge&color=cba6f7) ![GitHub last commit](https://img.shields.io/github/last-commit/syndr/hyprland-wm-config?style=for-the-badge&color=b4befe) ![GitHub repo size](https://img.shields.io/github/repo-size/syndr/hyprland-wm-config?style=for-the-badge&color=cba6f7)
 
 <br/>
 </div>
@@ -47,7 +46,7 @@ https://github.com/user-attachments/assets/49bc12b2-abaf-45de-a21c-67aacd9bb872
 
 ### 🎞️ AGS概要デモ
 
-- 概要が気になる場合は、こちらにAGS概要の短いデモがあります [Youtube リンク](https://youtu.be/zY5SLNPBJTs)
+- 概要が気になる場合は、こちらにAGS概要の短いデモがあります [Videos (JaKooLit) リンク](https://youtu.be/zY5SLNPBJTs)
 
 </details>
 
@@ -63,7 +62,7 @@ https://github.com/user-attachments/assets/49bc12b2-abaf-45de-a21c-67aacd9bb872
 - 重要：これを動作させるには、`curl` パッケージが必要です。
 
 ```bash
-sh <(curl -L https://raw.githubusercontent.com/JaKooLit/Hyprland-Dots/main/Distro-Hyprland.sh)
+sh <(curl -L https://raw.githubusercontent.com/syndr/hyprland-wm-config/main/Distro-Hyprland.sh)
 ```
 
 - 上記のコマンドを使用して、Distro-Hyprland のインストールスクリプトを自動的にクローンできます。
@@ -101,14 +100,14 @@ sh <(curl -L https://raw.githubusercontent.com/JaKooLit/Hyprland-Dots/main/Distr
 
 ### 📦 変更点
 
-- 変更を簡単に追跡できるよう、[変更ログ](https://github.com/JaKooLit/Hyprland-Dots/wiki/Changelogs) 変更が注目に値する場合はスクリーンショットも含めます！
+- 変更を簡単に追跡できるよう、[変更ログ](https://github.com/syndr/hyprland-wm-config/wiki/Changelogs) 変更が注目に値する場合はスクリーンショットも含めます！
 
 > [注意!]
 > デフォルトでは、Kools Dots はスケーリングなしの 2K (1440p) ディスプレイ向けに調整・設定されています。
 
 ### 💥 コピー / インストール / アップデート手順 💥
 
-- [`ここに詳細を記載しています`](https://github.com/JaKooLit/Hyprland-Dots/wiki/Install_&_Update)
+- [`ここに詳細を記載しています`](https://github.com/syndr/hyprland-wm-config/wiki/Install_&_Update)
   > [注意!]
   > 自動コピーのスクリプトである "copy.sh" は、コピー対象のディレクトリをバックアップします。しかし、スクリプトがバックアップに失敗する可能性もあるため、手動でバックアップを取るのも良い考えです！
 - このリポジトリを git でクローンし、ディレクトリを移動して、実行可能にした後、スクリプトを実行してください。
@@ -116,15 +115,15 @@ sh <(curl -L https://raw.githubusercontent.com/JaKooLit/Hyprland-Dots/main/Distr
 > Master ブランチからダウンロードする場合
 
 ```bash
-git clone --depth=1 https://github.com/JaKooLit/Hyprland-Dots.git
-cd Hyprland-Dots
+git clone --depth=1 https://github.com/syndr/hyprland-wm-config.git
+cd hyprland-wm-config
 ```
 
 > 開発ブランチ（Development）からダウンロードする場合（開発およびテスト用）
 
 ```bash
-git clone --depth=1 https://github.com/JaKooLit/Hyprland-Dots.git -b development
-cd Hyprland-Dots
+git clone --depth=1 https://github.com/syndr/hyprland-wm-config.git -b development
+cd hyprland-wm-config
 ```
 
 - プリセット dotfiles の自動コピー/インストール（更新推奨）
@@ -153,7 +152,7 @@ chmod +x upgrade.sh
 
 ## ❗❗❗ DEBIAN および UBUNTU ユーザーへの注意！
 
-- KooL Hyprland の dotfiles 更新に関するメッセージが大量に届いています。 [`WIKI`](https://github.com/JaKooLit/Hyprland-Dots/wiki/Install_&_Update)に大きく注意書きを記載しました。
+- KooL Hyprland の dotfiles 更新に関するメッセージが大量に届いています。 [`WIKI`](https://github.com/syndr/hyprland-wm-config/wiki/Install_&_Update)に大きく注意書きを記載しました。
 
 #### ⚠️⚠️⚠️ スクリプトによって作成されたバックアップについての注意
 
@@ -172,24 +171,24 @@ chmod +x upgrade.sh
 
 - NVIDIA の所有者へ。`~/.config/hypr/UserConfigs/ENVariables.conf`を編集してください（強く推奨）。
 
-* NVIDIA の所有者とユーザーへ。 インsトール後に [`THIS`](https://github.com/JaKooLit/Hyprland-Dots/wiki/Notes_to_remember#--for-nvidia-gpu-users)を確認してください。
+* NVIDIA の所有者とユーザーへ。 インsトール後に [`THIS`](https://github.com/syndr/hyprland-wm-config/wiki/Notes_to_remember#--for-nvidia-gpu-users)を確認してください。
 
 - 既に独自のキー設定やモニター設定を行っている場合は、ログアウトや再起動前に作成されたバックアップからコピーしてください。（推奨）
 
 #### 📖 既知の問題と可能な解決策
 
-- こちらのページを確認してください: [FAQ](https://github.com/JaKooLit/Hyprland-Dots/wiki/FAQ) & [UNSOLVED ISSUES](https://github.com/JaKooLit/Hyprland-Dots/wiki/Known_Issues)
+- こちらのページを確認してください: [FAQ](https://github.com/syndr/hyprland-wm-config/wiki/FAQ) & [UNSOLVED ISSUES](https://github.com/syndr/hyprland-wm-config/wiki/Known_Issues)
 
 #### 🙋 質問対応 ⁉️
 
 - FAQ! はい、これらの dotfiles は他のディストロでも使用できます！ただし、適切なパッケージを事前にインストールしてください！安心できるなら、私も Gentoo で同じ設定を使っています :)
 - クイックヒント！ Waybar モジュールの HINT! をクリックしてください。 (Waybar のデフォルトレイアウトおよび Simple-L [TOP] レイアウトでのみ利用可能)。キーバインドの `SUPER H`でも起動できます。
-- さらに質問がありますか？ こちらをクリックして [WIKI](https://github.com/JaKooLit/Hyprland-Dots/wiki/)を参照してください。
-- 旧設定が欲しい場合, すべて "Archive" リポジトリにまとめています。詳しくは[HERE](https://github.com/JaKooLit/Hyprland-Dots-releases-Archive)をご覧ください。
+- さらに質問がありますか？ こちらをクリックして [WIKI](https://github.com/syndr/hyprland-wm-config/wiki/)を参照してください。
+- 旧設定が欲しい場合, すべて "Archive" リポジトリにまとめています。詳しくは[HERE](https://github.com/syndr/hyprland-wm-config-releases-Archive)をご覧ください。
 
 #### ⌨ キーバインド
 
-- キーバインドの説明はこちら： [`CLICK`](https://github.com/JaKooLit/Hyprland-Dots/wiki/Keybinds)
+- キーバインドの説明はこちら： [`CLICK`](https://github.com/syndr/hyprland-wm-config/wiki/Keybinds)
 
 #### 🙏 スペシャルリクエスト
 
@@ -201,30 +200,13 @@ chmod +x upgrade.sh
 - [ ] dotfiles の微調整 - 🚧 常に改善中
 - ~~[ ] Starship に切り替えるかも？（ただし、oh-my-zsh に比べてテーマが少ない）~~ → 今のところ予定なし
 
-#### 🔮 Discord サーバー
+---
 
-- ぜひ [Discord](https://discord.com/invite/kool-tech-world)に参加してください！
+## 🙏 クレジット
 
-### 💖 サポート
+このプロジェクトは [JaKooLit の Hyprland-Dots](https://github.com/JaKooLit/Hyprland-Dots) のフォークです。
 
-- GitHub のリポジトリにスターを付けてもらえると嬉しいです 🌟
-
-- YouTube チャンネル登録もよろしく！→ [YouTube](https://www.youtube.com/@Ja.KooLit)
-
-- コーヒーや BTC でサポートも歓迎 😊
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jakoolit)
-
-または
-
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/JaKooLit)
-
-また、BTC での寄付も可能です
-
-> 1N3MeV2dsX6gQB42HXU6MF2hAix1mqjo8i
-
-![Bitcoin](https://github.com/user-attachments/assets/7ed32f8f-c499-46f0-a53c-3f6fbd343699)
-
-## 🫰 スターありがとう 🩷
-
-[![Stargazers over time](https://starchart.cc/JaKooLit/Hyprland-Dots.svg?variant=adaptive)](https://starchart.cc/JaKooLit/Hyprland-Dots)
+この設定が役に立った場合は、ぜひ:
+- [元のリポジトリ](https://github.com/JaKooLit/Hyprland-Dots)にスターを付けてください
+- JaKooLit の [Discord サーバー](https://discord.com/invite/kool-tech-world)に参加してください
+- [Ko-fi](https://ko-fi.com/jakoolit) または [Buy Me A Coffee](https://www.buymeacoffee.com/JaKooLit) で原作者をサポートしてください
