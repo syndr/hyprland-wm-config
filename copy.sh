@@ -687,7 +687,7 @@ if [ ! -d "config" ]; then
   exit 1
 fi
 
-DIR="btop cava hypr Kvantum qt5ct qt6ct swappy wallust wezterm wlogout"
+DIR="btop cava copyq hypr Kvantum qt5ct qt6ct swappy wallust wezterm wlogout"
 
 for DIR_NAME in $DIR; do
   DIRPATH="$HOME/.config/$DIR_NAME"
