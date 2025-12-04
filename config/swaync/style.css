@@ -72,9 +72,23 @@
 }
 
 .notification-action {
-    border: 1px solid @noti-border-color;
-    border-top: none;
+    border: none;
+    background: transparent;
+}
+
+.notification-action button {
+    background: @noti-bg;
+    color: @text-color;
+    border: 1px solid @fg;
     border-radius: 0px;
+    box-shadow: none;
+    padding: 8px 16px;
+    margin: 4px;
+}
+
+.notification-action button:hover {
+    background: @fg;
+    color: @bg_dark;
 }
 
 .notification-default-action:hover,
@@ -95,12 +109,10 @@
 
 .notification-action:first-child {
     border-bottom-left-radius: 0px;
-    background: @noti-bg;
 }
 
 .notification-action:last-child {
     border-bottom-right-radius: 0px;
-    background: @noti-bg-alt;
 }
 
 .inline-reply {
