@@ -224,12 +224,6 @@ def read_api_cache() -> Optional[Dict[str, Any]]:
             data = json.load(f)
         # Use ensure_dict for safety
         data_dict = ensure_dict(data)
-
-        # Invalidate cache if units mismatch
-        if data_dict.get("units") != UNITS:
-            log_debug(f"Cache units '{data_dict.get('units')}' mismatch current '{UNITS}'.")
-            return None
-
         timestamp_val = data_dict.get("timestamp", 0)
         timestamp = coerce_float(timestamp_val) or 0
         if (time.time() - timestamp) <= CACHE_TTL_SECONDS:
@@ -244,7 +238,6 @@ def write_api_cache(payload: Dict[str, Any]) -> None:
     try:
         ensure_cache_dir()
         payload["timestamp"] = time.time()
-        payload["units"] = UNITS
         with API_CACHE_PATH.open("w", encoding="utf-8") as f:
             json.dump(payload, f)
     except Exception as e:
@@ -462,15 +455,15 @@ def fetch_aqi(lat: float, lon: float) -> Optional[Dict[str, Any]]:
 def extract_place_parts_nominatim(data_dict: JSONDict) -> List[str]:
     address = ensure_dict(data_dict.get("address"))
     candidates = [data_dict.get("name"), address.get("city"), address.get("town"), address.get("village"), address.get("hamlet")]
-    name = cast(Optional[str], next((c for c in candidates if c is not None and c != ""), None))
+    name = cast(Optional[str], next((c for c in candidates if c is not None), None))
     admin1 = cast(Optional[str], address.get("state"))
     country = cast(Optional[str], address.get("country"))
     parts: List[str] = []
-    if name is not None and name != "":
+    if name is not None:
         parts.append(name)
-    if admin1 is not None and admin1 != "":
+    if admin1 is not None:
         parts.append(admin1)
-    if country is not None and country != "":
+    if country is not None:
         parts.append(country)
     return parts
 
@@ -698,7 +691,7 @@ def build_aqi_info(aqi: Optional[Dict[str, Any]]) -> str:
 def build_place_str(lat: float, lon: float, place: Optional[str]) -> str:
     effective_place = MANUAL_PLACE or ENV_PLACE or place
     if effective_place:
-        return effective_place
+        return f"{effective_place} ({lat:.3f}, {lon:.3f})"
     return f"{lat:.3f}, {lon:.3f}"
 
 

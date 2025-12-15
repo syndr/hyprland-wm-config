@@ -14,9 +14,16 @@
 	"on-click": "activate",
 	"on-scroll-up": "hyprctl dispatch workspace e+1",
 	"on-scroll-down": "hyprctl dispatch workspace e-1",
-    "persistent-workspaces": {
-      "*": 5
+	"persistent-workspaces": {
+		"*": 5
 	},
+	// Example per-output pinning:
+	// "persistent-workspaces": {
+	// 	"DP-1": [1, 2, 3, 4],
+	// 	"DP-2": [5, 6, 7, 8],
+	// 	"DP-4": [9, 10, 11, 12],
+	// 	"HDMI-A-3": [13, 14, 15, 16]
+	// },
 	"format-icons": {
 		"active": "",
 		"default": "",
@@ -31,8 +38,8 @@
 	"on-click": "activate",
 	"on-scroll-up": "hyprctl dispatch workspace e+1",
 	"on-scroll-down": "hyprctl dispatch workspace e-1",
-    "persistent-workspaces": {
-      "*": 5
+	"persistent-workspaces": {
+		"*": 5
 	},
 	"format-icons": {
 		"1": "I",
@@ -56,8 +63,8 @@
 	"on-scroll-up": "hyprctl dispatch workspace e+1",
 	"on-scroll-down": "hyprctl dispatch workspace e-1",
 	"show-special": false,
-    "persistent-workspaces": {
-      "*": 5
+	"persistent-workspaces": {
+		"*": 5
 	},
 	"format": "{icon}",
 	"format-icons": {
@@ -72,8 +79,8 @@
 	"show-special": false,
 	"all-outputs": true,
 	"format": "{icon}",
-    "persistent-workspaces": {
-      "*": 5
+	"persistent-workspaces": {
+		"*": 5
 	},
 	"format-icons": {
 		"1": "一",
@@ -97,8 +104,8 @@
 	"on-click": "activate",
 	"on-scroll-up": "hyprctl dispatch workspace e+1",
 	"on-scroll-down": "hyprctl dispatch workspace e-1",
-    "persistent-workspaces": {
-      "*": 5
+	"persistent-workspaces": {
+		"*": 5
 	},
 		"format-icons": {
 		"1": "Uno",
@@ -124,7 +131,10 @@
 	"on-scroll-up": "hyprctl dispatch workspace e+1",
 	"on-scroll-down": "hyprctl dispatch workspace e-1",
 	"all-outputs": true,
-	"sort-by-number": true,
+	"sort-by": "number",
+	"persistent-workspaces": {
+		"*": 5
+	},
 	"format-icons": {
 		"1": " ",
 		"2": " ",
@@ -149,8 +159,8 @@
 	"on-click": "activate",
 	"on-scroll-up": "hyprctl dispatch workspace e+1",
 	"on-scroll-down": "hyprctl dispatch workspace e-1",
-    "persistent-workspaces": {
-      "*": 5
+	"persistent-workspaces": {
+		"*": 5
 	},
 	"format-icons": {
 		"1": "1",
@@ -165,19 +175,19 @@
 		"10": "10",
 	},
 },
-// NUMBERS and ICONS style with window rewrite 
+// NUMBERS and ICONS style with window rewrite
 "hyprland/workspaces#rw": {
 	"disable-scroll": true,
 	"all-outputs": true,
 	"warp-on-scroll": false,
-	"sort-by-number": true,
+	"sort-by": "number",
 	"show-special": false,
 	"on-click": "activate",
 	"on-scroll-up": "hyprctl dispatch workspace e+1",
 	"on-scroll-down": "hyprctl dispatch workspace e-1",
 	"persistent-workspaces": {
 		"*": 5
-	  },
+	},
 	"format": "{icon} {windows}",
 	"format-window-separator": " ",
 	"window-rewrite-default": " ",

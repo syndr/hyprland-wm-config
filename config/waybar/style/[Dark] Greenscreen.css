@@ -50,6 +50,16 @@ window#waybar.empty #window {
   border: 0px;
 }
 
+tooltip {
+  background: @bg_dark;
+  border-radius: 0px;
+  border: 1px solid @fg;
+}
+
+tooltip label {
+  color: @fg;
+}
+
 #backlight,
 #backlight-slider,
 #battery,
@@ -74,9 +84,13 @@ window#waybar.empty #window {
 #wireplumber,
 #workspaces,
 #custom-backlight,
+#custom-browser,
+#custom-phalanx,
 #custom-cycle_wall,
+#custom-file_manager,
 #custom-github,
 #custom-hint,
+#custom-hypridle,
 #custom-hyprWindowMode,
 #custom-keyboard,
 #custom-light_dark,
@@ -84,8 +98,10 @@ window#waybar.empty #window {
 #custom-menu,
 #custom-power,
 #custom-power_vertical,
+#custom-settings,
 #custom-speaker,
 #custom-swaync,
+#custom-tty,
 #custom-updater,
 #custom-weather,
 #custom-weather.clearNight,
@@ -110,6 +126,7 @@ window#waybar.empty #window {
   color: @fg_muted;
   animation: gradient_f 20s ease-in infinite;
   transition: all 0.1s linear;
+  border: 1px solid transparent;
 }
 
 #workspaces button.persistent {
@@ -122,7 +139,7 @@ window#waybar.empty #window {
 
 #workspaces button.active {
   color: @fg_bright;
-  border: 2px solid @fg;
+  border: 1px solid @fg_dim;
   border-radius: 0px; /* RADIUS_MD */
   background: alpha(@bg_light, 0.5);
 }
@@ -136,8 +153,9 @@ window#waybar.empty #window {
 
 #workspaces button:hover {
   color: @fg_bright;
-  border: 2px solid @fg;
+  border: 1px solid @fg;
   border-radius: 0px; /* RADIUS_MD */
+  background: transparent;
 }
 
 #idle_inhibitor {
@@ -160,6 +178,7 @@ window#waybar.empty #window {
 #custom-swaync {
   color: @fg_bright;
   border: 2px solid @fg;
+  border-left: none;
   border-radius: 0px; /* RADIUS_LG */
   padding-left: 13px;
   padding-right: 12px;
@@ -224,6 +243,16 @@ window#waybar.empty #window {
   border-radius: 0px; /* RADIUS_NONE */
 }
 
+#network {
+  color: @fg;
+  border-bottom: 2px solid @fg;
+  border-top: 2px solid @fg;
+  border-radius: 0px; /* RADIUS_NONE */
+  letter-spacing: 2px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
 #temperature {
   color: @fg;
   border-bottom: 2px solid @fg;
@@ -243,6 +272,12 @@ window#waybar.empty #window {
 #temperature.critical {
   background-color: @bg_light;
   color: @fg_accent;
+}
+
+#tray {
+  border: 2px solid @fg;
+  border-right: none;
+  border-radius: 0px; /* RADIUS_LG */
 }
 
 #tray > .passive {
@@ -285,6 +320,34 @@ window#waybar.empty #window {
   color: @fg;
 }
 
+#custom-settings {
+  color: @fg;
+}
+
+#custom-tty {
+  color: @fg;
+}
+
+#custom-file_manager {
+  color: @fg;
+}
+
+#custom-browser {
+  color: @fg;
+}
+
+#custom-hypridle {
+  color: @fg;
+}
+
+#custom-lock {
+  color: @fg;
+}
+
+#custom-phalanx {
+  color: @fg_bright;
+}
+
 #custom-weather {
   color: @fg_bright;
 }
@@ -295,6 +358,13 @@ window#waybar.empty #window {
 
 #pulseaudio {
   color: @fg;
+  padding-left: 10px;
+  padding-right: 12px;
+}
+
+#pulseaudio#microphone {
+  padding-left: 6px;
+  padding-right: 6px;
 }
 
 #pulseaudio.bluetooth {

@@ -26,7 +26,7 @@ for _prs in "${_ps[@]}"; do
 done
 
 # quit ags & relaunch ags
-#ags -q && ags &
+ags -q && ags &
 
 # quit quickshell & relaunch quickshell
 #pkill qs && qs &
@@ -38,11 +38,11 @@ sleep 0.2
 # reload swaync
 swaync-client --reload-config
 
-# Relaunching rainbow borders if the script exists
-sleep 1
-if file_exists "${UserScripts}/RainbowBorders.sh"; then
-    ${UserScripts}/RainbowBorders.sh &
-fi
+# Relaunching rainbow borders if the script exists (disabled - high GPU usage)
+#sleep 1
+#if file_exists "${UserScripts}/RainbowBorders.sh"; then
+#    ${UserScripts}/RainbowBorders.sh &
+#fi
 
 
 exit 0

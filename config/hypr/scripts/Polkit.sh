@@ -5,6 +5,7 @@
 # List of potential Polkit agent file paths
 polkit=(
   "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+  "/usr/libexec/kf6/polkit-kde-authentication-agent-1"
   "/usr/libexec/hyprpolkitagent"
   "/usr/lib/hyprpolkitagent"
   "/usr/lib/hyprpolkitagent/hyprpolkitagent"

@@ -28,7 +28,7 @@ killall -SIGUSR2 waybar
 sleep 0.1
 
 # quit ags & relaunch ags
-#ags -q && ags &
+ags -q && ags &
 
 # quit quickshell & relaunch quickshell
 #pkill qs && qs &
@@ -49,10 +49,10 @@ swaync >/dev/null 2>&1 &
 # reload swaync
 swaync-client --reload-config
 
-# Relaunching rainbow borders if the script exists
-sleep 1
-if file_exists "${UserScripts}/RainbowBorders.sh"; then
-  ${UserScripts}/RainbowBorders.sh &
-fi
+# Relaunching rainbow borders if the script exists (disabled - high GPU usage)
+#sleep 1
+#if file_exists "${UserScripts}/RainbowBorders.sh"; then
+#  ${UserScripts}/RainbowBorders.sh &
+#fi
 
 exit 0
