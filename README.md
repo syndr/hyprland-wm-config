@@ -72,15 +72,15 @@ sh <(curl -L https://raw.githubusercontent.com/syndr/hyprland-wm-config/main/Dis
 
 - [OpenSUSE(Tumbleweed)](https://github.com/JaKooLit/OpenSuse-Hyprland)
 
-- [Fedora-Linux](https://github.com/JaKooLit/Fedora-Hyprland)
+- [Fedora-Linux (43/Rawhide)](https://github.com/JaKooLit/Fedora-Hyprland)
 
 - [Debian-Linux (Trixie & SID)](https://github.com/JaKooLit/Debian-Hyprland)
 
-- [NixOS](https://github.com/JaKooLit/NixOS-Hyprland)
+- [NixOS (25.05+)](https://github.com/JaKooLit/NixOS-Hyprland)
 
 - [Ubuntu 24.04 LTS](https://github.com/JaKooLit/Ubuntu-Hyprland/tree/24.04)
-- [Ubuntu 24.10](https://github.com/JaKooLit/Ubuntu-Hyprland/tree/24.10)
-- [Ubuntu 25.04](https://github.com/JaKooLit/Ubuntu-Hyprland/tree/25.04)
+- [Ubuntu 24.10 (depreciated)](https://github.com/JaKooLit/Ubuntu-Hyprland/tree/24.10)
+- [Ubuntu 25.04 (depreciated)](https://github.com/JaKooLit/Ubuntu-Hyprland/tree/25.04)
 - [Ubuntu 25.10](https://github.com/JaKooLit/Ubuntu-Hyprland/tree/25.10)
 
 ---
@@ -117,6 +117,7 @@ cd hyprland-wm-config
 ```
 
 > to download from Development branch (development and testing)
+> Not recommeded for non-testing systems 
 
 ```bash
 git clone --depth=1 https://github.com/syndr/hyprland-wm-config.git -b development
@@ -149,10 +150,14 @@ chmod +x upgrade.sh
 
 ## ❗❗❗ DEBIAN AND UBUNTU!
 
-- Debian 13 and ubuntu 25.10
-- You can now build Hyprland 0.51.1 from source using the `install.sh` script
-- So the current version of Hyprland-Dots is compatible only in those cases.
+- Debian 13
+  - Now builds Hyprland 0.51.1 from source using the `install.sh` script
+  - So the current version of Hyprland-Dots is compatible only in those cases.
 
+- Ubuntu 24.04/25.10
+  - We are now using a PPA to get more current versions of Hyprland.
+  - So the current version of these Dotfiles are compatible if you updated to the PPA based configuration.
+    
 #### ⚠️⚠️⚠️ ATTENTION - BACKUPS CREATED by SCRIPT
 
 > [!CAUTION]
