@@ -10,7 +10,6 @@
 #   * Waits for user input before returning control to caller.
 run_repo_update() {
   local repo_dir="${1:-$(pwd)}"
-  local expected_name="Hyprland-Dots"
   local log_dir="$repo_dir/Copy-Logs"
   local log_file="$log_dir/update-$(date +%d-%H%M%S)_git.log"
 
@@ -18,8 +17,8 @@ run_repo_update() {
 
   echo "${INFO} Starting repository update..." | tee -a "$log_file"
 
-  if [ ! -d "$repo_dir" ] || [ "$(basename "$repo_dir")" != "$expected_name" ]; then
-    echo "${ERROR} This helper must be run from the $expected_name directory. Current: $(pwd)" | tee -a "$log_file"
+  if [ ! -d "$repo_dir" ]; then
+    echo "${ERROR} Repository directory does not exist: $repo_dir" | tee -a "$log_file"
     read -n1 -s -r -p "Press any key to return to the menu..."
     echo
     return 1
@@ -33,6 +32,13 @@ run_repo_update() {
       echo
       return 1
     }
+  fi
+
+  if ! git -C "$repo_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "${ERROR} This helper must be run from a git repository. Current: $repo_dir" | tee -a "$log_file"
+    read -n1 -s -r -p "Press any key to return to the menu..."
+    echo
+    return 1
   fi
 
   local head_before stash_msg pull_status=0

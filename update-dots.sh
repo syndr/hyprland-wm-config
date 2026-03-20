@@ -32,15 +32,23 @@ if [[ "$branch" == "HEAD" ]]; then
 fi
 
 log "Fetching remote updates..."
-git fetch --tags --quiet
+git fetch --all --tags --quiet
 
 upstream=""
 if git rev-parse --abbrev-ref --symbolic-full-name "@{u}" >/dev/null 2>&1; then
   upstream="$(git rev-parse --abbrev-ref --symbolic-full-name "@{u}")"
 else
   if git show-ref --verify --quiet "refs/remotes/origin/${branch}"; then
-    upstream="origin/${branch}"
+      upstream="origin/${branch}"
   fi
+fi
+
+if [[ -z "$upstream" ]] && git show-ref --verify --quiet "refs/remotes/origin/main"; then
+  upstream="origin/main"
+fi
+
+if [[ -z "$upstream" ]] && git show-ref --verify --quiet "refs/remotes/upstream/main"; then
+  upstream="upstream/main"
 fi
 
 if [[ -z "$upstream" ]]; then
@@ -70,7 +78,11 @@ case "${reply:-}" in
     git stash -u
 
     log "Pulling latest changes from ${upstream}..."
-    git pull
+    if [[ "$(git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>/dev/null || true)" == "$upstream" ]]; then
+      git pull --ff-only
+    else
+      git merge --ff-only "$upstream"
+    fi
 
     ok "Update complete."
     printf "%b\n" "${DIM}Next: run ./copy.sh to upgrade the Hyprland dotfiles.${RESET}"
