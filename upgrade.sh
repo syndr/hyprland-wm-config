@@ -136,6 +136,124 @@ create_backup() {
     fi
 }
 
+# Function to analyze and categorize changes between directories
+analyze_changes() {
+    local source_dir="$1"
+    local target_dir="$2"
+    local exclusion="${exclusions[$source_dir]}"
+
+    local new_files=()
+    local deleted_files=()
+    local modified_files=()
+
+    # Build array of exclusion patterns from rsync format
+    local -a exclude_patterns=()
+    if [[ -n "$exclusion" ]]; then
+        # Extract patterns from --exclude=pattern format
+        for pattern in $exclusion; do
+            if [[ "$pattern" =~ --exclude=(.+) ]]; then
+                exclude_patterns+=("${BASH_REMATCH[1]}")
+            fi
+        done
+    fi
+
+    # Helper function to check if path matches any exclusion
+    is_excluded() {
+        local path="$1"
+        for pattern in "${exclude_patterns[@]}"; do
+            # Check if path starts with excluded directory or matches pattern
+            if [[ "$path" == "/$pattern"* ]] || [[ "$path" == "$pattern"* ]]; then
+                return 0  # true, is excluded
+            fi
+        done
+        return 1  # false, not excluded
+    }
+
+    # Find files in source (new or modified)
+    while IFS= read -r -d '' file; do
+        local relative_path="${file#$source_dir}"
+
+        # Skip if excluded
+        if is_excluded "$relative_path"; then
+            continue
+        fi
+
+        local target_file="${target_dir}${relative_path}"
+
+        if [[ ! -f "$target_file" ]]; then
+            new_files+=("$relative_path")
+        elif ! diff -q "$file" "$target_file" > /dev/null 2>&1; then
+            modified_files+=("$relative_path")
+        fi
+    done < <(find "$source_dir" -type f -print0 2>/dev/null)
+
+    # Find files only in target (will be deleted by rsync --delete)
+    while IFS= read -r -d '' file; do
+        local relative_path="${file#$target_dir}"
+
+        # Skip if excluded
+        if is_excluded "$relative_path"; then
+            continue
+        fi
+
+        local source_file="${source_dir}${relative_path}"
+
+        if [[ ! -f "$source_file" ]]; then
+            deleted_files+=("$relative_path")
+        fi
+    done < <(find "$target_dir" -type f -print0 2>/dev/null)
+
+    # Display categorized results
+    if [[ ${#new_files[@]} -gt 0 ]]; then
+        echo "${GREEN}━━━ New files (will be added): ${#new_files[@]} ━━━${RESET}"
+        for f in "${new_files[@]}"; do
+            echo "  ${GREEN}+${RESET} $f"
+        done
+    fi
+
+    if [[ ${#deleted_files[@]} -gt 0 ]]; then
+        echo "${YELLOW}━━━ Removed upstream (will be deleted): ${#deleted_files[@]} ━━━${RESET}"
+        for f in "${deleted_files[@]}"; do
+            echo "  ${YELLOW}-${RESET} $f"
+        done
+    fi
+
+    if [[ ${#modified_files[@]} -gt 0 ]]; then
+        echo "${WARNING}━━━ Modified files (will be overwritten): ${#modified_files[@]} ━━━${RESET}"
+        for f in "${modified_files[@]}"; do
+            echo "  ${WARNING}~${RESET} $f"
+        done
+        printf "\n"
+        echo "${WARN} The above files exist locally and differ from upstream."
+        echo -n "${CAT} Would you like to view diffs for modified files? (y/N/a=all): "
+        read -r show_diff
+
+        if [[ "$show_diff" =~ ^[Yy]$ ]]; then
+            for f in "${modified_files[@]}"; do
+                echo "${SKY_BLUE}━━━ Diff: $f ━━━${RESET}"
+                echo "${MAGENTA}(< = upstream, > = your local version)${RESET}"
+                diff --color=auto "${source_dir}${f}" "${target_dir}${f}" | head -40
+                printf "\n"
+                echo -n "${CAT} Press Enter to continue, or 'q' to stop viewing diffs: "
+                read -r cont
+                [[ "$cont" == "q" ]] && break
+            done
+        elif [[ "$show_diff" =~ ^[Aa]$ ]]; then
+            for f in "${modified_files[@]}"; do
+                echo "${SKY_BLUE}━━━ Diff: $f ━━━${RESET}"
+                echo "${MAGENTA}(< = upstream, > = your local version)${RESET}"
+                diff --color=auto "${source_dir}${f}" "${target_dir}${f}" | head -40
+                printf "\n"
+            done
+        fi
+    fi
+
+    # Return counts via global variables (subshell-safe approach)
+    printf "ANALYZE_NEW=%d\n" "${#new_files[@]}"
+    printf "ANALYZE_DELETED=%d\n" "${#deleted_files[@]}"
+    printf "ANALYZE_MODIFIED=%d\n" "${#modified_files[@]}"
+}
+
 # Check if the version file exists in target directory, if not exit
 target_version_file=$(find "$target_dir/hypr" -name 'v*' | sort -V | tail -n 1)
 if [ -z "$target_version_file" ]; then
@@ -162,17 +280,27 @@ if version_gt "$latest_version" "$stored_version"; then
         # Loop through directories for comparison
 		for source_directory in "${!directories[@]}"; do
     	target_directory="${directories[$source_directory]}"
-    	echo "$YELLOW Comparing directories: $source_directory and $target_directory" $RESET    
+    	echo "$YELLOW Comparing directories: $source_directory and $target_directory" $RESET
     	# Compare source and target directories
     	comparison=$(compare_directories "$source_directory" "$target_directory")
     	if [ -n "$comparison" ]; then
-        echo "$NOTE Here are difference of $source_directory and $target_directory:"
-        echo "$comparison"
-        
+        echo "$NOTE Analyzing changes for $source_directory → $target_directory..."
+        printf "\n"
+
+        # Run analysis and capture output
+        analysis_output=$(analyze_changes "$source_directory" "$target_directory")
+
+        # Display everything except the count lines
+        echo "$analysis_output" | grep -v "^ANALYZE_"
+
+        # Extract counts from output
+        eval $(echo "$analysis_output" | grep "^ANALYZE_")
+
         printf "\n%.0s" {1..2}
-        
-        # Prompt user for action
-        echo "$CAT Do you want to copy files and directories from $source_directory to $target_directory? (Y/N)"
+
+        # Prompt user for action with summary
+        echo "${CAT} Summary: ${GREEN}+${ANALYZE_NEW} new${RESET}, ${YELLOW}-${ANALYZE_DELETED} removed${RESET}, ${WARNING}~${ANALYZE_MODIFIED} modified${RESET}"
+        echo "$CAT Do you want to apply these changes from $source_directory to $target_directory? (Y/N)"
         read -r answer
 
         if [[ "$answer" =~ ^[Yy]$ ]]; then

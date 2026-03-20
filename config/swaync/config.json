@@ -1,5 +1,50 @@
 {
   "$schema": "/etc/xdg/swaync/configSchema.json",
+  "scripts": {
+    "critical-sound": {
+      "exec": "pw-play ~/.config/swaync/sounds/mainframe02.ogg",
+      "urgency": "Critical",
+      "run-on": "receive"
+    },
+    "kdeconnect_sound": {
+      "exec": "pw-play ~/.config/swaync/sounds/kdeconnect.ogg",
+      "app-name": "^KDE Connect$",
+      "run-on": "receive"
+    },
+    "hypridle-idle": {
+      "exec": "pw-play ~/Music/notifications/Bottle\\ Cap.ogg",
+      "app-name": "^hypridle$",
+      "summary": "idle",
+      "run-on": "receive"
+    },
+    "hypridle-resume": {
+      "exec": "pw-play ~/Music/notifications/Computer\\ Mumbling.ogg",
+      "app-name": "^hypridle$",
+      "summary": "back",
+      "run-on": "receive"
+    },
+    "thunderbird-sound": {
+      "exec": "pw-play ~/Music/notifications/Spam.ogg",
+      "app-name": "^Thunderbird$",
+      "run-on": "receive"
+    },
+    "google-voice-sound": {
+      "exec": "pw-play ~/Music/notifications/Vecna\\ Clock.ogg",
+      "app-name": "^Chromium$",
+      "body": "voice.google.com",
+      "run-on": "receive"
+    },
+    "notification-sound": {
+      "exec": "pw-play ~/.config/swaync/sounds/mainframe12.ogg",
+      "app-name": ".*",
+      "run-on": "receive"
+    },
+    "action-sound": {
+      "exec": "pw-play ~/Music/notifications/Pew\\ pew\\ pew.ogg",
+      "app-name": ".*",
+      "run-on": "action"
+    }
+  },
   "positionX": "left",
   "positionY": "top",
   "layer": "overlay",
@@ -15,7 +60,7 @@
   "notification-icon-size": 24,
   "notification-body-image-height": 100,
   "notification-body-image-width": 100,
-  "notification-window-width": 300,
+  "notification-window-width": 400,
   "timeout": 10,
   "timeout-low": 5,
   "timeout-critical": 0,

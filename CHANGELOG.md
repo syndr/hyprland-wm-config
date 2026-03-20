@@ -1,5 +1,33 @@
 # Changelog — JAK's Hyprland Dotfiles
 
+## v2.4.0 — 2025-12-12 (Ultroncore Fork)
+
+### 🎨 Greenscreen Theme
+- New waybar config `[TOP] Greenscreen` with custom notification drawer
+- Quick settings drawer: settings, terminal, file manager, browser, wallpaper, power, lock, idle inhibitor
+- Calendar popup on clock with green-themed colors
+- Pulseaudio format spacing fix
+- Tooltip styling (black background, green border)
+- Complete module color definitions for theme consistency
+
+### 🔔 Notifications
+- SwayNC: Notification sound support via pw-play
+
+### 🪟 Window Rules
+- Float rule for Feeling Finder (codes.merritt.FeelingFinder)
+
+### 🖱️ Cursors
+- Added Broodwar cursor theme
+
+### ⚙️ Base Customizations (from PR #1)
+- Custom UserSettings, UserKeybinds, UserAnimations, UserDecorations
+- CopyQ configuration
+- Wezterm configuration
+- SwayNC styling updates
+- Rofi configuration tweaks
+- Hypridle adjustments
+- WorkSpaceRules customizations
+
 ## v2.3.18 — 2025-11-05
 
 - Keybinds: initialize SUPER+J/K at login to match the default layout (master or dwindle).

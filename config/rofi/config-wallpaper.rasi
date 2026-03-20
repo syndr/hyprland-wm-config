@@ -3,9 +3,10 @@
 
 @import "~/.config/rofi/config.rasi"  
 
-/* ---- Configuration ---- */ 
+/* ---- Configuration ---- */
 configuration {
   modi: "drun";
+  show-icons: true;
 }
 
 window {

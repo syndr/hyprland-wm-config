@@ -1106,6 +1106,27 @@ else
   echo "${ERROR} Failed to copy cursor themes" 2>&1 | tee -a "$LOG"
 fi
 
+# GTK themes
+gtk_themes_DIR="$HOME/.themes"
+if [ ! -d "$gtk_themes_DIR" ]; then
+  mkdir -p "$gtk_themes_DIR"
+fi
+
+# Extract theme zips
+for theme_zip in assets/themes/*.zip; do
+  if [ -f "$theme_zip" ]; then
+    theme_name=$(basename "$theme_zip" .zip)
+    echo "${NOTE} Extracting GTK theme: $theme_name" 2>&1 | tee -a "$LOG"
+    unzip -q -o "$theme_zip" -d "$gtk_themes_DIR/"
+    # Rename extracted dir to match zip name (for -Dark suffix)
+    extracted_dir=$(unzip -Z1 "$theme_zip" | head -1 | cut -d'/' -f1)
+    if [ "$extracted_dir" != "$theme_name" ] && [ -d "$gtk_themes_DIR/$extracted_dir" ]; then
+      mv "$gtk_themes_DIR/$extracted_dir" "$gtk_themes_DIR/$theme_name"
+    fi
+  fi
+done
+echo "${OK} GTK themes installed successfully." 2>&1 | tee -a "$LOG"
+
 # Set some files as executable
 chmod +x "$HOME/.config/hypr/scripts/"* 2>&1 | tee -a "$LOG"
 chmod +x "$HOME/.config/hypr/UserScripts/"* 2>&1 | tee -a "$LOG"

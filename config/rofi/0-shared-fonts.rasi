@@ -6,11 +6,11 @@
 
 /*****-- Fonts Size and Font Size -----*****/
 configuration {
-  font: "JetBrainsMono Nerd Font SemiBold 15";
+  font: "ShureTechMono Nerd Font SemiBold 15";
 }
 
 
 /*****-- Elements Font Size -----*****/
 element-text {
-  font: "JetBrainsMono Nerd Font SemiBold 13";
+  font: "Monoid Nerd Font SemiBold 13";
 }
