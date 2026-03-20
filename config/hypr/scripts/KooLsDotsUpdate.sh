@@ -5,24 +5,36 @@
 # Local Paths
 local_dir="$HOME/.config/hypr"
 iDIR="$HOME/.config/swaync/images/"
-local_version=$(ls $local_dir/v* 2>/dev/null | sort -V | tail -n 1 | sed 's/.*v\(.*\)/\1/')
-KooL_Dots_DIR="$HOME/Hyprland-Dots"
+local_version=$(find "$local_dir" -maxdepth 1 -name 'v*' -printf '%f\n' 2>/dev/null | sort -V | tail -n 1 | sed 's/^v//')
+KooL_Dots_DIR="${KOOL_DOTS_DIR:-${HYPRLAND_DOTS_DIR:-$HOME/hyprland-wm-config}}"
+fallback_repo_dir="$HOME/Hyprland-Dots"
+repo_url="${KOOL_DOTS_REPO_URL:-${HYPRLAND_DOTS_REPO_URL:-https://github.com/syndr/hyprland-wm-config.git}}"
+branch="${KOOL_DOTS_BRANCH:-${HYPRLAND_DOTS_BRANCH:-main}}"
+
+if [ ! -d "$KooL_Dots_DIR" ] && [ -d "$fallback_repo_dir" ]; then
+  KooL_Dots_DIR="$fallback_repo_dir"
+fi
 
 # exit if cannot find local version
 if [ -z "$local_version" ]; then
-  notify-send -i "$iDIR/error.png" "ERROR "!?!?!!"" "Unable to find KooL's dots version . exiting.... "
+  notify-send -i "$iDIR/error.png" 'ERROR !?!?!!' "Unable to find KooL's dots version. Exiting."
   exit 1
 fi
 
 # GitHub URL - KooL's dots
-branch="main"
-github_url="https://github.com/JaKooLit/Hyprland-Dots/tree/$branch/config/hypr/"
+github_url="${repo_url%.git}/tree/$branch/config/hypr/"
+# Check for required tools (curl)
+if ! command -v curl &> /dev/null; then
+  notify-send -i "$iDIR/error.png" "Need curl:" "curl not found. Please install curl."
+  exit 1
+fi
 
 # Fetch the version from GitHub URL - KooL's dots
-github_version=$(curl -s $github_url | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' | sort -V | tail -n 1 | sed 's/v//')
+github_version=$(curl -fsSL -A "Mozilla/5.0" "$github_url" | grep -o 'v[0-9]\+\.[0-9]\+\.[0-9]\+' | sort -V | tail -n 1 | sed 's/v//')
 
 # Cant find  GitHub URL - KooL's dots version
 if [ -z "$github_version" ]; then
+  notify-send -i "$iDIR/error.png" 'KooL Hyprland:' "Unable to determine GitHub version."
   exit 1
 fi
 
@@ -39,15 +51,23 @@ else
 
   case "$response" in
     "action1")  
-      if [ -d $KooL_Dots_DIR ]; then
+      if [ -d "$KooL_Dots_DIR" ]; then
       	if ! command -v kitty &> /dev/null; then
   			notify-send -i "$iDIR/error.png" "E-R-R-O-R" "Kitty terminal not found. Please install Kitty terminal."
   			exit 1
 		fi
         kitty -e bash -c "
-          cd $KooL_Dots_DIR &&
-          git stash &&
-          git pull &&
+          cd \"$KooL_Dots_DIR\" &&
+          git stash -u &&
+          git fetch --all --tags &&
+          if git rev-parse --abbrev-ref --symbolic-full-name \"@{u}\" >/dev/null 2>&1; then
+            git pull --ff-only
+          elif git show-ref --verify --quiet \"refs/remotes/origin/$branch\"; then
+            git merge --ff-only \"origin/$branch\"
+          else
+            echo 'No upstream branch configured for update.' &&
+            exit 1
+          fi &&
           ./copy.sh &&
 		  notify-send -u critical -i "$iDIR/ja.png" 'Update Completed:' 'Kindly log out and relogin to take effect'
         "
@@ -58,8 +78,8 @@ else
   			exit 1
 		fi
         kitty -e bash -c "
-          git clone --depth=1 https://github.com/JaKooLit/Hyprland-Dots.git $KooL_Dots_DIR &&
-          cd $KooL_Dots_DIR &&
+          git clone --depth=1 --branch \"$branch\" \"$repo_url\" \"$KooL_Dots_DIR\" &&
+          cd \"$KooL_Dots_DIR\" &&
           chmod +x copy.sh &&
           ./copy.sh &&
 		  notify-send -u critical -i "$iDIR/ja.png" 'Update Completed:' 'Kindly log out and relogin to take effect'
