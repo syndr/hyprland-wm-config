@@ -16,6 +16,7 @@ color_scheme="prefer-dark"
 gtk_theme="Flat-Remix-GTK-Blue-Dark"
 icon_theme="Flat-Remix-Blue-Dark"
 cursor_theme="Bibata-Modern-Ice"
+force_theme_bootstrap="${FORCE_THEME_BOOTSTRAP:-0}"
 
 swww="swww img"
 effect="--transition-bezier .43,1.19,1,.4 --transition-fps 30 --transition-type grow --transition-pos 0.925,0.977 --transition-duration 2"
@@ -30,24 +31,36 @@ if [ ! -f "$HOME/.config/hypr/.initial_startup_done" ]; then
 	    "$scriptsDir/WallustSwww.sh" > /dev/null 2>&1 & 
 	fi
      
-    # initiate GTK dark mode and apply icon and cursor theme
-    gsettings set org.gnome.desktop.interface color-scheme $color_scheme > /dev/null 2>&1 &
-    gsettings set org.gnome.desktop.interface gtk-theme $gtk_theme > /dev/null 2>&1 &
-    gsettings set org.gnome.desktop.interface icon-theme $icon_theme > /dev/null 2>&1 &
-    gsettings set org.gnome.desktop.interface cursor-theme $cursor_theme > /dev/null 2>&1 &
-    gsettings set org.gnome.desktop.interface cursor-size 24 > /dev/null 2>&1 &
+    local_theme_present=0
+    for theme_file in       "$HOME/.config/gtk-3.0/settings.ini"       "$HOME/.config/gtk-4.0/settings.ini"       "$HOME/.config/qt5ct/qt5ct.conf"       "$HOME/.config/qt6ct/qt6ct.conf"       "$HOME/.config/Kvantum/kvantum.kvconfig"       "$HOME/.config/xsettingsd/xsettingsd.conf"       "$HOME/.config/kdeglobals"; do
+      if [ -f "$theme_file" ]; then
+        local_theme_present=1
+        break
+      fi
+    done
 
-     # NIXOS initiate GTK dark mode and apply icon and cursor theme
-	if [ -n "$(grep -i nixos < /etc/os-release)" ]; then
-      gsettings set org.gnome.desktop.interface color-scheme "'$color_scheme'" > /dev/null 2>&1 &
-      dconf write /org/gnome/desktop/interface/gtk-theme "'$gtk_theme'" > /dev/null 2>&1 &
-      dconf write /org/gnome/desktop/interface/icon-theme "'$icon_theme'" > /dev/null 2>&1 &
-      dconf write /org/gnome/desktop/interface/cursor-theme "'$cursor_theme'" > /dev/null 2>&1 &
-      dconf write /org/gnome/desktop/interface/cursor-size "24" > /dev/null 2>&1 &
-	fi
-       
-    # initiate kvantum theme
-    kvantummanager --set "$kvantum_theme" > /dev/null 2>&1 &
+    if [ "$force_theme_bootstrap" = "1" ] || [ "$local_theme_present" -eq 0 ]; then
+      # initiate GTK dark mode and apply icon and cursor theme
+      gsettings set org.gnome.desktop.interface color-scheme $color_scheme > /dev/null 2>&1 &
+      gsettings set org.gnome.desktop.interface gtk-theme $gtk_theme > /dev/null 2>&1 &
+      gsettings set org.gnome.desktop.interface icon-theme $icon_theme > /dev/null 2>&1 &
+      gsettings set org.gnome.desktop.interface cursor-theme $cursor_theme > /dev/null 2>&1 &
+      gsettings set org.gnome.desktop.interface cursor-size 24 > /dev/null 2>&1 &
+
+      # NIXOS initiate GTK dark mode and apply icon and cursor theme
+	  if [ -n "$(grep -i nixos < /etc/os-release)" ]; then
+        gsettings set org.gnome.desktop.interface color-scheme "'$color_scheme'" > /dev/null 2>&1 &
+        dconf write /org/gnome/desktop/interface/gtk-theme "'$gtk_theme'" > /dev/null 2>&1 &
+        dconf write /org/gnome/desktop/interface/icon-theme "'$icon_theme'" > /dev/null 2>&1 &
+        dconf write /org/gnome/desktop/interface/cursor-theme "'$cursor_theme'" > /dev/null 2>&1 &
+        dconf write /org/gnome/desktop/interface/cursor-size "24" > /dev/null 2>&1 &
+	  fi
+
+      # initiate kvantum theme
+      kvantummanager --set "$kvantum_theme" > /dev/null 2>&1 &
+    else
+      echo "Preserving existing local GTK/Qt/Kvantum theme state."
+    fi
 
 	# waybar style
 	#if [ -L "$HOME/.config/waybar/config" ]; then

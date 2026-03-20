@@ -19,7 +19,12 @@ msg='☣️ NOTE ☣️: Clicking with Mouse or Pressing ENTER will have NO func
 
 # collect raw bind lines (strip end-of-line comments) from available files
 files=("$keybinds_conf" "$user_keybinds_conf")
-[[ -f "$laptop_conf" ]] && files+=("$laptop_conf")
+
+# Only include laptop binds if Hyprland actually sources the laptop config.
+hyprland_conf="$HOME/.config/hypr/hyprland.conf"
+if [[ -f "$laptop_conf" && -f "$hyprland_conf" ]] && grep -Eq '^[[:space:]]*source[[:space:]]*=[[:space:]]*\$UserConfigs/Laptops\.conf([[:space:]]*#.*)?$' "$hyprland_conf"; then
+  files+=("$laptop_conf")
+fi
 
 # Parse binds using the python script for speed
 # The last argument must be the user config for override logic to work correctly

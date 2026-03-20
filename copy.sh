@@ -34,6 +34,7 @@ wallpaper=$HOME/.config/hypr/wallpaper_effects/.wallpaper_current
 waybar_style="$HOME/.config/waybar/style/[Dark] Greenscreen.css"
 waybar_config="$HOME/.config/waybar/configs/[TOP] Everforest"
 waybar_config_laptop="$HOME/.config/waybar/configs/[TOP] Default Laptop"
+chassis_type_file="$HOME/.config/hypr/.chassis_type"
 
 # Set some colors for output messages
 OK="$(tput setaf 2)[OK]$(tput sgr0)"
@@ -59,6 +60,7 @@ PROMPTS_HELPER="$SCRIPT_DIR/scripts/lib_prompts.sh"
 APPS_HELPER="$SCRIPT_DIR/scripts/lib_apps.sh"
 COPY_HELPER="$SCRIPT_DIR/scripts/lib_copy.sh"
 UPDATE_HELPER="$SCRIPT_DIR/scripts/lib_update.sh"
+AUDIT_HELPER="$SCRIPT_DIR/scripts/lib_audit.sh"
 if [ -f "$MENU_HELPER" ]; then
   # shellcheck source=./scripts/copy_menu.sh
   . "$MENU_HELPER"
@@ -103,6 +105,13 @@ if [ -f "$UPDATE_HELPER" ]; then
   . "$UPDATE_HELPER"
 else
   echo "${ERROR} Update helper not found at $UPDATE_HELPER. Exiting."
+  exit 1
+fi
+if [ -f "$AUDIT_HELPER" ]; then
+  # shellcheck source=./scripts/lib_audit.sh
+  . "$AUDIT_HELPER"
+else
+  echo "${ERROR} Audit helper not found at $AUDIT_HELPER. Exiting."
   exit 1
 fi
 
@@ -562,7 +571,7 @@ chmod +x "$HOME/.config/hypr/UserScripts/"* 2>&1 | tee -a "$LOG"
 # Set executable for initial-boot.sh
 chmod +x "$HOME/.config/hypr/initial-boot.sh" 2>&1 | tee -a "$LOG"
 
-chassis_type=$(detect_waybar_config)
+chassis_type=$(resolve_chassis_type "$LOG")
 if [ "$chassis_type" = "desktop" ]; then
   config_file="$waybar_config"
   config_remove=" Laptop"
@@ -678,6 +687,8 @@ printf "\n%.0s" {1..1}
 
 # initialize wallust to avoid config error on hyprland
 wallust run -s $wallpaper 2>&1 | tee -a "$LOG"
+
+run_post_upgrade_audit "$LOG"
 
 printf "\n%.0s" {1..2}
 printf "${OK} GREAT! KooL's Hyprland-Dots is now Loaded & Ready !!! "

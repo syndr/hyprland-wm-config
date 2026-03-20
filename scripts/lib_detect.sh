@@ -39,11 +39,27 @@ detect_nixos_adjust() {
   fi
 }
 
-# Decide waybar config/style based on chassis type. Echoes chosen config path.
-detect_waybar_config() {
-  if hostnamectl | grep -q 'Chassis: desktop'; then
-    echo "desktop"
-  else
-    echo "laptop"
+# Resolve chassis type, preferring a saved explicit choice over hostnamectl.
+resolve_chassis_type() {
+  local log="$1"
+  local chassis_type_file="$HOME/.config/hypr/.chassis_type"
+  local detected="desktop"
+
+  if hostnamectl | grep -q 'Chassis: laptop'; then
+    detected="laptop"
   fi
+
+  if [ -f "$chassis_type_file" ]; then
+    local saved
+    saved=$(tr '[:upper:]' '[:lower:]' <"$chassis_type_file" | tr -d '[:space:]')
+    if [ "$saved" = "desktop" ] || [ "$saved" = "laptop" ]; then
+      echo "$saved"
+      return 0
+    fi
+  fi
+
+  mkdir -p "$(dirname "$chassis_type_file")"
+  printf '%s\n' "$detected" >"$chassis_type_file"
+  echo "${INFO:-[INFO]} Saved chassis type as $detected in $chassis_type_file" 2>&1 | tee -a "$log" >/dev/null
+  echo "$detected"
 }

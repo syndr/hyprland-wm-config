@@ -1,6 +1,44 @@
 #!/usr/bin/env bash
 # Copy helpers split into phases to keep copy.sh lean.
 
+snapshot_theme_state() {
+  local state_dir="$1"
+  mkdir -p "$state_dir"
+
+  local theme_files=(
+    "$HOME/.config/qt5ct/qt5ct.conf"
+    "$HOME/.config/qt6ct/qt6ct.conf"
+    "$HOME/.config/Kvantum/kvantum.kvconfig"
+    "$HOME/.config/gtk-3.0/settings.ini"
+    "$HOME/.config/gtk-4.0/settings.ini"
+    "$HOME/.config/xsettingsd/xsettingsd.conf"
+    "$HOME/.config/kdeglobals"
+    "$HOME/.config/plasmarc"
+  )
+
+  for src in "${theme_files[@]}"; do
+    [ -f "$src" ] || continue
+    local rel="${src#$HOME/.config/}"
+    mkdir -p "$state_dir/$(dirname "$rel")"
+    cp -p "$src" "$state_dir/$rel"
+  done
+}
+
+restore_theme_state() {
+  local state_dir="$1"
+  local log="$2"
+  [ -d "$state_dir" ] || return 0
+
+  while IFS= read -r -d '' saved; do
+    local rel="${saved#$state_dir/}"
+    local dst="$HOME/.config/$rel"
+    mkdir -p "$(dirname "$dst")"
+    cp -p "$saved" "$dst" 2>&1 | tee -a "$log"
+  done < <(find "$state_dir" -type f -print0)
+
+  echo "${INFO:-[INFO]} Restored local visual theme state from pre-upgrade snapshot." 2>&1 | tee -a "$log"
+}
+
 copy_phase1() {
   local log="$1"
   local dirs="fastfetch kitty rofi swaync"
@@ -111,6 +149,9 @@ copy_waybar() {
 copy_phase2() {
   local log="$1"
   local DIR="btop cava copyq hypr Kvantum qt5ct qt6ct swappy wallust wlogout"
+  local theme_state_dir="${HOME}/.config/.theme-state-pre-copy"
+
+  snapshot_theme_state "$theme_state_dir"
   for DIR_NAME in $DIR; do
     local DIRPATH="$HOME/.config/$DIR_NAME"
     if [ -d "$DIRPATH" ]; then
@@ -125,6 +166,7 @@ copy_phase2() {
       echo "${ERROR:-[ERROR]} - Directory config/$DIR_NAME does not exist to copy." 2>&1 | tee -a "$log"
     fi
   done
+  restore_theme_state "$theme_state_dir" "$log"
   install_terminal_configs "$log"
 }
 
@@ -201,19 +243,11 @@ cleanup_duplicate_userconfigs() {
   local current_version="$1"
   local log="$2"
 
-  if [ -z "$current_version" ]; then
-    return
+  if [ -n "$current_version" ]; then
+    echo "${INFO:-[INFO]} Running UserConfigs duplicate cleanup for detected version v$current_version." 2>&1 | tee -a "$log"
+  else
+    echo "${INFO:-[INFO]} Running UserConfigs duplicate cleanup." 2>&1 | tee -a "$log"
   fi
-
-  # Run de-dupe only for existing installs up to and including v2.3.19.
-  # For v2.3.20 and newer, the underlying duplication bug is fixed and
-  # this cleanup is no longer needed (and might mask future issues).
-  if version_gte "$current_version" "2.3.20"; then
-    echo "${INFO:-[INFO]} Skipping UserConfigs duplicate cleanup for detected version v$current_version (>= 2.3.20)." 2>&1 | tee -a "$log"
-    return
-  fi
-
-  echo "${INFO:-[INFO]} Running UserConfigs duplicate cleanup for detected version v$current_version (<= 2.3.19)." 2>&1 | tee -a "$log"
 
   local HYPR_DIR="$HOME/.config/hypr"
   local BASE_DIR="$HYPR_DIR/configs"
