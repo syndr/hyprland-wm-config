@@ -27,6 +27,7 @@ snapshot_theme_state() {
 restore_theme_state() {
   local state_dir="$1"
   local log="$2"
+  local restored=0
   [ -d "$state_dir" ] || return 0
 
   while IFS= read -r -d '' saved; do
@@ -34,9 +35,27 @@ restore_theme_state() {
     local dst="$HOME/.config/$rel"
     mkdir -p "$(dirname "$dst")"
     cp -p "$saved" "$dst" 2>&1 | tee -a "$log"
+    restored=1
   done < <(find "$state_dir" -type f -print0)
 
-  echo "${INFO:-[INFO]} Restored local visual theme state from pre-upgrade snapshot." 2>&1 | tee -a "$log"
+  if [ "$restored" -eq 1 ]; then
+    echo "${INFO:-[INFO]} Restored local visual theme state from pre-upgrade snapshot." 2>&1 | tee -a "$log"
+  fi
+}
+
+finalize_upgrade_bootstrap_state() {
+  local log="$1"
+  local upgrade_mode="$2"
+  local hypr_dir="$HOME/.config/hypr"
+  local startup_marker="$hypr_dir/.initial_startup_done"
+  local preserve_marker="$hypr_dir/.preserve_theme_state"
+
+  [ "$upgrade_mode" -eq 1 ] || return 0
+
+  mkdir -p "$hypr_dir"
+  : >"$startup_marker"
+  rm -f "$preserve_marker"
+  echo "${INFO:-[INFO]} Preserved initial boot completion marker for upgrade workflow." 2>&1 | tee -a "$log"
 }
 
 copy_phase1() {

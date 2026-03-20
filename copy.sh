@@ -502,6 +502,10 @@ printf "\n%.0s" {1..1}
 
 restore_hypr_files "$LOG" "$EXPRESS_MODE"
 printf "\n%.0s" {1..1}
+
+finalize_upgrade_bootstrap_state "$LOG" "$UPGRADE_MODE"
+printf "\n%.0s" {1..1}
+
 printf "\n%.0s" {1..1}
 
 # Define the target directory for rofi themes

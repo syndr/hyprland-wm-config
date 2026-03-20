@@ -25,6 +25,8 @@ qt5ct_dark="$HOME/.config/qt5ct/colors/Catppuccin-Mocha.conf"
 qt5ct_light="$HOME/.config/qt5ct/colors/Catppuccin-Latte.conf"
 qt6ct_dark="$HOME/.config/qt6ct/colors/Catppuccin-Mocha.conf"
 qt6ct_light="$HOME/.config/qt6ct/colors/Catppuccin-Latte.conf"
+kvantum_dark="catppuccin-mocha-blue"
+kvantum_light="catppuccin-latte-blue"
 active_theme_family="Hackerer"
 
 load_theme_family() {
@@ -40,6 +42,9 @@ load_theme_family() {
     MANAGE_ICON_THEME="${MANAGE_ICON_THEME:-0}"
     MANAGE_QT_THEME="${MANAGE_QT_THEME:-0}"
     MANAGE_WALLUST_PALETTE="${MANAGE_WALLUST_PALETTE:-1}"
+    GTK_THEME_MISSING_POLICY="${GTK_THEME_MISSING_POLICY:-legacy}"
+    ICON_THEME_MISSING_POLICY="${ICON_THEME_MISSING_POLICY:-legacy}"
+    QT_THEME_MISSING_POLICY="${QT_THEME_MISSING_POLICY:-legacy}"
 }
 
 pick_mode_value() {
@@ -64,6 +69,57 @@ set_gtk_theme_direct() {
         flatpak --user override --filesystem=$HOME/.themes >/dev/null 2>&1 || true
         [ -n "$gtk_theme" ] && flatpak --user override --env=GTK_THEME="$gtk_theme" >/dev/null 2>&1 || true
     fi
+}
+
+theme_exists() {
+    local kind="$1"
+    local candidate="$2"
+    [ -n "$candidate" ] || return 1
+
+    case "$kind" in
+    gtk)
+        [ -d "$HOME/.themes/$candidate" ]
+        ;;
+    icon)
+        [ -d "$HOME/.icons/$candidate" ] || [ -d "$HOME/.local/share/icons/$candidate" ] || [ -d "/usr/share/icons/$candidate" ]
+        ;;
+    cursor)
+        [ -d "$HOME/.icons/$candidate" ] || [ -d "$HOME/.local/share/icons/$candidate" ] || [ -d "/usr/share/icons/$candidate" ]
+        ;;
+    qt_scheme)
+        [ -f "$candidate" ]
+        ;;
+    kvantum)
+        [ -f "$HOME/.config/Kvantum/$candidate/$candidate.kvconfig" ]
+        ;;
+    *)
+        return 1
+        ;;
+    esac
+}
+
+resolve_component_mode() {
+    local manage_flag="$1"
+    local kind="$2"
+    local candidate="$3"
+    local missing_policy="$4"
+
+    if [ "$manage_flag" = "1" ] && theme_exists "$kind" "$candidate"; then
+        printf 'direct\n'
+        return 0
+    fi
+
+    case "$missing_policy" in
+    legacy)
+        printf 'legacy\n'
+        ;;
+    keep | skip)
+        printf 'skip\n'
+        ;;
+    *)
+        printf 'legacy\n'
+        ;;
+    esac
 }
 
 set_icon_theme_direct() {
@@ -135,6 +191,31 @@ selected_cursor_theme="$(pick_mode_value "${DARK_CURSOR_THEME:-}" "${LIGHT_CURSO
 selected_kvantum_theme="$(pick_mode_value "${DARK_KVANTUM_THEME:-}" "${LIGHT_KVANTUM_THEME:-}")"
 selected_waybar_style="$(pick_mode_value "${DARK_WAYBAR_STYLE:-}" "${LIGHT_WAYBAR_STYLE:-}")"
 
+use_direct_gtk_theme=0
+use_direct_icon_theme=0
+use_direct_qt_theme=0
+gtk_theme_mode="$(resolve_component_mode "$MANAGE_GTK_THEME" gtk "$selected_gtk_theme" "$GTK_THEME_MISSING_POLICY")"
+icon_theme_mode="$(resolve_component_mode "$MANAGE_ICON_THEME" icon "$selected_icon_theme" "$ICON_THEME_MISSING_POLICY")"
+
+if [ "$gtk_theme_mode" = "direct" ]; then
+    use_direct_gtk_theme=1
+fi
+
+if [ "$icon_theme_mode" = "direct" ]; then
+    use_direct_icon_theme=1
+fi
+
+if [ "$MANAGE_QT_THEME" = "1" ] && theme_exists qt_scheme "$qt5ct_color_scheme" && theme_exists qt_scheme "$qt6ct_color_scheme" && theme_exists kvantum "$selected_kvantum_theme"; then
+    use_direct_qt_theme=1
+elif [ "$QT_THEME_MISSING_POLICY" = "legacy" ]; then
+    qt5ct_color_scheme="$(pick_mode_value "$qt5ct_dark" "$qt5ct_light")"
+    qt6ct_color_scheme="$(pick_mode_value "$qt6ct_dark" "$qt6ct_light")"
+    selected_kvantum_theme="$(pick_mode_value "$kvantum_dark" "$kvantum_light")"
+    if theme_exists qt_scheme "$qt5ct_color_scheme" && theme_exists qt_scheme "$qt6ct_color_scheme" && theme_exists kvantum "$selected_kvantum_theme"; then
+        use_direct_qt_theme=1
+    fi
+fi
+
 update_theme_mode() {
     echo "$next_mode" > "$HOME/.cache/.theme_mode"
 }
@@ -190,8 +271,8 @@ fi
 
 $swww "${next_wallpaper}" $effect
 
-# Set Kvantum Manager theme & QT5/QT6 settings only when explicitly enabled.
-if [ "$MANAGE_QT_THEME" = "1" ]; then
+# Set Kvantum Manager theme & QT5/QT6 settings only when a complete profile is available.
+if [ "$use_direct_qt_theme" = "1" ]; then
     sed -i "s|^color_scheme_path=.*$|color_scheme_path=$qt5ct_color_scheme|" "$HOME/.config/qt5ct/qt5ct.conf"
     sed -i "s|^color_scheme_path=.*$|color_scheme_path=$qt6ct_color_scheme|" "$HOME/.config/qt6ct/qt6ct.conf"
     [ -n "$selected_kvantum_theme" ] && kvantummanager --set "$selected_kvantum_theme"
@@ -205,44 +286,25 @@ else
 fi
 
 # GTK and icon theme management via explicit family config; otherwise keep legacy fallback.
-set_custom_gtk_theme() {
+set_custom_icon_theme() {
     mode=$1
-    gtk_themes_directory="$HOME/.themes"
     icon_directory="$HOME/.icons"
-    color_setting="org.gnome.desktop.interface color-scheme"
-    theme_setting="org.gnome.desktop.interface gtk-theme"
     icon_setting="org.gnome.desktop.interface icon-theme"
 
     if [ "$mode" == "Light" ]; then
         search_keywords="*Light*"
-        gsettings set $color_setting 'prefer-light'
     elif [ "$mode" == "Dark" ]; then
         search_keywords="*Dark*"
-        gsettings set $color_setting 'prefer-dark'
     else
         echo "Invalid mode provided."
         return 1
     fi
 
-    themes=()
     icons=()
-
-    while IFS= read -r -d '' theme_search; do
-        themes+=("$(basename "$theme_search")")
-    done < <(find "$gtk_themes_directory" -maxdepth 1 -type d -iname "$search_keywords" -print0)
 
     while IFS= read -r -d '' icon_search; do
         icons+=("$(basename "$icon_search")")
     done < <(find "$icon_directory" -maxdepth 1 -type d -iname "$search_keywords" -print0)
-
-    if [ ${#themes[@]} -gt 0 ]; then
-        selected_theme=${themes[RANDOM % ${#themes[@]}]}
-        gsettings set $theme_setting "$selected_theme"
-        if command -v flatpak &> /dev/null; then
-            flatpak --user override --filesystem=$HOME/.themes >/dev/null 2>&1 || true
-            flatpak --user override --env=GTK_THEME="$selected_theme" >/dev/null 2>&1 || true
-        fi
-    fi
 
     if [ ${#icons[@]} -gt 0 ]; then
         selected_icon=${icons[RANDOM % ${#icons[@]}]}
@@ -256,19 +318,54 @@ set_custom_gtk_theme() {
     fi
 }
 
-if [ "$MANAGE_GTK_THEME" = "1" ]; then
+set_custom_gtk_theme() {
+    mode=$1
+    gtk_themes_directory="$HOME/.themes"
+    color_setting="org.gnome.desktop.interface color-scheme"
+    theme_setting="org.gnome.desktop.interface gtk-theme"
+
+    if [ "$mode" == "Light" ]; then
+        search_keywords="*Light*"
+        gsettings set $color_setting 'prefer-light'
+    elif [ "$mode" == "Dark" ]; then
+        search_keywords="*Dark*"
+        gsettings set $color_setting 'prefer-dark'
+    else
+        echo "Invalid mode provided."
+        return 1
+    fi
+
+    themes=()
+
+    while IFS= read -r -d '' theme_search; do
+        themes+=("$(basename "$theme_search")")
+    done < <(find "$gtk_themes_directory" -maxdepth 1 -type d -iname "$search_keywords" -print0)
+
+    if [ ${#themes[@]} -gt 0 ]; then
+        selected_theme=${themes[RANDOM % ${#themes[@]}]}
+        gsettings set $theme_setting "$selected_theme"
+        if command -v flatpak &> /dev/null; then
+            flatpak --user override --filesystem=$HOME/.themes >/dev/null 2>&1 || true
+            flatpak --user override --env=GTK_THEME="$selected_theme" >/dev/null 2>&1 || true
+        fi
+    fi
+}
+
+if [ "$use_direct_gtk_theme" -eq 1 ]; then
     if [ "$next_mode" = "Light" ]; then
         gsettings set org.gnome.desktop.interface color-scheme 'prefer-light'
     else
         gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
     fi
     set_gtk_theme_direct "$selected_gtk_theme" "$selected_cursor_theme"
-else
+elif [ "$gtk_theme_mode" = "legacy" ]; then
     set_custom_gtk_theme "$next_mode"
 fi
 
-if [ "$MANAGE_ICON_THEME" = "1" ]; then
+if [ "$use_direct_icon_theme" -eq 1 ]; then
     set_icon_theme_direct "$selected_icon_theme"
+elif [ "$icon_theme_mode" = "legacy" ]; then
+    set_custom_icon_theme "$next_mode"
 fi
 
 update_theme_mode

@@ -41,6 +41,7 @@ The project has two major workstreams:
    - family name
    - dark assets
    - light assets
+   - missing-asset policy per component
    - Qt palette files
    - Kvantum theme name
    - GTK theme names
