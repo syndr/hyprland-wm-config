@@ -64,6 +64,10 @@ copy_phase1() {
   for DIR2 in $dirs; do
     local DIRPATH="$HOME/.config/$DIR2"
     if [ -d "$DIRPATH" ]; then
+      if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+        echo -e "${NOTE:-[NOTE]} Express mode: preserving existing ${YELLOW:-}$DIR2${RESET:-} config." 2>&1 | tee -a "$log"
+        continue
+      fi
       while true; do
         printf "\n${INFO:-[INFO]} Found ${YELLOW:-}$DIR2${RESET:-} config found in ~/.config/\n"
         echo -n "${CAT:-[ACTION]} Do you want to replace ${YELLOW:-}$DIR2${RESET:-} config? (y/n): "
@@ -107,6 +111,10 @@ copy_waybar() {
   local DIRW="waybar"
   local DIRPATHw="$HOME/.config/$DIRW"
   if [ -d "$DIRPATHw" ]; then
+    if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+      echo -e "${NOTE:-[NOTE]} Express mode: preserving existing ${YELLOW:-}$DIRW${RESET:-} config." 2>&1 | tee -a "$log"
+      return
+    fi
     while true; do
       echo -n "${CAT:-[ACTION]} Do you want to replace ${YELLOW:-}$DIRW${RESET:-} config? (y/n): "
       read DIR1_CHOICE

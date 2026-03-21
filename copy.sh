@@ -328,19 +328,7 @@ ensure_keybinds_init "$LOG"
 printf "\n%.0s" {1..1}
 
 choose_default_editor "$LOG"
-resolution=""
-while true; do
-  echo "${INFO} Select monitor resolution for scaling:"
-  echo "  1) < 1440p   (lower DPI; smaller displays)"
-  echo "  2) ≥ 1440p   (default; 1440p/2k/4k)"
-  echo -n "${CAT} Enter the number of your choice (1 or 2): "
-  read -r choice
-  case "$choice" in
-    1) resolution="< 1440p"; break ;;
-    2) resolution="≥ 1440p"; break ;;
-    *) echo "${ERROR} Invalid choice. Please enter 1 or 2.";;
-  esac
-done
+resolution="$(prompt_resolution_choice)"
 echo "${OK} You have chosen $resolution resolution." 2>&1 | tee -a "$LOG"
 if [ "$resolution" == "< 1440p" ]; then
   # kitty font size
@@ -397,6 +385,8 @@ if command -v ags >/dev/null 2>&1; then
     if [ -d "config/ags" ]; then
       cp -r "config/ags/" "$DIRPATH_AGS" 2>&1 | tee -a "$LOG"
     fi
+  elif [ "$EXPRESS_MODE" -eq 1 ]; then
+    echo "${NOTE} - Express mode: preserving existing ags config."
   else
     read -p "${CAT} Do you want to overwrite your existing ${YELLOW}ags${RESET} config? [y/N] " answer_ags
     case "$answer_ags" in
@@ -438,6 +428,8 @@ if command -v qs >/dev/null 2>&1; then
     if [ -d "config/quickshell" ]; then
       cp -r "config/quickshell/" "$DIRPATH_QS" 2>&1 | tee -a "$LOG"
     fi
+  elif [ "$EXPRESS_MODE" -eq 1 ]; then
+    echo "${NOTE} - Express mode: preserving existing quickshell config."
   else
     # If default shell.qml exists, it blocks named config subdirectory detection
     # Remove it to enable the overview config to be found
@@ -563,6 +555,7 @@ for theme_zip in assets/themes/*.zip; do
     # Rename extracted dir to match zip name (for -Dark suffix)
     extracted_dir=$(unzip -Z1 "$theme_zip" | head -1 | cut -d'/' -f1)
     if [ "$extracted_dir" != "$theme_name" ] && [ -d "$gtk_themes_DIR/$extracted_dir" ]; then
+      rm -rf "$gtk_themes_DIR/$theme_name"
       mv "$gtk_themes_DIR/$extracted_dir" "$gtk_themes_DIR/$theme_name"
     fi
   fi

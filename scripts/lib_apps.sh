@@ -88,6 +88,10 @@ install_terminal_configs() {
 
 choose_default_editor() {
   local log="$1"
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+    echo "${NOTE:-[NOTE]} Express mode: preserving existing default editor." 2>&1 | tee -a "$log"
+    return
+  fi
   local editor_set=0
   update_editor() {
     local editor=$1

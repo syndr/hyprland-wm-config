@@ -22,6 +22,13 @@ prompt_keyboard_layout() {
   local layout="$1"
   local log="$2"
 
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ] && [ "$layout" = "(unset)" ]; then
+    local existing_layout
+    existing_layout=$(awk -F'= ' '/^[[:space:]]*kb_layout[[:space:]]*=/ {print $2; exit}' "$HOME/.config/hypr/UserConfigs/UserSettings.conf" 2>/dev/null)
+    [ -z "$existing_layout" ] && existing_layout=$(awk -F'= ' '/^[[:space:]]*kb_layout[[:space:]]*=/ {print $2; exit}' "$HOME/.config/hypr/configs/SystemSettings.conf" 2>/dev/null)
+    [ -n "$existing_layout" ] && layout="$existing_layout"
+  fi
+
   if [ "$layout" = "(unset)" ]; then
     while true; do
       printf "\n%.0s" {1..1}
@@ -59,6 +66,13 @@ ${MAGENTA} NOTE:${RESET}
   fi
 
   printf "${NOTE} Detecting keyboard layout to prepare proper Hyprland Settings\n"
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+    printf "${INFO} Current keyboard layout is ${MAGENTA}$layout${RESET}\n"
+    awk -v layout="$layout" '/kb_layout/ {$0 = "  kb_layout = " layout} 1' config/hypr/configs/SystemSettings.conf >temp.conf
+    mv temp.conf config/hypr/configs/SystemSettings.conf
+    echo "${NOTE} Express mode: auto-confirmed keyboard layout ${MAGENTA}$layout${RESET}." 2>&1 | tee -a "$log"
+    return
+  fi
   while true; do
     printf "${INFO} Current keyboard layout is ${MAGENTA}$layout${RESET}\n"
     echo -n "${CAT} Is this correct? [y/n] "
@@ -109,6 +123,19 @@ ${MAGENTA} NOTE:${RESET}
 
 # Prompt for resolution choice; echoes "< 1440p" or "≥ 1440p".
 prompt_resolution_choice() {
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+    if grep -Eq '([2-9][0-9]{3}x(14|16|21|28)[0-9]{2}|x1440|x1600|x2160|x2880)' "$HOME/.config/hypr/monitors.conf" 2>/dev/null; then
+      echo "≥ 1440p"
+    elif grep -Eq '([1-9][0-9]{2,3}x(7|8|9|10)[0-9]{2}|x720|x768|x900|x1080)' "$HOME/.config/hypr/monitors.conf" 2>/dev/null; then
+      echo "< 1440p"
+    elif grep -q 'Hyprlock config for < 1080p monitor resolutions' "$HOME/.config/hypr/hyprlock.conf" 2>/dev/null; then
+      echo "< 1440p"
+    else
+      echo "≥ 1440p"
+    fi
+    return
+  fi
+
   local choice
   while true; do
     echo "${INFO:-[INFO]} Select monitor resolution for scaling:"
@@ -131,6 +158,10 @@ prompt_resolution_choice() {
 # Prompt for 12H clock; sets waybar/hyprlock/SDDM changes when accepted.
 prompt_clock_12h() {
   local log="$1"
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+    echo "${NOTE} Express mode: preserving existing clock format." 2>&1 | tee -a "$log"
+    return
+  fi
   while true; do
     echo -e "${NOTE} ${SKY_BLUE} By default, KooL's Dots are configured in 24H clock format."
     echo -n "$CAT Do you want to change to 12H (AM/PM) clock format? (y/n): "
