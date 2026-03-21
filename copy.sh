@@ -144,7 +144,7 @@ Usage: copy.sh [--upgrade] [--express-upgrade] [--help]
 
 Options:
   --upgrade           Run the script in upgrade mode (can still prompt for express).
-  --express-upgrade   Upgrade with express behavior (no restore prompts, trims backups).
+  --express-upgrade   Fast upgrade that preserves user-owned state automatically and trims backups.
   -h, --help          Show this help message and exit.
 EOF
 }
@@ -299,7 +299,7 @@ if [ "$UPGRADE_MODE" -eq 1 ]; then
   echo "${INFO} Upgrade mode enabled." 2>&1 | tee -a "$LOG"
 fi
 if [ "$EXPRESS_MODE" -eq 1 ]; then
-  echo "${INFO} Express mode enabled. Optional restore prompts will be skipped." 2>&1 | tee -a "$LOG"
+  echo "${INFO} Express mode enabled. User-owned state will be preserved automatically while optional prompts are skipped." 2>&1 | tee -a "$LOG"
 fi
 
 detect_nvidia_adjust "$LOG"

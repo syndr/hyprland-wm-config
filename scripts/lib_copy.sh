@@ -148,8 +148,10 @@ copy_waybar() {
             [ -e "$target_file" ] || cp "$file" "$HOME/.config/waybar/style/"
           fi
         done || true
-        BACKUP_FILEw="$DIRPATHw-backup-$BACKUP_DIR/UserModules"
-        [ -f "$BACKUP_FILEw" ] && cp -f "$BACKUP_FILEw" "$DIRPATHw/UserModules"
+        for backup_name in ModulesWorkspaces UserModules; do
+          BACKUP_FILEw="$DIRPATHw-backup-$BACKUP_DIR/$backup_name"
+          [ -f "$BACKUP_FILEw" ] && cp -f "$BACKUP_FILEw" "$DIRPATHw/$backup_name"
+        done
         break
         ;;
       [Nn]*)
@@ -201,20 +203,19 @@ restore_hypr_assets() {
 
   if [ -d "$BACKUP_HYPR_PATH" ]; then
     if [ "$express_mode" -eq 1 ]; then
-      echo "${NOTE:-[NOTE]} Express mode: skipping automatic restoration of animations and monitor profiles." 2>&1 | tee -a "$log"
-      return
+      echo "${NOTE:-[NOTE]} Express mode: preserving monitor and workspace layout, skipping optional animation/wallpaper asset restore." 2>&1 | tee -a "$log"
+    else
+      echo -e "\n${NOTE:-[NOTE]} Restoring ${SKY_BLUE:-}Animations & Monitor Profiles${RESET:-} into ${YELLOW:-}$HYPR_DIR${RESET:-}..."
+
+      local DIR_B=("Monitor_Profiles" "animations" "wallpaper_effects")
+      for DIR_RESTORE in "${DIR_B[@]}"; do
+        local BACKUP_SUBDIR="$BACKUP_HYPR_PATH/$DIR_RESTORE"
+        if [ -d "$BACKUP_SUBDIR" ]; then
+          cp -r "$BACKUP_SUBDIR" "$HYPR_DIR/" 2>&1 | tee -a "$log"
+          echo "${OK:-[OK]} - Restored directory: ${MAGENTA:-}$DIR_RESTORE${RESET:-}" 2>&1 | tee -a "$log"
+        fi
+      done
     fi
-
-    echo -e "\n${NOTE:-[NOTE]} Restoring ${SKY_BLUE:-}Animations & Monitor Profiles${RESET:-} into ${YELLOW:-}$HYPR_DIR${RESET:-}..."
-
-    local DIR_B=("Monitor_Profiles" "animations" "wallpaper_effects")
-    for DIR_RESTORE in "${DIR_B[@]}"; do
-      local BACKUP_SUBDIR="$BACKUP_HYPR_PATH/$DIR_RESTORE"
-      if [ -d "$BACKUP_SUBDIR" ]; then
-        cp -r "$BACKUP_SUBDIR" "$HYPR_DIR/" 2>&1 | tee -a "$log"
-        echo "${OK:-[OK]} - Restored directory: ${MAGENTA:-}$DIR_RESTORE${RESET:-}" 2>&1 | tee -a "$log"
-      fi
-    done
 
     local FILE_B=("monitors.conf" "workspaces.conf")
     for FILE_RESTORE in "${FILE_B[@]}"; do
@@ -395,15 +396,14 @@ restore_user_configs() {
     exit 1
   fi
 
-  # In express mode we still want to run the de-dupe logic, but we skip
-  # the interactive restoration prompts so the workflow stays non-blocking.
-  local SKIP_RESTORE_PROMPTS=0
+  # Express mode should preserve user-owned config automatically rather than
+  # treating skipped prompts as permission to overwrite local state.
   if [ -d "$BACKUP_DIR_PATH" ] && [ "$express_mode" -eq 1 ]; then
-    echo "${NOTE:-[NOTE]} Express mode: skipping UserConfigs restoration prompts." 2>&1 | tee -a "$log"
-    SKIP_RESTORE_PROMPTS=1
-  fi
-
-  if [ -d "$BACKUP_DIR_PATH" ] && [ "$SKIP_RESTORE_PROMPTS" -eq 0 ]; then
+    echo "${NOTE:-[NOTE]} Express mode: automatically restoring UserConfigs from backup." 2>&1 | tee -a "$log"
+    mkdir -p "$DIRPATH/UserConfigs"
+    rsync -a "$BACKUP_DIR_PATH/" "$DIRPATH/UserConfigs/" 2>&1 | tee -a "$log"
+    echo "${OK:-[OK]} - UserConfigs directory restored." 2>&1 | tee -a "$log"
+  elif [ -d "$BACKUP_DIR_PATH" ]; then
     local VERSION_FILE
     VERSION_FILE=$(find "$DIRPATH" -maxdepth 1 -name "v*.*.*" | head -n 1)
     local CURRENT_VERSION="999.9.9"
@@ -445,6 +445,7 @@ restore_user_configs() {
         "UserAnimations.conf"
         "UserKeybinds.conf"
         "UserSettings.conf"
+        "WorkspaceKeybinds.conf"
         "WindowRules.conf"
       )
 
@@ -504,7 +505,10 @@ restore_user_scripts() {
   local SCRIPTS_TO_RESTORE=("RofiBeats.sh" "Weather.py" "Weather.sh")
 
   if [ -d "$BACKUP_DIR_PATH_S" ] && [ "$express_mode" -eq 1 ]; then
-    echo "${NOTE:-[NOTE]} Express mode: skipping UserScripts restoration prompts." 2>&1 | tee -a "$log"
+    echo "${NOTE:-[NOTE]} Express mode: automatically restoring UserScripts from backup." 2>&1 | tee -a "$log"
+    mkdir -p "$DIRSHPATH/UserScripts"
+    rsync -a "$BACKUP_DIR_PATH_S/" "$DIRSHPATH/UserScripts/" 2>&1 | tee -a "$log"
+    echo "${OK:-[OK]} - UserScripts directory restored." 2>&1 | tee -a "$log"
     return
   fi
 
@@ -542,7 +546,17 @@ restore_hypr_files() {
   local FILES_2_RESTORE=("hyprlock.conf" "hypridle.conf")
 
   if [ -d "$BACKUP_DIR_PATH_F" ] && [ "$express_mode" -eq 1 ]; then
-    echo "${NOTE:-[NOTE]} Express mode: skipping individual hypr file restoration prompts." 2>&1 | tee -a "$log"
+    echo "${NOTE:-[NOTE]} Express mode: automatically restoring user-owned hypr files from backup." 2>&1 | tee -a "$log"
+    for FILE_RESTORE in "${FILES_2_RESTORE[@]}"; do
+      local BACKUP_FILE="$BACKUP_DIR_PATH_F/$FILE_RESTORE"
+      if [ -f "$BACKUP_FILE" ]; then
+        if cp "$BACKUP_FILE" "$DIRPATH/$FILE_RESTORE"; then
+          echo "${OK:-[OK]} - $FILE_RESTORE restored." 2>&1 | tee -a "$log"
+        else
+          echo "${ERROR:-[ERROR]} - Failed to restore $FILE_RESTORE!" 2>&1 | tee -a "$log"
+        fi
+      fi
+    done
     return
   fi
 

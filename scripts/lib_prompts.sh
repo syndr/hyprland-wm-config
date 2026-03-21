@@ -224,7 +224,7 @@ prompt_express_upgrade() {
       echo "${NOTE} Express mode requires installed dotfiles v${MIN_EXPRESS_VERSION} or newer. Continuing with standard upgrade prompts." 2>&1 | tee -a "$log"
     else
       while true; do
-        echo "${NOTE} Express mode skips config restore prompts, SDDM/background questions, and trims old backups."
+        echo "${NOTE} Express mode preserves UserConfigs and other host-specific state automatically, skips optional prompts, and trims old backups."
         if ! read -r -p "${CAT} Do you want to continue with EXPRESS upgrade mode? (y/N): " express_choice </dev/tty; then
           echo "${ERROR} Unable to read input for express choice; defaulting to standard prompts." 2>&1 | tee -a "$log"
           break
