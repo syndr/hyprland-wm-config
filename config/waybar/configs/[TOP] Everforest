@@ -28,8 +28,8 @@
 	"hyprland/workspaces#rw",
 	"custom/separator#blank_2",
 //	"mpris",
-	"group/notify",
 	"tray",
+	"group/notify",
 	],
 "modules-center": [
 	"clock#forest",
@@ -144,4 +144,3 @@
 	"on-click-right": "kitty --title nvtop sh -c 'nvtop'"
 },
 }
-

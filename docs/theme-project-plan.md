@@ -69,6 +69,9 @@ The project has two major workstreams:
    - how a family is defined
    - how dark/light resolution works
    - how to add a new family
+9. Split custom Waybar theme assets from upstream presets.
+   - create a dedicated `Hackerer` Waybar config/style instead of continuing to mutate the upstream Everforest preset
+   - keep upstream preset names stable so updates and visual diffs stay understandable
 
 ### Risks
 
