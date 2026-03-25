@@ -196,7 +196,46 @@ copy_phase2() {
     fi
   done
   restore_theme_state "$theme_state_dir" "$log"
+  restore_copyq_state "$log"
   install_terminal_configs "$log"
+}
+
+restore_copyq_state() {
+  local log="$1"
+  local copyq_dir="$HOME/.config/copyq"
+  local backup_dir
+  backup_dir=$(find "$HOME/.config" -maxdepth 1 -type d -name 'copyq-backup-*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2-)
+
+  [ -n "$backup_dir" ] || return 0
+  [ -d "$backup_dir" ] || return 0
+  [ -d "$copyq_dir" ] || return 0
+
+  local restored_any=0
+  local source_path
+  for source_path in "$backup_dir"/*; do
+    [ -e "$source_path" ] || continue
+
+    local file_name
+    file_name=$(basename "$source_path")
+    case "$file_name" in
+    copyq.conf | copyq.lock | .copyq_s)
+      continue
+      ;;
+    esac
+
+    if [ -d "$source_path" ]; then
+      rm -rf "$copyq_dir/$file_name"
+      cp -r "$source_path" "$copyq_dir/$file_name" 2>&1 | tee -a "$log"
+    else
+      cp -f "$source_path" "$copyq_dir/$file_name" 2>&1 | tee -a "$log"
+    fi
+    restored_any=1
+  done
+
+  if [ "$restored_any" -eq 1 ]; then
+    chmod 600 "$copyq_dir/copyq.pub" 2>/dev/null || true
+    echo "${OK:-[OK]} - Restored CopyQ stateful files from backup." 2>&1 | tee -a "$log"
+  fi
 }
 
 # Restore Animations and Monitor Profiles plus key hypr files from backup
