@@ -31,8 +31,8 @@
 
 clear
 wallpaper=$HOME/.config/hypr/wallpaper_effects/.wallpaper_current
-waybar_style="$HOME/.config/waybar/style/[Dark] Greenscreen.css"
-waybar_config="$HOME/.config/waybar/configs/[TOP] Everforest"
+waybar_style="$HOME/.config/waybar/style/[Dark] Hackerer.css"
+waybar_config="$HOME/.config/waybar/configs/[TOP] Hackerer"
 waybar_config_laptop="$HOME/.config/waybar/configs/[TOP] Default Laptop"
 chassis_type_file="$HOME/.config/hypr/.chassis_type"
 
