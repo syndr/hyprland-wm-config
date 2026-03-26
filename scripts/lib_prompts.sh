@@ -211,6 +211,55 @@ prompt_clock_12h() {
   done
 }
 
+set_focus_transparency_preference() {
+  local enabled="$1"
+  local rules_file="config/hypr/UserConfigs/WindowRules.conf"
+  local override_comment="# Disable focus-based transparency from vendor per-tag opacity rules."
+  local override_rule="windowrule = match:class ^(.*)$, opacity 1.0 1.0"
+
+  [ -f "$rules_file" ] || return 0
+
+  awk -v comment="$override_comment" -v rule="$override_rule" '
+    $0 != comment && $0 != rule { print }
+  ' "$rules_file" > "${rules_file}.tmp"
+  mv "${rules_file}.tmp" "$rules_file"
+
+  if [ "$enabled" = "0" ]; then
+    printf "\n%s\n%s\n" "$override_comment" "$override_rule" >> "$rules_file"
+  fi
+}
+
+prompt_focus_transparency() {
+  local log="$1"
+
+  if [ "${UPGRADE_MODE:-0}" -eq 1 ] || [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+    echo "${NOTE:-[NOTE]} Upgrade flow: preserving existing focus-transparency preference." 2>&1 | tee -a "$log"
+    return
+  fi
+
+  while true; do
+    echo "${NOTE:-[NOTE]} By default, unfocused windows use the shipped transparency behavior."
+    echo -n "${CAT:-[ACTION]} Keep focus-based transparency enabled? [Y/n]: "
+    read -r answer
+    answer=$(echo "${answer:-y}" | tr '[:upper:]' '[:lower:]')
+    case "$answer" in
+      y|yes)
+        set_focus_transparency_preference "1"
+        echo "${OK:-[OK]} Keeping focus-based transparency enabled by default." 2>&1 | tee -a "$log"
+        return
+        ;;
+      n|no)
+        set_focus_transparency_preference "0"
+        echo "${OK:-[OK]} Disabled focus-based transparency in the user window-rules overlay." 2>&1 | tee -a "$log"
+        return
+        ;;
+      *)
+        echo "${ERROR:-[ERROR]} Invalid choice. Please enter y for yes or n for no."
+        ;;
+    esac
+  done
+}
+
 apply_sddm_12h_format() {
   local sddm_directory="$1"
   local log="$2"

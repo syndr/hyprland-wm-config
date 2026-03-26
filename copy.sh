@@ -353,6 +353,8 @@ fi
 printf "\n%.0s" {1..1}
 prompt_clock_12h "$LOG"
 printf "\n%.0s" {1..1}
+prompt_focus_transparency "$LOG"
+printf "\n%.0s" {1..1}
 printf "\n%.0s" {1..1}
 prompt_express_upgrade "$EXPRESS_SUPPORTED" "$LOG"
 
