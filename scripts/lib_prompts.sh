@@ -21,6 +21,15 @@ prompt_detect_layout() {
 prompt_keyboard_layout() {
   local layout="$1"
   local log="$2"
+  local config_root="${WORK_CONFIG_DIR:-config}"
+  local temp_conf
+
+  write_system_settings_with_layout() {
+    local new_layout="$1"
+    temp_conf=$(mktemp)
+    awk -v layout="$new_layout" '/kb_layout/ {$0 = "  kb_layout = " layout} 1' "$config_root/hypr/configs/SystemSettings.conf" >"$temp_conf"
+    mv "$temp_conf" "$config_root/hypr/configs/SystemSettings.conf"
+  }
 
   if [ "${EXPRESS_MODE:-0}" -eq 1 ] && [ "$layout" = "(unset)" ]; then
     local existing_layout
@@ -68,8 +77,7 @@ ${MAGENTA} NOTE:${RESET}
   printf "${NOTE} Detecting keyboard layout to prepare proper Hyprland Settings\n"
   if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
     printf "${INFO} Current keyboard layout is ${MAGENTA}$layout${RESET}\n"
-    awk -v layout="$layout" '/kb_layout/ {$0 = "  kb_layout = " layout} 1' config/hypr/configs/SystemSettings.conf >temp.conf
-    mv temp.conf config/hypr/configs/SystemSettings.conf
+    write_system_settings_with_layout "$layout"
     echo "${NOTE} Express mode: auto-confirmed keyboard layout ${MAGENTA}$layout${RESET}." 2>&1 | tee -a "$log"
     return
   fi
@@ -79,8 +87,7 @@ ${MAGENTA} NOTE:${RESET}
     read keyboard_layout
     case $keyboard_layout in
       [yY])
-        awk -v layout="$layout" '/kb_layout/ {$0 = "  kb_layout = " layout} 1' config/hypr/configs/SystemSettings.conf >temp.conf
-        mv temp.conf config/hypr/configs/SystemSettings.conf
+        write_system_settings_with_layout "$layout"
         echo "${NOTE} kb_layout ${MAGENTA}$layout${RESET} configured in settings." 2>&1 | tee -a "$log"
         break
         ;;
@@ -109,8 +116,7 @@ ${MAGENTA} NOTE:${RESET}
         printf "\n%.0s" {1..1}
         echo -n "${CAT} - Please enter the correct keyboard layout: "
         read new_layout
-        awk -v new_layout="$new_layout" '/kb_layout/ {$0 = "  kb_layout = " new_layout} 1' config/hypr/configs/SystemSettings.conf >temp.conf
-        mv temp.conf config/hypr/configs/SystemSettings.conf
+        write_system_settings_with_layout "$new_layout"
         echo "${OK} kb_layout $new_layout configured in settings." 2>&1 | tee -a "$log"
         break
         ;;
@@ -158,6 +164,7 @@ prompt_resolution_choice() {
 # Prompt for 12H clock; sets waybar/hyprlock/SDDM changes when accepted.
 prompt_clock_12h() {
   local log="$1"
+  local config_root="${WORK_CONFIG_DIR:-config}"
   if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
     echo "${NOTE} Express mode: preserving existing clock format." 2>&1 | tee -a "$log"
     return
@@ -169,20 +176,20 @@ prompt_clock_12h() {
     answer=$(echo "$answer" | tr '[:upper:]' '[:lower:]')
     if [[ "$answer" == "y" ]]; then
       # waybar clocks
-      sed -i 's#^\(\s*\)//\("format": " {:%I:%M %p}",\) #\1\2 #g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": " {:%H:%M:%S}",\) #\1//\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": "  {:%H:%M}",\) #\1//\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)//\("format": "{:%I:%M %p - %d/%b}",\) #\1\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": "{:%H:%M - %d/%b}",\) #\1//\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)//\("format": "{:%B | %a %d, %Y | %I:%M %p}",\) #\1\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": "{:%B | %a %d, %Y | %H:%M}",\) #\1//\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)//\("format": "{:%A, %I:%M %P}",\) #\1\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": "{:%a %d | %H:%M}",\) #\1//\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)//\("format": " {:%I:%M %p}",\) #\1\2 #g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": " {:%H:%M:%S}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": "  {:%H:%M}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)//\("format": "{:%I:%M %p - %d/%b}",\) #\1\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": "{:%H:%M - %d/%b}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)//\("format": "{:%B | %a %d, %Y | %I:%M %p}",\) #\1\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": "{:%B | %a %d, %Y | %H:%M}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)//\("format": "{:%A, %I:%M %P}",\) #\1\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": "{:%a %d | %H:%M}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
 
       # hyprlock
-      local HYPRLOCK_FILE="config/hypr/hyprlock.conf"
-      if [ ! -f "$HYPRLOCK_FILE" ] && [ -f "config/hypr/hyprlock-1080p.conf" ]; then
-        HYPRLOCK_FILE="config/hypr/hyprlock-1080p.conf"
+      local HYPRLOCK_FILE="$config_root/hypr/hyprlock.conf"
+      if [ ! -f "$HYPRLOCK_FILE" ] && [ -f "$config_root/hypr/hyprlock-1080p.conf" ]; then
+        HYPRLOCK_FILE="$config_root/hypr/hyprlock-1080p.conf"
       fi
       if [ -f "$HYPRLOCK_FILE" ]; then
         sed -i 's/^\s*text = cmd\[update:1000\] echo \"\$(date +\"%H\")\"/# &/' "$HYPRLOCK_FILE" 2>&1 | tee -a "$log"
@@ -213,7 +220,8 @@ prompt_clock_12h() {
 
 set_focus_transparency_preference() {
   local enabled="$1"
-  local rules_file="config/hypr/UserConfigs/WindowRules.conf"
+  local config_root="${WORK_CONFIG_DIR:-config}"
+  local rules_file="$config_root/hypr/UserConfigs/WindowRules.conf"
   local override_comment="# Disable focus-based transparency from vendor per-tag opacity rules."
   local override_rule="windowrule = match:class ^(.*)$, opacity 1.0 1.0"
 

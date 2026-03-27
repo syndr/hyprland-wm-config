@@ -75,8 +75,14 @@ run_post_upgrade_audit() {
       local chassis_type_file="$hypr_dir/.chassis_type"
       local chassis_type=""
       [ -f "$chassis_type_file" ] && chassis_type=$(tr '[:upper:]' '[:lower:]' <"$chassis_type_file" | tr -d '[:space:]')
-      if [ "$chassis_type" != "laptop" ]; then
-        audit_warn "laptop config is sourced, but saved chassis type is not laptop"
+      local laptops_conf="$hypr_dir/UserConfigs/Laptops.conf"
+      local laptop_display_conf="$hypr_dir/UserConfigs/LaptopDisplay.conf"
+      if [ "$chassis_type" != "laptop" ] &&
+         {
+           grep -Eq '^[[:space:]]*(bindl|exec-once)[[:space:]]*=' "$laptops_conf" 2>/dev/null ||
+           grep -Eq '^[[:space:]]*monitor[[:space:]]*=' "$laptop_display_conf" 2>/dev/null
+         }; then
+        audit_warn "desktop host has active laptop-only config in Laptops.conf or LaptopDisplay.conf"
       fi
     fi
   fi

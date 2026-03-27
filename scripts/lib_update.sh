@@ -10,7 +10,7 @@
 #   * Waits for user input before returning control to caller.
 run_repo_update() {
   local repo_dir="${1:-$(pwd)}"
-  local log_dir="$repo_dir/Copy-Logs"
+  local log_dir="${WORK_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/kool-dots/install-logs}"
   local log_file="$log_dir/update-$(date +%d-%H%M%S)_git.log"
 
   mkdir -p "$log_dir"
