@@ -6,6 +6,13 @@
 local_dir="$HOME/.config/hypr"
 iDIR="$HOME/.config/swaync/images/"
 local_version=$(find "$local_dir" -maxdepth 1 -name 'v*' -printf '%f\n' 2>/dev/null | sort -V | tail -n 1 | sed 's/^v//')
+update_config_file="$HOME/.config/hypr/UserConfigs/KooLsDotsUpdate.conf"
+
+if [ -f "$update_config_file" ]; then
+  # shellcheck disable=SC1090
+  . "$update_config_file"
+fi
+
 KooL_Dots_DIR="${KOOL_DOTS_DIR:-${HYPRLAND_DOTS_DIR:-$HOME/hyprland-wm-config}}"
 fallback_repo_dir="$HOME/Hyprland-Dots"
 repo_url="${KOOL_DOTS_REPO_URL:-${HYPRLAND_DOTS_REPO_URL:-https://github.com/syndr/hyprland-wm-config.git}}"
