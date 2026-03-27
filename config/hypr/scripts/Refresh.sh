@@ -15,17 +15,12 @@ file_exists() {
 }
 
 # Kill already running processes
-_ps=(waybar rofi swaync ags)
+_ps=(rofi swaync ags)
 for _prs in "${_ps[@]}"; do
   if pidof "${_prs}" >/dev/null; then
     pkill "${_prs}"
   fi
 done
-
-# added since wallust sometimes not applying
-killall -SIGUSR2 waybar
-# Added sleep for GameMode causing multiple waybar
-sleep 0.1
 
 # quit ags & relaunch ags
 ags -q && ags &
@@ -34,14 +29,20 @@ ags -q && ags &
 #pkill qs && qs &
 
 # some process to kill
-for pid in $(pidof waybar rofi swaync ags swaybg); do
+for pid in $(pidof rofi swaync ags swaybg); do
   kill -SIGUSR1 "$pid"
   sleep 0.1
 done
 
-#Restart waybar
+# Reload Waybar in-place so the tray host survives
 sleep 0.1
-waybar &
+if command -v waybar-msg >/dev/null 2>&1; then
+  waybar-msg cmd reload >/dev/null 2>&1 || true
+elif pidof waybar >/dev/null; then
+  killall -SIGUSR2 waybar 2>/dev/null || true
+else
+  waybar >/dev/null 2>&1 &
+fi
 
 # relaunch swaync
 sleep 0.3
