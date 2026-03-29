@@ -381,7 +381,9 @@ tooltip label {
   color: @fg_bright;
   border-bottom: 1px solid @fg;
   background-color: transparent;
-  min-width: 22px;
+  min-width: 0;
+  padding-top: 1px;
+  padding-bottom: 1px;
   padding-left: 7px;
   padding-right: 19px;
   transition: background-color 240ms ease, color 240ms ease, box-shadow 240ms ease;

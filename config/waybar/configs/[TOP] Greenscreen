@@ -86,8 +86,10 @@
 },
 "custom/phalanx": {
       "format":" 󱚝",
-      "tooltip": false,
-      "on-click": "rofi -show drun"
+      "tooltip": true,
+      "on-click": "$HOME/.config/hypr/scripts/RofiLauncher.sh",
+      "on-click-middle": "pkill rofi || rofi -show drun -modi run,drun,filebrowser,window",
+      "tooltip-format": "Left Click: Launcher menu\nMiddle Click: Unified Rofi launcher"
 },
 "clock#forest": {
       "format": "{:%A %d.%b.%Y - %H:%M}",
