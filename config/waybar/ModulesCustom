@@ -118,6 +118,18 @@
 	"escape": false
 },
 
+"custom/audio_cap": {
+	"format": " ",
+	"interval": "once",
+	"tooltip": false
+},
+
+"custom/audio_left_cap": {
+	"format": " ",
+	"interval": "once",
+	"tooltip": false
+},
+
 "custom/lock": {
 	"format": "󰌾",
 	"on-click": "$HOME/.config/hypr/scripts/LockScreen.sh",
@@ -230,6 +242,11 @@
 },
 "custom/separator#blank_2": {
 	"format": "  ",
+	"interval": "once",
+	"tooltip": false
+},
+"custom/separator#blank_tight": {
+	"format": "",
 	"interval": "once",
 	"tooltip": false
 },

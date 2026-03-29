@@ -114,6 +114,7 @@ tooltip label {
 #custom-weather.showyIcyDay,
 #custom-weather.snowyIcyNight,
 #custom-weather.sunnyDay {
+  background-color: @bg_dark;
   padding-top: 2px;
   padding-bottom: 2px;
   padding-right: 6px;
@@ -126,7 +127,15 @@ tooltip label {
   color: @fg_muted;
   animation: gradient_f 20s ease-in infinite;
   transition: all 0.1s linear;
-  border: 1px solid transparent;
+  border: 2px solid transparent;
+  background-color: @bg_dark;
+  box-shadow: none;
+}
+
+#workspaces {
+  border: none;
+  border-bottom: 1px solid @fg;
+  background-color: @bg_dark;
 }
 
 #workspaces button.persistent {
@@ -139,23 +148,37 @@ tooltip label {
 
 #workspaces button.active {
   color: @fg_bright;
-  border: 1px solid @fg_dim;
+  border: 2px solid @fg;
   border-radius: 0px; /* RADIUS_MD */
   background: alpha(@bg_light, 0.5);
 }
 
 #workspaces button.urgent {
   color: @fg_accent;
-  border: 2px solid @fg_accent;
+  border-bottom: none;
   border-radius: 0px; /* RADIUS_MD */
   background: alpha(@bg_light, 0.7);
 }
 
 #workspaces button:hover {
-  color: @fg_bright;
-  border: 1px solid @fg;
+  color: @fg;
+  border: 2px solid transparent;
+  border-bottom: 1px solid @fg;
   border-radius: 0px; /* RADIUS_MD */
   background: transparent;
+  box-shadow: none;
+}
+
+#workspaces button.active:hover {
+  color: @fg_bright;
+  border: 2px solid @fg;
+  border-radius: 0px; /* RADIUS_MD */
+  background: alpha(@bg_light, 0.5);
+  box-shadow: none;
+}
+
+#workspaces button:hover label {
+  color: @fg;
 }
 
 #idle_inhibitor {
@@ -173,6 +196,7 @@ tooltip label {
 #clock {
   color: @fg_bright;
   padding-right: 7px;
+  border-bottom: 2px solid @fg;
 }
 
 #custom-swaync {
@@ -182,6 +206,15 @@ tooltip label {
   border-radius: 0px; /* RADIUS_LG */
   padding-left: 13px;
   padding-right: 12px;
+}
+
+#custom-nightlight {
+  color: @fg;
+  font-size: 90%;
+  border-top: 2px solid @fg;
+  border-bottom: 2px solid @fg;
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 #custom-keyboard {
@@ -346,6 +379,19 @@ tooltip label {
 
 #custom-phalanx {
   color: @fg_bright;
+  border-bottom: 1px solid @fg;
+  background-color: transparent;
+  min-width: 22px;
+  padding-left: 7px;
+  padding-right: 19px;
+  transition: background-color 240ms ease, color 240ms ease, box-shadow 240ms ease;
+  box-shadow: none;
+}
+
+#custom-phalanx:hover {
+  color: @bg_dark;
+  background-color: @fg_accent;
+  box-shadow: inset 0 0 0 1px @fg_accent, 0 0 6px alpha(@fg_accent, 0.35);
 }
 
 #custom-weather {
@@ -360,12 +406,48 @@ tooltip label {
   color: @fg;
   padding-left: 10px;
   padding-right: 12px;
+  border: none;
+  border-top: 2px solid @fg;
+  border-bottom: 2px solid @fg;
+  box-shadow: none;
 }
 
 #pulseaudio#microphone {
   padding-left: 6px;
   padding-right: 6px;
+  border: none;
+  border-top: 2px solid @fg;
+  border-bottom: 2px solid @fg;
+  box-shadow: none;
 }
+
+#custom-audio_cap {
+  min-width: 0;
+  font-size: 0;
+  color: transparent;
+  padding-left: 0;
+  padding-right: 0;
+  margin: 0;
+  margin-left: -1px;
+  border-right: 2px solid @fg;
+  border-bottom: none;
+  background-color: @bg_dark;
+}
+
+#custom-audio_left_cap {
+  min-width: 0;
+  font-size: 0;
+  color: transparent;
+  padding-left: 0;
+  padding-right: 0;
+  margin: 0;
+  margin-right: 0;
+  border-left: 2px solid @fg;
+  border-top: 2px solid @fg;
+  border-bottom: 2px solid @fg;
+  background-color: @bg_dark;
+}
+
 
 #pulseaudio.bluetooth {
   color: @fg_bright;

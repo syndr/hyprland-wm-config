@@ -25,11 +25,12 @@
 
 "modules-left": [
   "custom/phalanx",
-	"custom/separator#blank_2",
+	"custom/separator#blank_tight",
 	"hyprland/workspaces#rw",
 	"custom/separator#blank_2",
 //	"mpris",
 	"tray",
+	"custom/nightlight",
 	"group/notify",
 	],
 "modules-center": [
@@ -45,8 +46,9 @@
 	"backlight",
   "battery#forest",
 	"custom/separator#blank_2",
+	"custom/audio_left_cap",
 	"group/audio",
-	"custom/nightlight",
+	"custom/audio_cap",
 	],
 
 "group/notify": {
@@ -183,4 +185,3 @@
 	"on-click-right": "kitty --title nvtop sh -c 'nvtop'"
 },
 }
-
