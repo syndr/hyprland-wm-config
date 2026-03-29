@@ -24,6 +24,121 @@ snapshot_theme_state() {
   done
 }
 
+hackerer_theme_installed() {
+  [ -f "$HOME/.config/Kvantum/Hackerer-Dark/Hackerer-Dark.kvconfig" ] \
+    && [ -f "$HOME/.config/qt5ct/colors/Hackerer-Dark.colors" ] \
+    && [ -f "$HOME/.config/qt6ct/colors/Hackerer-Dark.colors" ] \
+    && [ -f "$HOME/.local/share/color-schemes/Hackerer.colors" ]
+}
+
+apply_hackerer_theme() {
+  local source_root="$1"
+  local config_root="$2"
+  local log="$3"
+  local profile="$config_root/hypr/themes/Hackerer.conf"
+  local gtk_theme="Hackerer-Dark"
+  local icon_theme="Sours-Full-Color"
+  local cursor_theme="broodwar"
+
+  mkdir -p "$HOME/.config/Kvantum" \
+    "$HOME/.config/qt5ct/colors" \
+    "$HOME/.config/qt6ct/colors" \
+    "$HOME/.config/hypr/UserConfigs" \
+    "$HOME/.local/share/color-schemes" \
+    "$HOME/.themes"
+
+  if [ -f "$profile" ]; then
+    # shellcheck disable=SC1090
+    source "$profile"
+    gtk_theme="${DARK_GTK_THEME:-$gtk_theme}"
+    icon_theme="${DARK_ICON_THEME:-$icon_theme}"
+    cursor_theme="${DARK_CURSOR_THEME:-$cursor_theme}"
+  fi
+
+  if [ -f "$source_root/assets/themes/Hackerer-Dark.zip" ]; then
+    unzip -q -o "$source_root/assets/themes/Hackerer-Dark.zip" -d "$HOME/.themes/" 2>&1 | tee -a "$log" || true
+    extracted_dir=$(unzip -Z1 "$source_root/assets/themes/Hackerer-Dark.zip" | head -1 | cut -d'/' -f1)
+    if [ -n "$extracted_dir" ] && [ "$extracted_dir" != "Hackerer-Dark" ] && [ -d "$HOME/.themes/$extracted_dir" ]; then
+      rm -rf "$HOME/.themes/Hackerer-Dark"
+      mv "$HOME/.themes/$extracted_dir" "$HOME/.themes/Hackerer-Dark" 2>&1 | tee -a "$log" || true
+    fi
+  fi
+
+  if [ -d "$config_root/Kvantum/Hackerer-Dark" ]; then
+    rm -rf "$HOME/.config/Kvantum/Hackerer-Dark"
+    cp -r "$config_root/Kvantum/Hackerer-Dark" "$HOME/.config/Kvantum/" 2>&1 | tee -a "$log"
+  fi
+
+  [ -f "$config_root/Kvantum/kvantum.kvconfig" ] \
+    && cp -f "$config_root/Kvantum/kvantum.kvconfig" "$HOME/.config/Kvantum/kvantum.kvconfig" 2>&1 | tee -a "$log"
+  [ -f "$config_root/qt5ct/qt5ct.conf" ] \
+    && cp -f "$config_root/qt5ct/qt5ct.conf" "$HOME/.config/qt5ct/qt5ct.conf" 2>&1 | tee -a "$log"
+  [ -f "$config_root/qt6ct/qt6ct.conf" ] \
+    && cp -f "$config_root/qt6ct/qt6ct.conf" "$HOME/.config/qt6ct/qt6ct.conf" 2>&1 | tee -a "$log"
+  [ -f "$config_root/qt5ct/colors/Hackerer-Dark.colors" ] \
+    && cp -f "$config_root/qt5ct/colors/Hackerer-Dark.colors" "$HOME/.config/qt5ct/colors/Hackerer-Dark.colors" 2>&1 | tee -a "$log"
+  [ -f "$config_root/qt6ct/colors/Hackerer-Dark.colors" ] \
+    && cp -f "$config_root/qt6ct/colors/Hackerer-Dark.colors" "$HOME/.config/qt6ct/colors/Hackerer-Dark.colors" 2>&1 | tee -a "$log"
+  [ -f "$config_root/color-schemes/Hackerer.colors" ] \
+    && cp -f "$config_root/color-schemes/Hackerer.colors" "$HOME/.local/share/color-schemes/Hackerer.colors" 2>&1 | tee -a "$log"
+  [ -f "$config_root/hypr/UserConfigs/ThemeConfig.conf" ] \
+    && cp -f "$config_root/hypr/UserConfigs/ThemeConfig.conf" "$HOME/.config/hypr/UserConfigs/ThemeConfig.conf" 2>&1 | tee -a "$log"
+
+  if command -v kwriteconfig6 >/dev/null 2>&1; then
+    kwriteconfig6 --file "$HOME/.config/kdeglobals" --group General --key ColorScheme "Hackerer" 2>&1 | tee -a "$log" || true
+    kwriteconfig6 --file "$HOME/.config/kdeglobals" --group KDE --key widgetStyle "kvantum" 2>&1 | tee -a "$log" || true
+  fi
+
+  if command -v kvantummanager >/dev/null 2>&1; then
+    kvantummanager --set "Hackerer-Dark" >/dev/null 2>&1 || true
+  fi
+
+  if command -v gsettings >/dev/null 2>&1; then
+    gsettings set org.gnome.desktop.interface color-scheme "prefer-dark" 2>&1 | tee -a "$log" || true
+    gsettings set org.gnome.desktop.interface gtk-theme "$gtk_theme" 2>&1 | tee -a "$log" || true
+    gsettings set org.gnome.desktop.interface icon-theme "$icon_theme" 2>&1 | tee -a "$log" || true
+    gsettings set org.gnome.desktop.interface cursor-theme "$cursor_theme" 2>&1 | tee -a "$log" || true
+  fi
+
+  echo "${OK:-[OK]} - Hackerer GTK/Qt/KDE theme installed and applied." 2>&1 | tee -a "$log"
+}
+
+prompt_apply_hackerer_theme() {
+  local source_root="$1"
+  local config_root="$2"
+  local log="$3"
+  local context="${4:-install}"
+
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+    if ! hackerer_theme_installed; then
+      echo "${NOTE:-[NOTE]} Express mode: leaving Hackerer theme uninstalled and preserving current visual state." 2>&1 | tee -a "$log"
+    fi
+    return 1
+  fi
+
+  while true; do
+    if [ "$context" = "update" ]; then
+      echo -n "${CAT:-[ACTION]} Install/apply the ${YELLOW:-}Hackerer${RESET:-} Qt/KDE theme after update? (y/n): "
+    else
+      echo -n "${CAT:-[ACTION]} Install/apply the ${YELLOW:-}Hackerer${RESET:-} Qt/KDE theme now? (y/n): "
+    fi
+    read apply_theme_choice
+    case "$apply_theme_choice" in
+    [Yy]*)
+      apply_hackerer_theme "$source_root" "$config_root" "$log"
+      return 0
+      ;;
+    [Nn]*)
+      echo "${NOTE:-[NOTE]} Leaving current GTK/Qt/KDE theme state unchanged." 2>&1 | tee -a "$log"
+      return 1
+      ;;
+    *)
+      echo "${WARN:-[WARN]} - Invalid choice. Please enter Y or N." 2>&1 | tee -a "$log"
+      ;;
+    esac
+  done
+}
+
 restore_theme_state() {
   local state_dir="$1"
   local log="$2"

@@ -218,7 +218,12 @@ if [ -z "$RUN_MODE" ]; then
         EXPRESS_MODE=1
         ;;
       update)
-        run_repo_update "$SCRIPT_DIR"
+        if run_repo_update "$SCRIPT_DIR"; then
+          update_log_dir="${WORK_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/kool-dots/install-logs}"
+          mkdir -p "$update_log_dir"
+          update_theme_log="$update_log_dir/update-theme-$(date +%d-%H%M%S).log"
+          prompt_apply_hackerer_theme "$SCRIPT_DIR" "$REPO_CONFIG_DIR" "$update_theme_log" "update"
+        fi
         # After update, continue showing the menu without exiting
         continue
         ;;
@@ -582,6 +587,8 @@ for theme_zip in assets/themes/*.zip; do
   fi
 done
 echo "${OK} GTK themes installed successfully." 2>&1 | tee -a "$LOG"
+
+prompt_apply_hackerer_theme "$SCRIPT_DIR" "$WORK_CONFIG_DIR" "$LOG" "install"
 
 # Set some files as executable
 chmod +x "$HOME/.config/hypr/scripts/"* 2>&1 | tee -a "$LOG"
