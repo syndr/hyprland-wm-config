@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# /* ---- 💫 https://github.com/JaKooLit 💫 ---- */  #
+
 set -euo pipefail
 
 direction="${1:-}"
@@ -20,10 +22,14 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
-focused_monitor="$(hyprctl -j monitors | jq -r '.[] | select(.focused == true) | .name' | head -n 1)"
+# Get focused monitor name and description
+focused_monitor_info=$(hyprctl -j monitors | jq -r '.[] | select(.focused == true) | "\(.name)|\(.description)"')
+focused_name="${focused_monitor_info%|*}"
+focused_desc="${focused_monitor_info#*|}"
+
 current_workspace="$(hyprctl activeworkspace -j | jq -r '.id')"
 
-[ -n "$focused_monitor" ] || exit 0
+[ -n "$focused_name" ] || exit 0
 [ -f "$workspaces_conf" ] || {
   if [ "$direction" = "next" ]; then
     hyprctl dispatch workspace e+1 >/dev/null 2>&1
@@ -34,14 +40,14 @@ current_workspace="$(hyprctl activeworkspace -j | jq -r '.id')"
 }
 
 mapfile -t monitor_workspaces < <(
-  awk -F',' -v monitor="$focused_monitor" '
+  awk -F',' -v mon_name="$focused_name" -v mon_desc="$focused_desc" '
     /^[[:space:]]*workspace[[:space:]]*=/ {
       ws = $1
       gsub(/^[[:space:]]*workspace[[:space:]]*=[[:space:]]*/, "", ws)
       for (i = 2; i <= NF; i++) {
         field = $i
         gsub(/^[[:space:]]+|[[:space:]]+$/, "", field)
-        if (field == "monitor:" monitor) {
+        if (field == "monitor:" mon_name || field == "monitor:desc:" mon_desc) {
           print ws
           break
         }

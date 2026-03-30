@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 
+# /* ---- 💫 https://github.com/JaKooLit 💫 ---- */  #
+
 set -euo pipefail
 
 mode="${1:-pick}"
-target_monitor="${2:-}"
+target_monitor="${2:-}" # Can be monitor name
 workspaces_conf="$HOME/.config/hypr/workspaces.conf"
 rofi_config="$HOME/.config/rofi/config.rasi"
 chooser_theme='window { location: northwest; anchor: northwest; x-offset: 8px; y-offset: 8px; width: 10em; } listview { lines: 4; }'
@@ -15,23 +17,38 @@ require_cmd() {
 require_cmd hyprctl
 require_cmd jq
 
-focused_monitor="$(hyprctl -j monitors | jq -r '.[] | select(.focused == true) | .name' | head -n1)"
-[ -n "$target_monitor" ] || target_monitor="$focused_monitor"
-current_workspace="$(hyprctl -j monitors | jq -r --arg mon "$target_monitor" '.[] | select(.name == $mon) | .activeWorkspace.id' | head -n1)"
+# Get focused monitor name and description
+focused_monitor_info=$(hyprctl -j monitors | jq -r '.[] | select(.focused == true) | "\(.name)|\(.description)"')
+focused_name="${focused_monitor_info%|*}"
+focused_desc="${focused_monitor_info#*|}"
 
-[ -n "$target_monitor" ] || exit 1
+[ -n "$target_monitor" ] || target_monitor="$focused_name"
+
+# To find workspaces, we need both name and description if we are targeting focused
+if [ "$target_monitor" = "$focused_name" ]; then
+    mon_name="$focused_name"
+    mon_desc="$focused_desc"
+else
+    # If target_monitor was passed, try to find its description
+    mon_name="$target_monitor"
+    mon_desc=$(hyprctl -j monitors | jq -r --arg name "$mon_name" '.[] | select(.name == $name) | .description')
+fi
+
+current_workspace="$(hyprctl -j monitors | jq -r --arg mon "$mon_name" '.[] | select(.name == $mon) | .activeWorkspace.id' | head -n1)"
+
+[ -n "$mon_name" ] || exit 1
 [ -n "$current_workspace" ] || exit 1
 
 mapfile -t monitor_workspaces < <(
   if [ -f "$workspaces_conf" ]; then
-    awk -F',' -v monitor="$target_monitor" '
+    awk -F',' -v mon_name="$mon_name" -v mon_desc="$mon_desc" '
       /^[[:space:]]*workspace[[:space:]]*=/ {
         ws = $1
         gsub(/^[[:space:]]*workspace[[:space:]]*=[[:space:]]*/, "", ws)
         for (i = 2; i <= NF; i++) {
           field = $i
           gsub(/^[[:space:]]+|[[:space:]]+$/, "", field)
-          if (field == "monitor:" monitor) {
+          if (field == "monitor:" mon_name || field == "monitor:desc:" mon_desc) {
             print ws
             break
           }
@@ -43,13 +60,13 @@ mapfile -t monitor_workspaces < <(
 
 if [ "${#monitor_workspaces[@]}" -eq 0 ]; then
   mapfile -t monitor_workspaces < <(
-    hyprctl -j workspaces | jq -r --arg mon "$target_monitor" '.[] | select(.monitor == $mon) | .id' | sort -n
+    hyprctl -j workspaces | jq -r --arg mon "$mon_name" '.[] | select(.monitor == $mon) | .id' | sort -n
   )
 fi
 
 if [ "$mode" = "--current" ]; then
   printf '{"text":"%s","tooltip":"Workspace %s on %s","class":"current-workspace"}\n' \
-    "$current_workspace" "$current_workspace" "$target_monitor"
+    "$current_workspace" "$current_workspace" "$mon_name"
   exit 0
 fi
 

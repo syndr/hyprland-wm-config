@@ -39,6 +39,8 @@
   "group/greenscreen-status",
   "custom/status_cap",
   "custom/separator#blank_1",
+  "battery#forest_narrow",
+  "custom/separator#blank_1",
   "custom/audio_left_cap_narrow",
   "group/audio",
   "custom/audio_cap"
@@ -91,8 +93,7 @@
     "network#speed_narrow",
     "temperature#forest_narrow",
     "disk#forest_narrow",
-    "backlight",
-    "battery#forest_narrow"
+    "backlight"
   ]
 },
 

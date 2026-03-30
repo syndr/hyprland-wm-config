@@ -618,3 +618,28 @@ window#waybar.greenscreen-narrow #tray {
     color: @bg_light;
   }
 }
+
+/* User requested bottom borders */
+window#waybar.greenscreen-wide #battery,
+window#waybar.greenscreen-wide #custom-settings,
+window#waybar.greenscreen-wide #custom-tty,
+window#waybar.greenscreen-wide #custom-file_manager,
+window#waybar.greenscreen-wide #custom-browser,
+window#waybar.greenscreen-wide #custom-cycle_wall,
+window#waybar.greenscreen-wide #custom-power,
+window#waybar.greenscreen-wide #custom-lock,
+window#waybar.greenscreen-wide #custom-hypridle {
+    border-bottom: 1px solid @fg;
+    padding-bottom: 1px;
+    padding-top: 1px;
+}
+
+
+/* User requested top and bottom borders for narrow battery */
+window#waybar.greenscreen-narrow #battery {
+    border-top: none;
+    border-bottom: 1px solid @fg;
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+

@@ -7,7 +7,7 @@ CONFIG_DIR="${WAYBAR_DIR}/configs"
 WIDE_TEMPLATE="${CONFIG_DIR}/[TOP] Greenscreen"
 NARROW_TEMPLATE="${CONFIG_DIR}/[TOP] Greenscreen Narrow"
 OUTPUT_FILE="${CONFIG_DIR}/[TOP] Greenscreen Auto"
-WIDTH_THRESHOLD="${WAYBAR_NARROW_THRESHOLD:-1400}"
+WIDTH_THRESHOLD="${WAYBAR_NARROW_THRESHOLD:-1500}"
 
 is_rotated_transform() {
   case "$1" in
