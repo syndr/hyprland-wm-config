@@ -99,7 +99,7 @@
 	"drawer": {
 		"transition-duration": 500,
 		"children-class": "custom/swaync",
-		"transition-left-to-right": false
+		"transition-left-to-right": true
         },
 	"modules": [
 		"custom/swaync",

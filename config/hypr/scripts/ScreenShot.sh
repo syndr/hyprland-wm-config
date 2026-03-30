@@ -119,6 +119,29 @@ shotarea() {
 	notify_view
 }
 
+shotarea_delay() {
+	countdown "$1"
+	sleep 1
+	shotarea
+}
+
+shotmonitor() {
+	local monitor_name
+	monitor_name=$(hyprctl -j monitors | jq -r '.[] | select(.focused == true) | .name' | head -n1)
+	[ -n "$monitor_name" ] || monitor_name=$(hyprctl monitors | awk '/^Monitor/{name=$2} /focused: yes/{print name; exit}')
+	[ -n "$monitor_name" ] || exit 1
+
+	cd "${dir}" && grim -o "$monitor_name" - | tee "$file" | wl-copy
+	sleep 1
+	notify_view
+}
+
+shotmonitor_delay() {
+	countdown "$1"
+	sleep 1
+	shotmonitor
+}
+
 shotactive() {
     active_window_class=$(hyprctl -j activewindow | jq -r '(.class)')
     active_window_file="Screenshot_${time}_${active_window_class}.png"
@@ -154,12 +177,22 @@ elif [[ "$1" == "--win" ]]; then
 	shotwin
 elif [[ "$1" == "--area" ]]; then
 	shotarea
+elif [[ "$1" == "--area-in5" ]]; then
+	shotarea_delay 5
+elif [[ "$1" == "--area-in10" ]]; then
+	shotarea_delay 10
+elif [[ "$1" == "--monitor" ]]; then
+	shotmonitor
+elif [[ "$1" == "--monitor-in5" ]]; then
+	shotmonitor_delay 5
+elif [[ "$1" == "--monitor-in10" ]]; then
+	shotmonitor_delay 10
 elif [[ "$1" == "--active" ]]; then
 	shotactive
 elif [[ "$1" == "--swappy" ]]; then
 	shotswappy
 else
-	echo -e "Available Options : --now --in5 --in10 --win --area --active --swappy"
+	echo -e "Available Options : --now --in5 --in10 --win --area --area-in5 --area-in10 --monitor --monitor-in5 --monitor-in10 --active --swappy"
 fi
 
 exit 0

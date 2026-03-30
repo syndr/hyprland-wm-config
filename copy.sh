@@ -32,8 +32,9 @@
 clear
 wallpaper=$HOME/.config/hypr/wallpaper_effects/.wallpaper_current
 waybar_style="$HOME/.config/waybar/style/[Dark] Greenscreen.css"
-waybar_config="$HOME/.config/waybar/configs/[TOP] Everforest"
-waybar_config_laptop="$HOME/.config/waybar/configs/[TOP] Default Laptop"
+waybar_config="$HOME/.config/waybar/configs/[TOP] Greenscreen"
+waybar_config_laptop="$HOME/.config/waybar/configs/[TOP] Greenscreen"
+chassis_type_file="$HOME/.config/hypr/.chassis_type"
 
 # Set some colors for output messages
 OK="$(tput setaf 2)[OK]$(tput sgr0)"
@@ -59,6 +60,12 @@ PROMPTS_HELPER="$SCRIPT_DIR/scripts/lib_prompts.sh"
 APPS_HELPER="$SCRIPT_DIR/scripts/lib_apps.sh"
 COPY_HELPER="$SCRIPT_DIR/scripts/lib_copy.sh"
 UPDATE_HELPER="$SCRIPT_DIR/scripts/lib_update.sh"
+AUDIT_HELPER="$SCRIPT_DIR/scripts/lib_audit.sh"
+REPO_CONFIG_DIR="$SCRIPT_DIR/config"
+WORK_ROOT=""
+WORK_CONFIG_DIR="$REPO_CONFIG_DIR"
+WORK_LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/kool-dots/install-logs"
+export REPO_CONFIG_DIR WORK_ROOT WORK_CONFIG_DIR WORK_LOG_DIR
 if [ -f "$MENU_HELPER" ]; then
   # shellcheck source=./scripts/copy_menu.sh
   . "$MENU_HELPER"
@@ -105,6 +112,13 @@ else
   echo "${ERROR} Update helper not found at $UPDATE_HELPER. Exiting."
   exit 1
 fi
+if [ -f "$AUDIT_HELPER" ]; then
+  # shellcheck source=./scripts/lib_audit.sh
+  . "$AUDIT_HELPER"
+else
+  echo "${ERROR} Audit helper not found at $AUDIT_HELPER. Exiting."
+  exit 1
+fi
 
 version_gte() {
   [ "$1" = "$(echo -e "$1\n$2" | sort -V | tail -n1)" ]
@@ -135,7 +149,7 @@ Usage: copy.sh [--upgrade] [--express-upgrade] [--help]
 
 Options:
   --upgrade           Run the script in upgrade mode (can still prompt for express).
-  --express-upgrade   Upgrade with express behavior (no restore prompts, trims backups).
+  --express-upgrade   Fast upgrade that preserves user-owned state automatically and trims backups.
   -h, --help          Show this help message and exit.
 EOF
 }
@@ -204,7 +218,12 @@ if [ -z "$RUN_MODE" ]; then
         EXPRESS_MODE=1
         ;;
       update)
-        run_repo_update "$SCRIPT_DIR"
+        if run_repo_update "$SCRIPT_DIR"; then
+          update_log_dir="${WORK_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/kool-dots/install-logs}"
+          mkdir -p "$update_log_dir"
+          update_theme_log="$update_log_dir/update-theme-$(date +%d-%H%M%S).log"
+          prompt_apply_hackerer_theme "$SCRIPT_DIR" "$REPO_CONFIG_DIR" "$update_theme_log" "update"
+        fi
         # After update, continue showing the menu without exiting
         continue
         ;;
@@ -276,12 +295,26 @@ echo "${MAGENTA}Kindly visit KooL Hyprland Own Wiki for changelogs${RESET}"
 printf "\n%.0s" {1..1}
 
 # Create Directory for Copy Logs
-if [ ! -d Copy-Logs ]; then
-  mkdir Copy-Logs
-fi
+mkdir -p "$WORK_LOG_DIR"
 
 # Set the name of the log file to include the current date and time
-LOG="Copy-Logs/install-$(date +%d-%H%M%S)_dotfiles.log"
+LOG="$WORK_LOG_DIR/install-$(date +%d-%H%M%S)_dotfiles.log"
+
+prepare_work_config_dir() {
+  local runtime_root
+  runtime_root="${XDG_RUNTIME_DIR:-/tmp}"
+  WORK_ROOT=$(mktemp -d "$runtime_root/kool-dots-copy.XXXXXX")
+  WORK_CONFIG_DIR="$WORK_ROOT/config"
+  export WORK_ROOT WORK_CONFIG_DIR
+  cp -r "$REPO_CONFIG_DIR" "$WORK_CONFIG_DIR"
+}
+
+cleanup_work_config_dir() {
+  [ -n "${WORK_ROOT:-}" ] && [ -d "${WORK_ROOT:-}" ] && rm -rf "$WORK_ROOT"
+}
+
+prepare_work_config_dir
+trap cleanup_work_config_dir EXIT
 
 # update home directories
 xdg-user-dirs-update 2>&1 | tee -a "$LOG" || true
@@ -290,7 +323,7 @@ if [ "$UPGRADE_MODE" -eq 1 ]; then
   echo "${INFO} Upgrade mode enabled." 2>&1 | tee -a "$LOG"
 fi
 if [ "$EXPRESS_MODE" -eq 1 ]; then
-  echo "${INFO} Express mode enabled. Optional restore prompts will be skipped." 2>&1 | tee -a "$LOG"
+  echo "${INFO} Express mode enabled. User-owned state will be preserved automatically while optional prompts are skipped." 2>&1 | tee -a "$LOG"
 fi
 
 detect_nvidia_adjust "$LOG"
@@ -299,7 +332,7 @@ detect_nixos_adjust "$LOG"
 
 # activating hyprcursor on env by checking if the directory ~/.icons/Bibata-Modern-Ice/hyprcursors exists
 if [ -d "$HOME/.icons/Bibata-Modern-Ice/hyprcursors" ]; then
-  HYPRCURSOR_ENV_FILE="config/hypr/configs/ENVariables.conf"
+  HYPRCURSOR_ENV_FILE="$WORK_CONFIG_DIR/hypr/configs/ENVariables.conf"
   echo "${INFO} Bibata-Hyprcursor directory detected. Activating Hyprcursor...." 2>&1 | tee -a "$LOG" || true
   sed -i 's/^#env = HYPRCURSOR_THEME,Bibata-Modern-Ice/env = HYPRCURSOR_THEME,Bibata-Modern-Ice/' "$HYPRCURSOR_ENV_FILE"
   sed -i 's/^#env = HYPRCURSOR_SIZE,24/env = HYPRCURSOR_SIZE,24/' "$HYPRCURSOR_ENV_FILE"
@@ -319,34 +352,22 @@ ensure_keybinds_init "$LOG"
 printf "\n%.0s" {1..1}
 
 choose_default_editor "$LOG"
-resolution=""
-while true; do
-  echo "${INFO} Select monitor resolution for scaling:"
-  echo "  1) < 1440p   (lower DPI; smaller displays)"
-  echo "  2) ≥ 1440p   (default; 1440p/2k/4k)"
-  echo -n "${CAT} Enter the number of your choice (1 or 2): "
-  read -r choice
-  case "$choice" in
-    1) resolution="< 1440p"; break ;;
-    2) resolution="≥ 1440p"; break ;;
-    *) echo "${ERROR} Invalid choice. Please enter 1 or 2.";;
-  esac
-done
+resolution="$(prompt_resolution_choice)"
 echo "${OK} You have chosen $resolution resolution." 2>&1 | tee -a "$LOG"
 if [ "$resolution" == "< 1440p" ]; then
   # kitty font size
-  sed -i 's/font_size 16.0/font_size 14.0/' config/kitty/kitty.conf
+  sed -i 's/font_size 16.0/font_size 14.0/' "$WORK_CONFIG_DIR/kitty/kitty.conf"
 
   # hyprlock matters
-  if [ -f config/hypr/hyprlock.conf ]; then
-    mv config/hypr/hyprlock.conf config/hypr/hyprlock-2k.conf
+  if [ -f "$WORK_CONFIG_DIR/hypr/hyprlock.conf" ]; then
+    mv "$WORK_CONFIG_DIR/hypr/hyprlock.conf" "$WORK_CONFIG_DIR/hypr/hyprlock-2k.conf"
   fi
-  if [ -f config/hypr/hyprlock-1080p.conf ]; then
-    mv config/hypr/hyprlock-1080p.conf config/hypr/hyprlock.conf
+  if [ -f "$WORK_CONFIG_DIR/hypr/hyprlock-1080p.conf" ]; then
+    mv "$WORK_CONFIG_DIR/hypr/hyprlock-1080p.conf" "$WORK_CONFIG_DIR/hypr/hyprlock.conf"
   fi
 
   # rofi fonts reduction
-  rofi_config_file="config/rofi/0-shared-fonts.rasi"
+  rofi_config_file="$WORK_CONFIG_DIR/rofi/0-shared-fonts.rasi"
   if [ -f "$rofi_config_file" ]; then
     sed -i '/element-text {/,/}/s/[[:space:]]*font: "JetBrainsMono Nerd Font SemiBold 13"/font: "JetBrainsMono Nerd Font SemiBold 11"/' "$rofi_config_file" 2>&1 | tee -a "$LOG"
     sed -i '/configuration {/,/}/s/[[:space:]]*font: "JetBrainsMono Nerd Font SemiBold 15"/font: "JetBrainsMono Nerd Font SemiBold 13"/' "$rofi_config_file" 2>&1 | tee -a "$LOG"
@@ -355,6 +376,8 @@ fi
 
 printf "\n%.0s" {1..1}
 prompt_clock_12h "$LOG"
+printf "\n%.0s" {1..1}
+prompt_focus_transparency "$LOG"
 printf "\n%.0s" {1..1}
 printf "\n%.0s" {1..1}
 prompt_express_upgrade "$EXPRESS_SUPPORTED" "$LOG"
@@ -385,9 +408,11 @@ if command -v ags >/dev/null 2>&1; then
 
   if [ ! -d "$DIRPATH_AGS" ]; then
     echo "${INFO} - ags config not found, copying new config."
-    if [ -d "config/ags" ]; then
-      cp -r "config/ags/" "$DIRPATH_AGS" 2>&1 | tee -a "$LOG"
+    if [ -d "$WORK_CONFIG_DIR/ags" ]; then
+      cp -r "$WORK_CONFIG_DIR/ags/" "$DIRPATH_AGS" 2>&1 | tee -a "$LOG"
     fi
+  elif [ "$EXPRESS_MODE" -eq 1 ]; then
+    echo "${NOTE} - Express mode: preserving existing ags config."
   else
     read -p "${CAT} Do you want to overwrite your existing ${YELLOW}ags${RESET} config? [y/N] " answer_ags
     case "$answer_ags" in
@@ -396,7 +421,7 @@ if command -v ags >/dev/null 2>&1; then
       mv "$DIRPATH_AGS" "$DIRPATH_AGS-backup-$BACKUP_DIR" 2>&1 | tee -a "$LOG"
       echo -e "${NOTE} - Backed up ags config to $DIRPATH_AGS-backup-$BACKUP_DIR"
 
-      if cp -r "config/ags/" "$DIRPATH_AGS" 2>&1 | tee -a "$LOG"; then
+      if cp -r "$WORK_CONFIG_DIR/ags/" "$DIRPATH_AGS" 2>&1 | tee -a "$LOG"; then
         echo "${OK} - ${YELLOW}ags configs${RESET} overwritten successfully."
       else
         echo "${ERROR} - Failed to copy ${YELLOW}ags${RESET} config."
@@ -426,9 +451,11 @@ if command -v qs >/dev/null 2>&1; then
 
   if [ ! -d "$DIRPATH_QS" ]; then
     echo "${INFO} - quickshell config not found, copying new config."
-    if [ -d "config/quickshell" ]; then
-      cp -r "config/quickshell/" "$DIRPATH_QS" 2>&1 | tee -a "$LOG"
+    if [ -d "$WORK_CONFIG_DIR/quickshell" ]; then
+      cp -r "$WORK_CONFIG_DIR/quickshell/" "$DIRPATH_QS" 2>&1 | tee -a "$LOG"
     fi
+  elif [ "$EXPRESS_MODE" -eq 1 ]; then
+    echo "${NOTE} - Express mode: preserving existing quickshell config."
   else
     # If default shell.qml exists, it blocks named config subdirectory detection
     # Remove it to enable the overview config to be found
@@ -444,7 +471,7 @@ if command -v qs >/dev/null 2>&1; then
       mv "$DIRPATH_QS" "$DIRPATH_QS-backup-$BACKUP_DIR" 2>&1 | tee -a "$LOG"
       echo -e "${NOTE} - Backed up quickshell to $DIRPATH_QS-backup-$BACKUP_DIR"
 
-      cp -r "config/quickshell/" "$DIRPATH_QS" 2>&1 | tee -a "$LOG"
+      cp -r "$WORK_CONFIG_DIR/quickshell/" "$DIRPATH_QS" 2>&1 | tee -a "$LOG"
       if [ $? -eq 0 ]; then
         echo "${OK} - ${YELLOW}quickshell${RESET} overwritten successfully."
         # Remove default shell.qml from new copy to enable overview detection
@@ -462,9 +489,9 @@ if command -v qs >/dev/null 2>&1; then
   
   # Ensure overview subdirectory exists and is up to date
   DIRPATH_OVERVIEW="$DIRPATH_QS/overview"
-  if [ ! -d "$DIRPATH_OVERVIEW" ] && [ -d "config/quickshell/overview" ]; then
+  if [ ! -d "$DIRPATH_OVERVIEW" ] && [ -d "$WORK_CONFIG_DIR/quickshell/overview" ]; then
     echo "${INFO} - Copying quickshell overview config..." 2>&1 | tee -a "$LOG"
-    cp -r "config/quickshell/overview" "$DIRPATH_QS/" 2>&1 | tee -a "$LOG"
+    cp -r "$WORK_CONFIG_DIR/quickshell/overview" "$DIRPATH_QS/" 2>&1 | tee -a "$LOG"
     echo "${OK} - Quickshell overview config copied successfully" 2>&1 | tee -a "$LOG"
   fi
   
@@ -493,6 +520,10 @@ printf "\n%.0s" {1..1}
 
 restore_hypr_files "$LOG" "$EXPRESS_MODE"
 printf "\n%.0s" {1..1}
+
+finalize_upgrade_bootstrap_state "$LOG" "$UPGRADE_MODE"
+printf "\n%.0s" {1..1}
+
 printf "\n%.0s" {1..1}
 
 # Define the target directory for rofi themes
@@ -550,11 +581,14 @@ for theme_zip in assets/themes/*.zip; do
     # Rename extracted dir to match zip name (for -Dark suffix)
     extracted_dir=$(unzip -Z1 "$theme_zip" | head -1 | cut -d'/' -f1)
     if [ "$extracted_dir" != "$theme_name" ] && [ -d "$gtk_themes_DIR/$extracted_dir" ]; then
+      rm -rf "$gtk_themes_DIR/$theme_name"
       mv "$gtk_themes_DIR/$extracted_dir" "$gtk_themes_DIR/$theme_name"
     fi
   fi
 done
 echo "${OK} GTK themes installed successfully." 2>&1 | tee -a "$LOG"
+
+prompt_apply_hackerer_theme "$SCRIPT_DIR" "$WORK_CONFIG_DIR" "$LOG" "install"
 
 # Set some files as executable
 chmod +x "$HOME/.config/hypr/scripts/"* 2>&1 | tee -a "$LOG"
@@ -562,7 +596,7 @@ chmod +x "$HOME/.config/hypr/UserScripts/"* 2>&1 | tee -a "$LOG"
 # Set executable for initial-boot.sh
 chmod +x "$HOME/.config/hypr/initial-boot.sh" 2>&1 | tee -a "$LOG"
 
-chassis_type=$(detect_waybar_config)
+chassis_type=$(resolve_chassis_type "$LOG")
 if [ "$chassis_type" = "desktop" ]; then
   config_file="$waybar_config"
   config_remove=" Laptop"
@@ -574,6 +608,13 @@ fi
 # Check if ~/.config/waybar/config does not exist or is a symlink
 if [ ! -e "$HOME/.config/waybar/config" ] || [ -L "$HOME/.config/waybar/config" ]; then
   ln -sf "$config_file" "$HOME/.config/waybar/config" 2>&1 | tee -a "$LOG"
+fi
+
+if [ -x "$HOME/.config/hypr/scripts/GenerateWaybarGreenscreen.sh" ] && [ -f "$HOME/.config/waybar/configs/[TOP] Greenscreen Narrow" ]; then
+  "$HOME/.config/hypr/scripts/GenerateWaybarGreenscreen.sh" 2>&1 | tee -a "$LOG" || true
+  if [ -f "$HOME/.config/waybar/configs/[TOP] Greenscreen Auto" ] && [ "$config_file" = "$waybar_config" ]; then
+    ln -sf "$HOME/.config/waybar/configs/[TOP] Greenscreen Auto" "$HOME/.config/waybar/config" 2>&1 | tee -a "$LOG"
+  fi
 fi
 
 # Remove inappropriate waybar configs
@@ -601,7 +642,7 @@ elif [ -d "$sddm_simple_sddm_2" ]; then
     case $SDDM_WALL in
     [Yy])
       # Copy the wallpaper, ignore errors if the file exists or fails
-      sudo -n cp -r "config/hypr/wallpaper_effects/.wallpaper_current" "/usr/share/sddm/themes/simple_sddm_2/Backgrounds/default" || true
+      sudo -n cp -r "$WORK_CONFIG_DIR/hypr/wallpaper_effects/.wallpaper_current" "/usr/share/sddm/themes/simple_sddm_2/Backgrounds/default" || true
       echo "${NOTE} Current wallpaper applied as default SDDM background" 2>&1 | tee -a "$LOG"
       break
       ;;
@@ -678,6 +719,8 @@ printf "\n%.0s" {1..1}
 
 # initialize wallust to avoid config error on hyprland
 wallust run -s $wallpaper 2>&1 | tee -a "$LOG"
+
+run_post_upgrade_audit "$LOG"
 
 printf "\n%.0s" {1..2}
 printf "${OK} GREAT! KooL's Hyprland-Dots is now Loaded & Ready !!! "

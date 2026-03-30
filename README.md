@@ -216,6 +216,7 @@ chmod +x upgrade.sh
 #### 🤷‍♂️ TO DO!
 
 - [ ] Tweak dots - 🚧 in constant progress
+- [ ] Theme roadmap: see `docs/theme-project-plan.md` for Hackerer integration and GTK-to-Qt porting
 
 #### 🔮 Discord Server
 

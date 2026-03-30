@@ -11,6 +11,7 @@
   "$HOME/.config/waybar/ModulesGroups",
   "$HOME/.config/waybar/UserModules",
   ],
+"name": "greenscreen-wide",
 "layer": "top",
 //"mode": "dock",
 "exclusive": true,
@@ -25,11 +26,12 @@
 
 "modules-left": [
   "custom/phalanx",
-	"custom/separator#blank_2",
+	"custom/separator#blank_tight",
 	"hyprland/workspaces#rw",
 	"custom/separator#blank_2",
 //	"mpris",
 	"tray",
+	"custom/nightlight",
 	"group/notify",
 	],
 "modules-center": [
@@ -45,8 +47,9 @@
 	"backlight",
   "battery#forest",
 	"custom/separator#blank_2",
+	"custom/audio_left_cap",
 	"group/audio",
-	"custom/nightlight",
+	"custom/audio_cap",
 	],
 
 "group/notify": {
@@ -84,8 +87,10 @@
 },
 "custom/phalanx": {
       "format":" 󱚝",
-      "tooltip": false,
-      "on-click": "rofi -show drun"
+      "tooltip": true,
+      "on-click": "$HOME/.config/hypr/scripts/RofiLauncher.sh",
+      "on-click-middle": "pkill rofi || rofi -show drun -modi run,drun,filebrowser,window",
+      "tooltip-format": "Left Click: Launcher menu\nMiddle Click: Unified Rofi launcher"
 },
 "clock#forest": {
       "format": "{:%A %d.%b.%Y - %H:%M}",
@@ -183,4 +188,3 @@
 	"on-click-right": "kitty --title nvtop sh -c 'nvtop'"
 },
 }
-

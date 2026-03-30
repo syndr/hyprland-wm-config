@@ -52,6 +52,8 @@ GDK_BACKEND=$BACKEND yad \
 " Shift S" "screenshot region" "(swappy)" \
 " CTRL Print" "screenshot timer 5 secs " "(grim)" \
 " CTRL SHIFT Print" "screenshot timer 10 secs " "(grim)" \
+" ALT Print" "screenshot area after 5 secs" "(grim + slurp)" \
+" ALT X" "focused monitor after 5 secs" "(grim)" \
 "ALT Print" "Screenshot active window" "active window only" \
 "CTRL ALT P" "power-menu" "(wlogout)" \
 "CTRL ALT L" "screen lock" "(hyprlock)" \
@@ -65,6 +67,7 @@ GDK_BACKEND=$BACKEND yad \
 " CTRL O" "Toggle Opaque ON or OFF" "on active window only" \
 " Shift A" "Animations Menu" "Choose Animations via rofi" \
 " CTRL R" "Rofi Themes Menu" "Choose Rofi Themes via rofi" \
+" R" "Launcher Menu" "(rofi launcher)" \
 " CTRL Shift R" "Rofi Themes Menu v2" "Choose Rofi Themes via Theme Selector (modified)" \
 " SHIFT G" "Gamemode! All animations OFF or ON" "toggle" \
 " ALT E" "Rofi Emoticons" "Emoticon" \

@@ -4,6 +4,8 @@
 
 SCRIPTSDIR=$HOME/.config/hypr/scripts
 UserScripts=$HOME/.config/hypr/UserScripts
+WAYBAR_CONFIG=$HOME/.config/waybar/config
+WAYBAR_GREENSCREEN_AUTO="$HOME/.config/waybar/configs/[TOP] Greenscreen Auto"
 
 # Define file_exists function
 file_exists() {
@@ -15,17 +17,12 @@ file_exists() {
 }
 
 # Kill already running processes
-_ps=(waybar rofi swaync ags)
+_ps=(rofi swaync ags)
 for _prs in "${_ps[@]}"; do
   if pidof "${_prs}" >/dev/null; then
     pkill "${_prs}"
   fi
 done
-
-# added since wallust sometimes not applying
-killall -SIGUSR2 waybar
-# Added sleep for GameMode causing multiple waybar
-sleep 0.1
 
 # quit ags & relaunch ags
 ags -q && ags &
@@ -34,14 +31,30 @@ ags -q && ags &
 #pkill qs && qs &
 
 # some process to kill
-for pid in $(pidof waybar rofi swaync ags swaybg); do
+for pid in $(pidof rofi swaync ags swaybg); do
   kill -SIGUSR1 "$pid"
   sleep 0.1
 done
 
-#Restart waybar
+# Regenerate Greenscreen auto layout when it is the active Waybar target
+if [ -e "$WAYBAR_CONFIG" ] && [ -x "${SCRIPTSDIR}/GenerateWaybarGreenscreen.sh" ]; then
+  current_waybar_target=$(readlink -f "$WAYBAR_CONFIG" 2>/dev/null || printf '%s\n' "$WAYBAR_CONFIG")
+  current_waybar_name=$(basename "$current_waybar_target")
+  if [ "$current_waybar_name" = "[TOP] Greenscreen" ] || [ "$current_waybar_name" = "[TOP] Greenscreen Auto" ]; then
+    "${SCRIPTSDIR}/GenerateWaybarGreenscreen.sh" >/dev/null 2>&1 || true
+    [ -f "$WAYBAR_GREENSCREEN_AUTO" ] && ln -sf "$WAYBAR_GREENSCREEN_AUTO" "$WAYBAR_CONFIG"
+  fi
+fi
+
+# Reload Waybar in-place so the tray host survives
 sleep 0.1
-waybar &
+if command -v waybar-msg >/dev/null 2>&1; then
+  waybar-msg cmd reload >/dev/null 2>&1 || true
+elif pidof waybar >/dev/null; then
+  killall -SIGUSR2 waybar 2>/dev/null || true
+else
+  waybar >/dev/null 2>&1 &
+fi
 
 # relaunch swaync
 sleep 0.3

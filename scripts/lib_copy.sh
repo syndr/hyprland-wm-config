@@ -1,12 +1,189 @@
 #!/usr/bin/env bash
 # Copy helpers split into phases to keep copy.sh lean.
 
+snapshot_theme_state() {
+  local state_dir="$1"
+  mkdir -p "$state_dir"
+
+  local theme_files=(
+    "$HOME/.config/qt5ct/qt5ct.conf"
+    "$HOME/.config/qt6ct/qt6ct.conf"
+    "$HOME/.config/Kvantum/kvantum.kvconfig"
+    "$HOME/.config/gtk-3.0/settings.ini"
+    "$HOME/.config/gtk-4.0/settings.ini"
+    "$HOME/.config/xsettingsd/xsettingsd.conf"
+    "$HOME/.config/kdeglobals"
+    "$HOME/.config/plasmarc"
+  )
+
+  for src in "${theme_files[@]}"; do
+    [ -f "$src" ] || continue
+    local rel="${src#$HOME/.config/}"
+    mkdir -p "$state_dir/$(dirname "$rel")"
+    cp -p "$src" "$state_dir/$rel"
+  done
+}
+
+hackerer_theme_installed() {
+  [ -f "$HOME/.config/Kvantum/Hackerer-Dark/Hackerer-Dark.kvconfig" ] \
+    && [ -f "$HOME/.config/qt5ct/colors/Hackerer-Dark.colors" ] \
+    && [ -f "$HOME/.config/qt6ct/colors/Hackerer-Dark.colors" ] \
+    && [ -f "$HOME/.local/share/color-schemes/Hackerer.colors" ]
+}
+
+apply_hackerer_theme() {
+  local source_root="$1"
+  local config_root="$2"
+  local log="$3"
+  local profile="$config_root/hypr/themes/Hackerer.conf"
+  local gtk_theme="Hackerer-Dark"
+  local icon_theme="Sours-Full-Color"
+  local cursor_theme="broodwar"
+
+  mkdir -p "$HOME/.config/Kvantum" \
+    "$HOME/.config/qt5ct/colors" \
+    "$HOME/.config/qt6ct/colors" \
+    "$HOME/.config/hypr/UserConfigs" \
+    "$HOME/.local/share/color-schemes" \
+    "$HOME/.themes"
+
+  if [ -f "$profile" ]; then
+    # shellcheck disable=SC1090
+    source "$profile"
+    gtk_theme="${DARK_GTK_THEME:-$gtk_theme}"
+    icon_theme="${DARK_ICON_THEME:-$icon_theme}"
+    cursor_theme="${DARK_CURSOR_THEME:-$cursor_theme}"
+  fi
+
+  if [ -f "$source_root/assets/themes/Hackerer-Dark.zip" ]; then
+    unzip -q -o "$source_root/assets/themes/Hackerer-Dark.zip" -d "$HOME/.themes/" 2>&1 | tee -a "$log" || true
+    extracted_dir=$(unzip -Z1 "$source_root/assets/themes/Hackerer-Dark.zip" | head -1 | cut -d'/' -f1)
+    if [ -n "$extracted_dir" ] && [ "$extracted_dir" != "Hackerer-Dark" ] && [ -d "$HOME/.themes/$extracted_dir" ]; then
+      rm -rf "$HOME/.themes/Hackerer-Dark"
+      mv "$HOME/.themes/$extracted_dir" "$HOME/.themes/Hackerer-Dark" 2>&1 | tee -a "$log" || true
+    fi
+  fi
+
+  if [ -d "$config_root/Kvantum/Hackerer-Dark" ]; then
+    rm -rf "$HOME/.config/Kvantum/Hackerer-Dark"
+    cp -r "$config_root/Kvantum/Hackerer-Dark" "$HOME/.config/Kvantum/" 2>&1 | tee -a "$log"
+  fi
+
+  [ -f "$config_root/Kvantum/kvantum.kvconfig" ] \
+    && cp -f "$config_root/Kvantum/kvantum.kvconfig" "$HOME/.config/Kvantum/kvantum.kvconfig" 2>&1 | tee -a "$log"
+  [ -f "$config_root/qt5ct/qt5ct.conf" ] \
+    && cp -f "$config_root/qt5ct/qt5ct.conf" "$HOME/.config/qt5ct/qt5ct.conf" 2>&1 | tee -a "$log"
+  [ -f "$config_root/qt6ct/qt6ct.conf" ] \
+    && cp -f "$config_root/qt6ct/qt6ct.conf" "$HOME/.config/qt6ct/qt6ct.conf" 2>&1 | tee -a "$log"
+  [ -f "$config_root/qt5ct/colors/Hackerer-Dark.colors" ] \
+    && cp -f "$config_root/qt5ct/colors/Hackerer-Dark.colors" "$HOME/.config/qt5ct/colors/Hackerer-Dark.colors" 2>&1 | tee -a "$log"
+  [ -f "$config_root/qt6ct/colors/Hackerer-Dark.colors" ] \
+    && cp -f "$config_root/qt6ct/colors/Hackerer-Dark.colors" "$HOME/.config/qt6ct/colors/Hackerer-Dark.colors" 2>&1 | tee -a "$log"
+  [ -f "$config_root/color-schemes/Hackerer.colors" ] \
+    && cp -f "$config_root/color-schemes/Hackerer.colors" "$HOME/.local/share/color-schemes/Hackerer.colors" 2>&1 | tee -a "$log"
+  [ -f "$config_root/hypr/UserConfigs/ThemeConfig.conf" ] \
+    && cp -f "$config_root/hypr/UserConfigs/ThemeConfig.conf" "$HOME/.config/hypr/UserConfigs/ThemeConfig.conf" 2>&1 | tee -a "$log"
+
+  if command -v kwriteconfig6 >/dev/null 2>&1; then
+    kwriteconfig6 --file "$HOME/.config/kdeglobals" --group General --key ColorScheme "Hackerer" 2>&1 | tee -a "$log" || true
+    kwriteconfig6 --file "$HOME/.config/kdeglobals" --group KDE --key widgetStyle "kvantum" 2>&1 | tee -a "$log" || true
+  fi
+
+  if command -v kvantummanager >/dev/null 2>&1; then
+    kvantummanager --set "Hackerer-Dark" >/dev/null 2>&1 || true
+  fi
+
+  if command -v gsettings >/dev/null 2>&1; then
+    gsettings set org.gnome.desktop.interface color-scheme "prefer-dark" 2>&1 | tee -a "$log" || true
+    gsettings set org.gnome.desktop.interface gtk-theme "$gtk_theme" 2>&1 | tee -a "$log" || true
+    gsettings set org.gnome.desktop.interface icon-theme "$icon_theme" 2>&1 | tee -a "$log" || true
+    gsettings set org.gnome.desktop.interface cursor-theme "$cursor_theme" 2>&1 | tee -a "$log" || true
+  fi
+
+  echo "${OK:-[OK]} - Hackerer GTK/Qt/KDE theme installed and applied." 2>&1 | tee -a "$log"
+}
+
+prompt_apply_hackerer_theme() {
+  local source_root="$1"
+  local config_root="$2"
+  local log="$3"
+  local context="${4:-install}"
+
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+    if ! hackerer_theme_installed; then
+      echo "${NOTE:-[NOTE]} Express mode: leaving Hackerer theme uninstalled and preserving current visual state." 2>&1 | tee -a "$log"
+    fi
+    return 1
+  fi
+
+  while true; do
+    if [ "$context" = "update" ]; then
+      echo -n "${CAT:-[ACTION]} Install/apply the ${YELLOW:-}Hackerer${RESET:-} Qt/KDE theme after update? (y/n): "
+    else
+      echo -n "${CAT:-[ACTION]} Install/apply the ${YELLOW:-}Hackerer${RESET:-} Qt/KDE theme now? (y/n): "
+    fi
+    read apply_theme_choice
+    case "$apply_theme_choice" in
+    [Yy]*)
+      apply_hackerer_theme "$source_root" "$config_root" "$log"
+      return 0
+      ;;
+    [Nn]*)
+      echo "${NOTE:-[NOTE]} Leaving current GTK/Qt/KDE theme state unchanged." 2>&1 | tee -a "$log"
+      return 1
+      ;;
+    *)
+      echo "${WARN:-[WARN]} - Invalid choice. Please enter Y or N." 2>&1 | tee -a "$log"
+      ;;
+    esac
+  done
+}
+
+restore_theme_state() {
+  local state_dir="$1"
+  local log="$2"
+  local restored=0
+  [ -d "$state_dir" ] || return 0
+
+  while IFS= read -r -d '' saved; do
+    local rel="${saved#$state_dir/}"
+    local dst="$HOME/.config/$rel"
+    mkdir -p "$(dirname "$dst")"
+    cp -p "$saved" "$dst" 2>&1 | tee -a "$log"
+    restored=1
+  done < <(find "$state_dir" -type f -print0)
+
+  if [ "$restored" -eq 1 ]; then
+    echo "${INFO:-[INFO]} Restored local visual theme state from pre-upgrade snapshot." 2>&1 | tee -a "$log"
+  fi
+}
+
+finalize_upgrade_bootstrap_state() {
+  local log="$1"
+  local upgrade_mode="$2"
+  local hypr_dir="$HOME/.config/hypr"
+  local startup_marker="$hypr_dir/.initial_startup_done"
+  local preserve_marker="$hypr_dir/.preserve_theme_state"
+
+  [ "$upgrade_mode" -eq 1 ] || return 0
+
+  mkdir -p "$hypr_dir"
+  : >"$startup_marker"
+  rm -f "$preserve_marker"
+  echo "${INFO:-[INFO]} Preserved initial boot completion marker for upgrade workflow." 2>&1 | tee -a "$log"
+}
+
 copy_phase1() {
   local log="$1"
+  local config_root="${WORK_CONFIG_DIR:-config}"
   local dirs="fastfetch kitty rofi swaync"
   for DIR2 in $dirs; do
     local DIRPATH="$HOME/.config/$DIR2"
     if [ -d "$DIRPATH" ]; then
+      if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+        echo -e "${NOTE:-[NOTE]} Express mode: preserving existing ${YELLOW:-}$DIR2${RESET:-} config." 2>&1 | tee -a "$log"
+        continue
+      fi
       while true; do
         printf "\n${INFO:-[INFO]} Found ${YELLOW:-}$DIR2${RESET:-} config found in ~/.config/\n"
         echo -n "${CAT:-[ACTION]} Do you want to replace ${YELLOW:-}$DIR2${RESET:-} config? (y/n): "
@@ -16,7 +193,7 @@ copy_phase1() {
           BACKUP_DIR=$(get_backup_dirname)
           mv "$DIRPATH" "$DIRPATH-backup-$BACKUP_DIR" 2>&1 | tee -a "$log"
           echo -e "${NOTE:-[NOTE]} - Backed up $DIR2 to $DIRPATH-backup-$BACKUP_DIR." 2>&1 | tee -a "$log"
-          cp -r "config/$DIR2" "$HOME/.config/$DIR2" 2>&1 | tee -a "$log"
+          cp -r "$config_root/$DIR2" "$HOME/.config/$DIR2" 2>&1 | tee -a "$log"
           echo -e "${OK:-[OK]} - Replaced $DIR2 with new configuration." 2>&1 | tee -a "$log"
           if [ "$DIR2" = "rofi" ]; then
             if [ -d "$DIRPATH-backup-$BACKUP_DIR/themes" ]; then
@@ -39,7 +216,7 @@ copy_phase1() {
         esac
       done
     else
-      cp -r "config/$DIR2" "$HOME/.config/$DIR2" 2>&1 | tee -a "$log"
+      cp -r "$config_root/$DIR2" "$HOME/.config/$DIR2" 2>&1 | tee -a "$log"
       echo -e "${OK:-[OK]} - Copy completed for ${YELLOW:-}$DIR2${RESET:-}" 2>&1 | tee -a "$log"
     fi
   done
@@ -47,9 +224,14 @@ copy_phase1() {
 
 copy_waybar() {
   local log="$1"
+  local config_root="${WORK_CONFIG_DIR:-config}"
   local DIRW="waybar"
   local DIRPATHw="$HOME/.config/$DIRW"
   if [ -d "$DIRPATHw" ]; then
+    if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+      echo -e "${NOTE:-[NOTE]} Express mode: preserving existing ${YELLOW:-}$DIRW${RESET:-} config." 2>&1 | tee -a "$log"
+      return
+    fi
     while true; do
       echo -n "${CAT:-[ACTION]} Do you want to replace ${YELLOW:-}$DIRW${RESET:-} config? (y/n): "
       read DIR1_CHOICE
@@ -58,7 +240,7 @@ copy_waybar() {
         BACKUP_DIR=$(get_backup_dirname)
         cp -r "$DIRPATHw" "$DIRPATHw-backup-$BACKUP_DIR" 2>&1 | tee -a "$log"
         echo -e "${NOTE:-[NOTE]} - Backed up $DIRW to $DIRPATHw-backup-$BACKUP_DIR." 2>&1 | tee -a "$log"
-        rm -rf "$DIRPATHw" && cp -r "config/$DIRW" "$DIRPATHw" 2>&1 | tee -a "$log"
+        rm -rf "$DIRPATHw" && cp -r "$config_root/$DIRW" "$DIRPATHw" 2>&1 | tee -a "$log"
         for file in "config" "style.css"; do
           symlink="$DIRPATHw-backup-$BACKUP_DIR/$file"
           target_file="$DIRPATHw/$file"
@@ -91,8 +273,10 @@ copy_waybar() {
             [ -e "$target_file" ] || cp "$file" "$HOME/.config/waybar/style/"
           fi
         done || true
-        BACKUP_FILEw="$DIRPATHw-backup-$BACKUP_DIR/UserModules"
-        [ -f "$BACKUP_FILEw" ] && cp -f "$BACKUP_FILEw" "$DIRPATHw/UserModules"
+        for backup_name in ModulesWorkspaces UserModules; do
+          BACKUP_FILEw="$DIRPATHw-backup-$BACKUP_DIR/$backup_name"
+          [ -f "$BACKUP_FILEw" ] && cp -f "$BACKUP_FILEw" "$DIRPATHw/$backup_name"
+        done
         break
         ;;
       [Nn]*)
@@ -103,14 +287,18 @@ copy_waybar() {
       esac
     done
   else
-    cp -r "config/$DIRW" "$DIRPATHw" 2>&1 | tee -a "$log"
+    cp -r "$config_root/$DIRW" "$DIRPATHw" 2>&1 | tee -a "$log"
     echo -e "${OK:-[OK]} - Copy completed for ${YELLOW:-}$DIRW${RESET:-}" 2>&1 | tee -a "$log"
   fi
 }
 
 copy_phase2() {
   local log="$1"
+  local config_root="${WORK_CONFIG_DIR:-config}"
   local DIR="btop cava copyq hypr Kvantum qt5ct qt6ct swappy wallust wlogout"
+  local theme_state_dir="${HOME}/.config/.theme-state-pre-copy"
+
+  snapshot_theme_state "$theme_state_dir"
   for DIR_NAME in $DIR; do
     local DIRPATH="$HOME/.config/$DIR_NAME"
     if [ -d "$DIRPATH" ]; then
@@ -118,14 +306,54 @@ copy_phase2() {
       BACKUP_DIR=$(get_backup_dirname)
       mv "$DIRPATH" "$DIRPATH-backup-$BACKUP_DIR" 2>&1 | tee -a "$log"
     fi
-    if [ -d "config/$DIR_NAME" ]; then
-      cp -r "config/$DIR_NAME/" "$HOME/.config/$DIR_NAME" 2>&1 | tee -a "$log"
+    if [ -d "$config_root/$DIR_NAME" ]; then
+      cp -r "$config_root/$DIR_NAME/" "$HOME/.config/$DIR_NAME" 2>&1 | tee -a "$log"
       echo "${OK:-[OK]} - Copy of config for ${YELLOW:-}$DIR_NAME${RESET:-} completed!" 2>&1 | tee -a "$log"
     else
-      echo "${ERROR:-[ERROR]} - Directory config/$DIR_NAME does not exist to copy." 2>&1 | tee -a "$log"
+      echo "${ERROR:-[ERROR]} - Directory $config_root/$DIR_NAME does not exist to copy." 2>&1 | tee -a "$log"
     fi
   done
+  restore_theme_state "$theme_state_dir" "$log"
+  restore_copyq_state "$log"
   install_terminal_configs "$log"
+}
+
+restore_copyq_state() {
+  local log="$1"
+  local copyq_dir="$HOME/.config/copyq"
+  local backup_dir
+  backup_dir=$(find "$HOME/.config" -maxdepth 1 -type d -name 'copyq-backup-*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2-)
+
+  [ -n "$backup_dir" ] || return 0
+  [ -d "$backup_dir" ] || return 0
+  [ -d "$copyq_dir" ] || return 0
+
+  local restored_any=0
+  local source_path
+  for source_path in "$backup_dir"/*; do
+    [ -e "$source_path" ] || continue
+
+    local file_name
+    file_name=$(basename "$source_path")
+    case "$file_name" in
+    copyq.conf | copyq.lock | .copyq_s)
+      continue
+      ;;
+    esac
+
+    if [ -d "$source_path" ]; then
+      rm -rf "$copyq_dir/$file_name"
+      cp -r "$source_path" "$copyq_dir/$file_name" 2>&1 | tee -a "$log"
+    else
+      cp -f "$source_path" "$copyq_dir/$file_name" 2>&1 | tee -a "$log"
+    fi
+    restored_any=1
+  done
+
+  if [ "$restored_any" -eq 1 ]; then
+    chmod 600 "$copyq_dir/copyq.pub" 2>/dev/null || true
+    echo "${OK:-[OK]} - Restored CopyQ stateful files from backup." 2>&1 | tee -a "$log"
+  fi
 }
 
 # Restore Animations and Monitor Profiles plus key hypr files from backup
@@ -140,20 +368,19 @@ restore_hypr_assets() {
 
   if [ -d "$BACKUP_HYPR_PATH" ]; then
     if [ "$express_mode" -eq 1 ]; then
-      echo "${NOTE:-[NOTE]} Express mode: skipping automatic restoration of animations and monitor profiles." 2>&1 | tee -a "$log"
-      return
+      echo "${NOTE:-[NOTE]} Express mode: preserving monitor and workspace layout, skipping optional animation/wallpaper asset restore." 2>&1 | tee -a "$log"
+    else
+      echo -e "\n${NOTE:-[NOTE]} Restoring ${SKY_BLUE:-}Animations & Monitor Profiles${RESET:-} into ${YELLOW:-}$HYPR_DIR${RESET:-}..."
+
+      local DIR_B=("Monitor_Profiles" "animations" "wallpaper_effects")
+      for DIR_RESTORE in "${DIR_B[@]}"; do
+        local BACKUP_SUBDIR="$BACKUP_HYPR_PATH/$DIR_RESTORE"
+        if [ -d "$BACKUP_SUBDIR" ]; then
+          cp -r "$BACKUP_SUBDIR" "$HYPR_DIR/" 2>&1 | tee -a "$log"
+          echo "${OK:-[OK]} - Restored directory: ${MAGENTA:-}$DIR_RESTORE${RESET:-}" 2>&1 | tee -a "$log"
+        fi
+      done
     fi
-
-    echo -e "\n${NOTE:-[NOTE]} Restoring ${SKY_BLUE:-}Animations & Monitor Profiles${RESET:-} into ${YELLOW:-}$HYPR_DIR${RESET:-}..."
-
-    local DIR_B=("Monitor_Profiles" "animations" "wallpaper_effects")
-    for DIR_RESTORE in "${DIR_B[@]}"; do
-      local BACKUP_SUBDIR="$BACKUP_HYPR_PATH/$DIR_RESTORE"
-      if [ -d "$BACKUP_SUBDIR" ]; then
-        cp -r "$BACKUP_SUBDIR" "$HYPR_DIR/" 2>&1 | tee -a "$log"
-        echo "${OK:-[OK]} - Restored directory: ${MAGENTA:-}$DIR_RESTORE${RESET:-}" 2>&1 | tee -a "$log"
-      fi
-    done
 
     local FILE_B=("monitors.conf" "workspaces.conf")
     for FILE_RESTORE in "${FILE_B[@]}"; do
@@ -201,19 +428,11 @@ cleanup_duplicate_userconfigs() {
   local current_version="$1"
   local log="$2"
 
-  if [ -z "$current_version" ]; then
-    return
+  if [ -n "$current_version" ]; then
+    echo "${INFO:-[INFO]} Running UserConfigs duplicate cleanup for detected version v$current_version." 2>&1 | tee -a "$log"
+  else
+    echo "${INFO:-[INFO]} Running UserConfigs duplicate cleanup." 2>&1 | tee -a "$log"
   fi
-
-  # Run de-dupe only for existing installs up to and including v2.3.19.
-  # For v2.3.20 and newer, the underlying duplication bug is fixed and
-  # this cleanup is no longer needed (and might mask future issues).
-  if version_gte "$current_version" "2.3.20"; then
-    echo "${INFO:-[INFO]} Skipping UserConfigs duplicate cleanup for detected version v$current_version (>= 2.3.20)." 2>&1 | tee -a "$log"
-    return
-  fi
-
-  echo "${INFO:-[INFO]} Running UserConfigs duplicate cleanup for detected version v$current_version (<= 2.3.19)." 2>&1 | tee -a "$log"
 
   local HYPR_DIR="$HOME/.config/hypr"
   local BASE_DIR="$HYPR_DIR/configs"
@@ -225,6 +444,7 @@ cleanup_duplicate_userconfigs() {
   local WINDOW_USER="$USER_DIR/WindowRules.conf"
   local KEYBINDS_BASE="$BASE_DIR/Keybinds.conf"
   local KEYBINDS_USER="$USER_DIR/UserKeybinds.conf"
+  local ENV_USER="$USER_DIR/ENVariables.conf"
 
   # Startup_Apps: strip exec-once lines from UserConfigs that are exact
   # duplicates of the base Startup_Apps.conf.
@@ -326,6 +546,29 @@ cleanup_duplicate_userconfigs() {
       rm -f "$tmp_keybinds"
     fi
   fi
+
+  # ENVariables: keep only the last QT_QPA_PLATFORMTHEME entry in the
+  # user overlay so upgrades can normalize older duplicated configs.
+  if [ -f "$ENV_USER" ]; then
+    local tmp_env
+    local backup_env
+    backup_env="$ENV_USER.backup-dupfix-$(date +%Y%m%d-%H%M%S)"
+    tmp_env=$(mktemp)
+    awk '
+      /^[ \t]*env[ \t]*=[ \t]*QT_QPA_PLATFORMTHEME,/ { last=$0; next }
+      { print }
+      END {
+        if (last != "") print last
+      }
+    ' "$ENV_USER" >"$tmp_env"
+    if ! cmp -s "$ENV_USER" "$tmp_env"; then
+      cp "$ENV_USER" "$backup_env"
+      mv "$tmp_env" "$ENV_USER"
+      echo "${NOTE:-[NOTE]} - Removed duplicate QT_QPA_PLATFORMTHEME entries from ENVariables.conf." 2>&1 | tee -a "$log"
+    else
+      rm -f "$tmp_env"
+    fi
+  fi
 }
 restore_user_configs() {
   local log="$1"
@@ -342,15 +585,14 @@ restore_user_configs() {
     exit 1
   fi
 
-  # In express mode we still want to run the de-dupe logic, but we skip
-  # the interactive restoration prompts so the workflow stays non-blocking.
-  local SKIP_RESTORE_PROMPTS=0
+  # Express mode should preserve user-owned config automatically rather than
+  # treating skipped prompts as permission to overwrite local state.
   if [ -d "$BACKUP_DIR_PATH" ] && [ "$express_mode" -eq 1 ]; then
-    echo "${NOTE:-[NOTE]} Express mode: skipping UserConfigs restoration prompts." 2>&1 | tee -a "$log"
-    SKIP_RESTORE_PROMPTS=1
-  fi
-
-  if [ -d "$BACKUP_DIR_PATH" ] && [ "$SKIP_RESTORE_PROMPTS" -eq 0 ]; then
+    echo "${NOTE:-[NOTE]} Express mode: automatically restoring UserConfigs from backup." 2>&1 | tee -a "$log"
+    mkdir -p "$DIRPATH/UserConfigs"
+    rsync -a "$BACKUP_DIR_PATH/" "$DIRPATH/UserConfigs/" 2>&1 | tee -a "$log"
+    echo "${OK:-[OK]} - UserConfigs directory restored." 2>&1 | tee -a "$log"
+  elif [ -d "$BACKUP_DIR_PATH" ]; then
     local VERSION_FILE
     VERSION_FILE=$(find "$DIRPATH" -maxdepth 1 -name "v*.*.*" | head -n 1)
     local CURRENT_VERSION="999.9.9"
@@ -392,6 +634,7 @@ restore_user_configs() {
         "UserAnimations.conf"
         "UserKeybinds.conf"
         "UserSettings.conf"
+        "WorkspaceKeybinds.conf"
         "WindowRules.conf"
       )
 
@@ -451,7 +694,10 @@ restore_user_scripts() {
   local SCRIPTS_TO_RESTORE=("RofiBeats.sh" "Weather.py" "Weather.sh")
 
   if [ -d "$BACKUP_DIR_PATH_S" ] && [ "$express_mode" -eq 1 ]; then
-    echo "${NOTE:-[NOTE]} Express mode: skipping UserScripts restoration prompts." 2>&1 | tee -a "$log"
+    echo "${NOTE:-[NOTE]} Express mode: automatically restoring UserScripts from backup." 2>&1 | tee -a "$log"
+    mkdir -p "$DIRSHPATH/UserScripts"
+    rsync -a "$BACKUP_DIR_PATH_S/" "$DIRSHPATH/UserScripts/" 2>&1 | tee -a "$log"
+    echo "${OK:-[OK]} - UserScripts directory restored." 2>&1 | tee -a "$log"
     return
   fi
 
@@ -489,7 +735,17 @@ restore_hypr_files() {
   local FILES_2_RESTORE=("hyprlock.conf" "hypridle.conf")
 
   if [ -d "$BACKUP_DIR_PATH_F" ] && [ "$express_mode" -eq 1 ]; then
-    echo "${NOTE:-[NOTE]} Express mode: skipping individual hypr file restoration prompts." 2>&1 | tee -a "$log"
+    echo "${NOTE:-[NOTE]} Express mode: automatically restoring user-owned hypr files from backup." 2>&1 | tee -a "$log"
+    for FILE_RESTORE in "${FILES_2_RESTORE[@]}"; do
+      local BACKUP_FILE="$BACKUP_DIR_PATH_F/$FILE_RESTORE"
+      if [ -f "$BACKUP_FILE" ]; then
+        if cp "$BACKUP_FILE" "$DIRPATH/$FILE_RESTORE"; then
+          echo "${OK:-[OK]} - $FILE_RESTORE restored." 2>&1 | tee -a "$log"
+        else
+          echo "${ERROR:-[ERROR]} - Failed to restore $FILE_RESTORE!" 2>&1 | tee -a "$log"
+        fi
+      fi
+    done
     return
   fi
 

@@ -21,6 +21,22 @@ prompt_detect_layout() {
 prompt_keyboard_layout() {
   local layout="$1"
   local log="$2"
+  local config_root="${WORK_CONFIG_DIR:-config}"
+  local temp_conf
+
+  write_system_settings_with_layout() {
+    local new_layout="$1"
+    temp_conf=$(mktemp)
+    awk -v layout="$new_layout" '/kb_layout/ {$0 = "  kb_layout = " layout} 1' "$config_root/hypr/configs/SystemSettings.conf" >"$temp_conf"
+    mv "$temp_conf" "$config_root/hypr/configs/SystemSettings.conf"
+  }
+
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ] && [ "$layout" = "(unset)" ]; then
+    local existing_layout
+    existing_layout=$(awk -F'= ' '/^[[:space:]]*kb_layout[[:space:]]*=/ {print $2; exit}' "$HOME/.config/hypr/UserConfigs/UserSettings.conf" 2>/dev/null)
+    [ -z "$existing_layout" ] && existing_layout=$(awk -F'= ' '/^[[:space:]]*kb_layout[[:space:]]*=/ {print $2; exit}' "$HOME/.config/hypr/configs/SystemSettings.conf" 2>/dev/null)
+    [ -n "$existing_layout" ] && layout="$existing_layout"
+  fi
 
   if [ "$layout" = "(unset)" ]; then
     while true; do
@@ -59,14 +75,19 @@ ${MAGENTA} NOTE:${RESET}
   fi
 
   printf "${NOTE} Detecting keyboard layout to prepare proper Hyprland Settings\n"
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+    printf "${INFO} Current keyboard layout is ${MAGENTA}$layout${RESET}\n"
+    write_system_settings_with_layout "$layout"
+    echo "${NOTE} Express mode: auto-confirmed keyboard layout ${MAGENTA}$layout${RESET}." 2>&1 | tee -a "$log"
+    return
+  fi
   while true; do
     printf "${INFO} Current keyboard layout is ${MAGENTA}$layout${RESET}\n"
     echo -n "${CAT} Is this correct? [y/n] "
     read keyboard_layout
     case $keyboard_layout in
       [yY])
-        awk -v layout="$layout" '/kb_layout/ {$0 = "  kb_layout = " layout} 1' config/hypr/configs/SystemSettings.conf >temp.conf
-        mv temp.conf config/hypr/configs/SystemSettings.conf
+        write_system_settings_with_layout "$layout"
         echo "${NOTE} kb_layout ${MAGENTA}$layout${RESET} configured in settings." 2>&1 | tee -a "$log"
         break
         ;;
@@ -95,8 +116,7 @@ ${MAGENTA} NOTE:${RESET}
         printf "\n%.0s" {1..1}
         echo -n "${CAT} - Please enter the correct keyboard layout: "
         read new_layout
-        awk -v new_layout="$new_layout" '/kb_layout/ {$0 = "  kb_layout = " new_layout} 1' config/hypr/configs/SystemSettings.conf >temp.conf
-        mv temp.conf config/hypr/configs/SystemSettings.conf
+        write_system_settings_with_layout "$new_layout"
         echo "${OK} kb_layout $new_layout configured in settings." 2>&1 | tee -a "$log"
         break
         ;;
@@ -109,6 +129,19 @@ ${MAGENTA} NOTE:${RESET}
 
 # Prompt for resolution choice; echoes "< 1440p" or "≥ 1440p".
 prompt_resolution_choice() {
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+    if grep -Eq '([2-9][0-9]{3}x(14|16|21|28)[0-9]{2}|x1440|x1600|x2160|x2880)' "$HOME/.config/hypr/monitors.conf" 2>/dev/null; then
+      echo "≥ 1440p"
+    elif grep -Eq '([1-9][0-9]{2,3}x(7|8|9|10)[0-9]{2}|x720|x768|x900|x1080)' "$HOME/.config/hypr/monitors.conf" 2>/dev/null; then
+      echo "< 1440p"
+    elif grep -q 'Hyprlock config for < 1080p monitor resolutions' "$HOME/.config/hypr/hyprlock.conf" 2>/dev/null; then
+      echo "< 1440p"
+    else
+      echo "≥ 1440p"
+    fi
+    return
+  fi
+
   local choice
   while true; do
     echo "${INFO:-[INFO]} Select monitor resolution for scaling:"
@@ -131,6 +164,11 @@ prompt_resolution_choice() {
 # Prompt for 12H clock; sets waybar/hyprlock/SDDM changes when accepted.
 prompt_clock_12h() {
   local log="$1"
+  local config_root="${WORK_CONFIG_DIR:-config}"
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+    echo "${NOTE} Express mode: preserving existing clock format." 2>&1 | tee -a "$log"
+    return
+  fi
   while true; do
     echo -e "${NOTE} ${SKY_BLUE} By default, KooL's Dots are configured in 24H clock format."
     echo -n "$CAT Do you want to change to 12H (AM/PM) clock format? (y/n): "
@@ -138,20 +176,20 @@ prompt_clock_12h() {
     answer=$(echo "$answer" | tr '[:upper:]' '[:lower:]')
     if [[ "$answer" == "y" ]]; then
       # waybar clocks
-      sed -i 's#^\(\s*\)//\("format": " {:%I:%M %p}",\) #\1\2 #g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": " {:%H:%M:%S}",\) #\1//\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": "  {:%H:%M}",\) #\1//\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)//\("format": "{:%I:%M %p - %d/%b}",\) #\1\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": "{:%H:%M - %d/%b}",\) #\1//\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)//\("format": "{:%B | %a %d, %Y | %I:%M %p}",\) #\1\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": "{:%B | %a %d, %Y | %H:%M}",\) #\1//\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)//\("format": "{:%A, %I:%M %P}",\) #\1\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": "{:%a %d | %H:%M}",\) #\1//\2#g' config/waybar/Modules 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)//\("format": " {:%I:%M %p}",\) #\1\2 #g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": " {:%H:%M:%S}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": "  {:%H:%M}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)//\("format": "{:%I:%M %p - %d/%b}",\) #\1\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": "{:%H:%M - %d/%b}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)//\("format": "{:%B | %a %d, %Y | %I:%M %p}",\) #\1\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": "{:%B | %a %d, %Y | %H:%M}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)//\("format": "{:%A, %I:%M %P}",\) #\1\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": "{:%a %d | %H:%M}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
 
       # hyprlock
-      local HYPRLOCK_FILE="config/hypr/hyprlock.conf"
-      if [ ! -f "$HYPRLOCK_FILE" ] && [ -f "config/hypr/hyprlock-1080p.conf" ]; then
-        HYPRLOCK_FILE="config/hypr/hyprlock-1080p.conf"
+      local HYPRLOCK_FILE="$config_root/hypr/hyprlock.conf"
+      if [ ! -f "$HYPRLOCK_FILE" ] && [ -f "$config_root/hypr/hyprlock-1080p.conf" ]; then
+        HYPRLOCK_FILE="$config_root/hypr/hyprlock-1080p.conf"
       fi
       if [ -f "$HYPRLOCK_FILE" ]; then
         sed -i 's/^\s*text = cmd\[update:1000\] echo \"\$(date +\"%H\")\"/# &/' "$HYPRLOCK_FILE" 2>&1 | tee -a "$log"
@@ -177,6 +215,56 @@ prompt_clock_12h() {
     else
       echo "${ERROR} Invalid choice. Please enter y for yes or n for no."
     fi
+  done
+}
+
+set_focus_transparency_preference() {
+  local enabled="$1"
+  local config_root="${WORK_CONFIG_DIR:-config}"
+  local rules_file="$config_root/hypr/UserConfigs/WindowRules.conf"
+  local override_comment="# Disable focus-based transparency from vendor per-tag opacity rules."
+  local override_rule="windowrule = match:class ^(.*)$, opacity 1.0 1.0"
+
+  [ -f "$rules_file" ] || return 0
+
+  awk -v comment="$override_comment" -v rule="$override_rule" '
+    $0 != comment && $0 != rule { print }
+  ' "$rules_file" > "${rules_file}.tmp"
+  mv "${rules_file}.tmp" "$rules_file"
+
+  if [ "$enabled" = "0" ]; then
+    printf "\n%s\n%s\n" "$override_comment" "$override_rule" >> "$rules_file"
+  fi
+}
+
+prompt_focus_transparency() {
+  local log="$1"
+
+  if [ "${UPGRADE_MODE:-0}" -eq 1 ] || [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+    echo "${NOTE:-[NOTE]} Upgrade flow: preserving existing focus-transparency preference." 2>&1 | tee -a "$log"
+    return
+  fi
+
+  while true; do
+    echo "${NOTE:-[NOTE]} By default, unfocused windows use the shipped transparency behavior."
+    echo -n "${CAT:-[ACTION]} Keep focus-based transparency enabled? [Y/n]: "
+    read -r answer
+    answer=$(echo "${answer:-y}" | tr '[:upper:]' '[:lower:]')
+    case "$answer" in
+      y|yes)
+        set_focus_transparency_preference "1"
+        echo "${OK:-[OK]} Keeping focus-based transparency enabled by default." 2>&1 | tee -a "$log"
+        return
+        ;;
+      n|no)
+        set_focus_transparency_preference "0"
+        echo "${OK:-[OK]} Disabled focus-based transparency in the user window-rules overlay." 2>&1 | tee -a "$log"
+        return
+        ;;
+      *)
+        echo "${ERROR:-[ERROR]} Invalid choice. Please enter y for yes or n for no."
+        ;;
+    esac
   done
 }
 
@@ -224,7 +312,7 @@ prompt_express_upgrade() {
       echo "${NOTE} Express mode requires installed dotfiles v${MIN_EXPRESS_VERSION} or newer. Continuing with standard upgrade prompts." 2>&1 | tee -a "$log"
     else
       while true; do
-        echo "${NOTE} Express mode skips config restore prompts, SDDM/background questions, and trims old backups."
+        echo "${NOTE} Express mode preserves UserConfigs and other host-specific state automatically, skips optional prompts, and trims old backups."
         if ! read -r -p "${CAT} Do you want to continue with EXPRESS upgrade mode? (y/N): " express_choice </dev/tty; then
           echo "${ERROR} Unable to read input for express choice; defaulting to standard prompts." 2>&1 | tee -a "$log"
           break

@@ -3,8 +3,9 @@
 
 enable_asusctl() {
   local log="$1"
+  local config_root="${WORK_CONFIG_DIR:-config}"
   if command -v asusctl >/dev/null 2>&1; then
-    local OVERLAY_SA="config/hypr/configs/Startup_Apps.conf"
+    local OVERLAY_SA="$config_root/hypr/configs/Startup_Apps.conf"
     mkdir -p "$(dirname "$OVERLAY_SA")"
     touch "$OVERLAY_SA"
     grep -qx 'exec-once = rog-control-center' "$OVERLAY_SA" || echo 'exec-once = rog-control-center' >>"$OVERLAY_SA"
@@ -13,8 +14,9 @@ enable_asusctl() {
 
 enable_blueman() {
   local log="$1"
+  local config_root="${WORK_CONFIG_DIR:-config}"
   if command -v blueman-applet >/dev/null 2>&1; then
-    local OVERLAY_SA="config/hypr/configs/Startup_Apps.conf"
+    local OVERLAY_SA="$config_root/hypr/configs/Startup_Apps.conf"
     mkdir -p "$(dirname "$OVERLAY_SA")"
     touch "$OVERLAY_SA"
     grep -qx 'exec-once = blueman-applet' "$OVERLAY_SA" || echo 'exec-once = blueman-applet' >>"$OVERLAY_SA"
@@ -23,33 +25,36 @@ enable_blueman() {
 
 enable_ags() {
   local log="$1"
+  local config_root="${WORK_CONFIG_DIR:-config}"
   if command -v ags >/dev/null 2>&1; then
     echo "${INFO:-[INFO]} AGS detected - enabling in startup and refresh scripts" 2>&1 | tee -a "$log"
-    local OVERLAY_SA="config/hypr/configs/Startup_Apps.conf"
+    local OVERLAY_SA="$config_root/hypr/configs/Startup_Apps.conf"
     mkdir -p "$(dirname "$OVERLAY_SA")"
     touch "$OVERLAY_SA"
     grep -qx 'exec-once = ags' "$OVERLAY_SA" || echo 'exec-once = ags' >>"$OVERLAY_SA"
-    sed -i '/#ags -q && ags &/s/^#//' config/hypr/scripts/RefreshNoWaybar.sh
-    sed -i '/#ags -q && ags &/s/^#//' config/hypr/scripts/Refresh.sh
+    sed -i '/#ags -q && ags &/s/^#//' "$config_root/hypr/scripts/RefreshNoWaybar.sh"
+    sed -i '/#ags -q && ags &/s/^#//' "$config_root/hypr/scripts/Refresh.sh"
   fi
 }
 
 enable_quickshell() {
   local log="$1"
+  local config_root="${WORK_CONFIG_DIR:-config}"
   if command -v qs >/dev/null 2>&1; then
     echo "${INFO:-[INFO]} Quickshell detected - enabling in startup and refresh scripts" 2>&1 | tee -a "$log"
-    local OVERLAY_SA="config/hypr/configs/Startup_Apps.conf"
+    local OVERLAY_SA="$config_root/hypr/configs/Startup_Apps.conf"
     mkdir -p "$(dirname "$OVERLAY_SA")"
     touch "$OVERLAY_SA"
     grep -qx 'exec-once = qs' "$OVERLAY_SA" || echo 'exec-once = qs' >>"$OVERLAY_SA"
-    sed -i '/#pkill qs && qs &/s/^#//' config/hypr/scripts/RefreshNoWaybar.sh
-    sed -i '/#pkill qs && qs &/s/^#//' config/hypr/scripts/Refresh.sh
+    sed -i '/#pkill qs && qs &/s/^#//' "$config_root/hypr/scripts/RefreshNoWaybar.sh"
+    sed -i '/#pkill qs && qs &/s/^#//' "$config_root/hypr/scripts/Refresh.sh"
   fi
 }
 
 ensure_keybinds_init() {
   local log="$1"
-  local OVERLAY_SA="config/hypr/configs/Startup_Apps.conf"
+  local config_root="${WORK_CONFIG_DIR:-config}"
+  local OVERLAY_SA="$config_root/hypr/configs/Startup_Apps.conf"
   mkdir -p "$(dirname "$OVERLAY_SA")"
   if ! grep -qx 'exec-once = \$scriptsDir/KeybindsLayoutInit.sh' "$OVERLAY_SA"; then
     echo 'exec-once = $scriptsDir/KeybindsLayoutInit.sh' >>"$OVERLAY_SA"
@@ -59,9 +64,10 @@ ensure_keybinds_init() {
 
 install_terminal_configs() {
   local log="$1"
+  local config_root="${WORK_CONFIG_DIR:-config}"
 
   # Ghostty
-  local GHOSTTY_SRC="config/ghostty/ghostty.config"
+  local GHOSTTY_SRC="$config_root/ghostty/ghostty.config"
   local GHOSTTY_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/ghostty"
   local GHOSTTY_DEST="$GHOSTTY_DIR/config"
   if [ -f "$GHOSTTY_SRC" ]; then
@@ -75,7 +81,7 @@ install_terminal_configs() {
   fi
 
   # WezTerm
-  local WEZTERM_SRC="config/wezterm/wezterm.lua"
+  local WEZTERM_SRC="$config_root/wezterm/wezterm.lua"
   local WEZTERM_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/wezterm"
   local WEZTERM_DEST="$WEZTERM_DIR/wezterm.lua"
   if [ -f "$WEZTERM_SRC" ]; then
@@ -88,10 +94,15 @@ install_terminal_configs() {
 
 choose_default_editor() {
   local log="$1"
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+    echo "${NOTE:-[NOTE]} Express mode: preserving existing default editor." 2>&1 | tee -a "$log"
+    return
+  fi
   local editor_set=0
+  local config_root="${WORK_CONFIG_DIR:-config}"
   update_editor() {
     local editor=$1
-    sed -i "s/#env = EDITOR,.*/env = EDITOR,$editor #default editor/" config/hypr/UserConfigs/01-UserDefaults.conf
+    sed -i "s/#env = EDITOR,.*/env = EDITOR,$editor #default editor/" "$config_root/hypr/UserConfigs/01-UserDefaults.conf"
     echo "${OK:-[OK]} Default editor set to ${MAGENTA:-}$editor${RESET:-}." 2>&1 | tee -a "$log"
   }
   if command -v nvim &>/dev/null; then
