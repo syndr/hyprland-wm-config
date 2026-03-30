@@ -47,9 +47,13 @@ mapfile -t monitor_workspaces < <(
       for (i = 2; i <= NF; i++) {
         field = $i
         gsub(/^[[:space:]]+|[[:space:]]+$/, "", field)
-        if (field == "monitor:" mon_name || field == "monitor:desc:" mon_desc) {
-          print ws
-          break
+        if (field == "monitor:" mon_name) {
+          print ws; break
+        } else if (substr(field, 1, 13) == "monitor:desc:") {
+          conf_desc = substr(field, 14)
+          if (index(mon_desc, conf_desc) > 0) {
+            print ws; break
+          }
         }
       }
     }
