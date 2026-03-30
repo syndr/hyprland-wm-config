@@ -4,6 +4,8 @@
 
 SCRIPTSDIR=$HOME/.config/hypr/scripts
 UserScripts=$HOME/.config/hypr/UserScripts
+WAYBAR_CONFIG=$HOME/.config/waybar/config
+WAYBAR_GREENSCREEN_AUTO="$HOME/.config/waybar/configs/[TOP] Greenscreen Auto"
 
 # Define file_exists function
 file_exists() {
@@ -33,6 +35,16 @@ for pid in $(pidof rofi swaync ags swaybg); do
   kill -SIGUSR1 "$pid"
   sleep 0.1
 done
+
+# Regenerate Greenscreen auto layout when it is the active Waybar target
+if [ -e "$WAYBAR_CONFIG" ] && [ -x "${SCRIPTSDIR}/GenerateWaybarGreenscreen.sh" ]; then
+  current_waybar_target=$(readlink -f "$WAYBAR_CONFIG" 2>/dev/null || printf '%s\n' "$WAYBAR_CONFIG")
+  current_waybar_name=$(basename "$current_waybar_target")
+  if [ "$current_waybar_name" = "[TOP] Greenscreen" ] || [ "$current_waybar_name" = "[TOP] Greenscreen Auto" ]; then
+    "${SCRIPTSDIR}/GenerateWaybarGreenscreen.sh" >/dev/null 2>&1 || true
+    [ -f "$WAYBAR_GREENSCREEN_AUTO" ] && ln -sf "$WAYBAR_GREENSCREEN_AUTO" "$WAYBAR_CONFIG"
+  fi
+fi
 
 # Reload Waybar in-place so the tray host survives
 sleep 0.1

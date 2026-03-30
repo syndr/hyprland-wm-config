@@ -177,6 +177,16 @@ tooltip label {
   box-shadow: none;
 }
 
+#custom-current_workspace {
+  color: @fg_bright;
+  min-width: 24px;
+  padding-left: 10px;
+  padding-right: 10px;
+  border: 2px solid @fg;
+  border-radius: 0px;
+  background: alpha(@bg_light, 0.5);
+}
+
 #workspaces button:hover label {
   color: @fg;
 }
@@ -196,7 +206,11 @@ tooltip label {
 #clock {
   color: @fg_bright;
   padding-right: 7px;
-  border-bottom: 2px solid @fg;
+  border-bottom: 1px solid @fg;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  background: transparent;
 }
 
 #custom-swaync {
@@ -300,6 +314,16 @@ tooltip label {
   border-bottom: 2px solid @fg;
   border-right: 2px solid @fg;
   border-radius: 0px; /* 0px RADIUS_LG RADIUS_LG 0px */
+}
+
+#cpu.forest_narrow {
+  border-left: none;
+  padding-left: 8px;
+}
+
+#disk.forest_narrow {
+  border-right: none;
+  padding-right: 8px;
 }
 
 #temperature.critical {
@@ -423,7 +447,9 @@ tooltip label {
   box-shadow: none;
 }
 
-#custom-audio_cap {
+#custom-audio_cap,
+#custom-status_cap,
+#custom-notify_cap_narrow {
   min-width: 0;
   font-size: 0;
   color: transparent;
@@ -436,7 +462,8 @@ tooltip label {
   background-color: @bg_dark;
 }
 
-#custom-audio_left_cap {
+#custom-audio_left_cap,
+#custom-status_left_cap {
   min-width: 0;
   font-size: 0;
   color: transparent;
@@ -450,6 +477,48 @@ tooltip label {
   background-color: @bg_dark;
 }
 
+#custom-audio_left_cap_narrow {
+  min-width: 2px;
+  font-size: 0;
+  color: transparent;
+  padding-left: 0;
+  padding-right: 0;
+  margin: 0;
+  margin-right: -2px;
+  border-left: 2px solid @fg;
+  border-top: 2px solid @fg;
+  border-bottom: 2px solid @fg;
+  background-color: @bg_dark;
+}
+
+#custom-status_left_cap_narrow {
+  min-width: 2px;
+  font-size: 0;
+  color: transparent;
+  padding-left: 0;
+  padding-right: 0;
+  margin: 0;
+  margin-right: -2px;
+  border-left: 2px solid @fg;
+  border-top: 2px solid @fg;
+  border-bottom: 2px solid @fg;
+  background-color: @bg_dark;
+}
+
+window#waybar.greenscreen-narrow #custom-swaync {
+  border-left: 2px solid @fg;
+  border-right: none;
+}
+
+window#waybar.greenscreen-narrow #custom-nightlight {
+  border-left: none;
+  border-right: none;
+}
+
+window#waybar.greenscreen-narrow #tray {
+  border-left: none;
+  border-right: none;
+}
 
 #pulseaudio.bluetooth {
   color: @fg_bright;

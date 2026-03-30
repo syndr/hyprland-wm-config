@@ -11,6 +11,7 @@
   "$HOME/.config/waybar/ModulesGroups",
   "$HOME/.config/waybar/UserModules",
   ],
+"name": "greenscreen-wide",
 "layer": "top",
 //"mode": "dock",
 "exclusive": true,

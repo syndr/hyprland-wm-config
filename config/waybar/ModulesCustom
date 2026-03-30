@@ -250,6 +250,11 @@
 	"interval": "once",
 	"tooltip": false
 },
+"custom/separator#blank_1": {
+	"format": " ",
+	"interval": "once",
+	"tooltip": false
+},
 "custom/separator#blank_3": {
 	"format": "   ",
 	"interval": "once",

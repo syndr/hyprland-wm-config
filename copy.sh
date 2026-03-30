@@ -31,9 +31,9 @@
 
 clear
 wallpaper=$HOME/.config/hypr/wallpaper_effects/.wallpaper_current
-waybar_style="$HOME/.config/waybar/style/[Dark] Hackerer.css"
-waybar_config="$HOME/.config/waybar/configs/[TOP] Hackerer"
-waybar_config_laptop="$HOME/.config/waybar/configs/[TOP] Default Laptop"
+waybar_style="$HOME/.config/waybar/style/[Dark] Greenscreen.css"
+waybar_config="$HOME/.config/waybar/configs/[TOP] Greenscreen"
+waybar_config_laptop="$HOME/.config/waybar/configs/[TOP] Greenscreen"
 chassis_type_file="$HOME/.config/hypr/.chassis_type"
 
 # Set some colors for output messages
@@ -608,6 +608,13 @@ fi
 # Check if ~/.config/waybar/config does not exist or is a symlink
 if [ ! -e "$HOME/.config/waybar/config" ] || [ -L "$HOME/.config/waybar/config" ]; then
   ln -sf "$config_file" "$HOME/.config/waybar/config" 2>&1 | tee -a "$LOG"
+fi
+
+if [ -x "$HOME/.config/hypr/scripts/GenerateWaybarGreenscreen.sh" ] && [ -f "$HOME/.config/waybar/configs/[TOP] Greenscreen Narrow" ]; then
+  "$HOME/.config/hypr/scripts/GenerateWaybarGreenscreen.sh" 2>&1 | tee -a "$LOG" || true
+  if [ -f "$HOME/.config/waybar/configs/[TOP] Greenscreen Auto" ] && [ "$config_file" = "$waybar_config" ]; then
+    ln -sf "$HOME/.config/waybar/configs/[TOP] Greenscreen Auto" "$HOME/.config/waybar/config" 2>&1 | tee -a "$LOG"
+  fi
 fi
 
 # Remove inappropriate waybar configs
