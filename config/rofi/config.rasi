@@ -8,4 +8,4 @@ configuration {
 
 /* Theme - use rofi theme selector (SUPER CTRL R) to change */
 //@theme "/usr/share/rofi/themes/gruvbox-dark-hard.rasi"
-@theme "/usr/share/rofi/themes/base16-greenscreen.rasi"
+@theme "~/.config/rofi/themes/base16-greenscreen.rasi"
