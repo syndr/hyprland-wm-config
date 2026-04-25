@@ -12,8 +12,8 @@ A_1440=400
 B_1440=400
 A_1080=200
 B_1080=200
-A_720=50
-B_720=50
+A_720=15
+B_720=15
 
 # Check if wlogout is already running
 if pgrep -x "wlogout" > /dev/null; then
@@ -23,10 +23,18 @@ fi
 
 # Detect monitor resolution and scaling factor
 resolution=$(hyprctl -j monitors | jq -r '.[] | select(.focused==true) | .height / .scale' | awk -F'.' '{print $1}')
+mon_width=$(hyprctl -j monitors | jq -r '.[] | select(.focused==true) | .width / .scale' | awk -F'.' '{print $1}')
 hypr_scale=$(hyprctl -j monitors | jq -r '.[] | select(.focused==true) | .scale')
 
+# Portrait orientation: 2x3 grid (2 cols, 3 rows) with square cells.
+# cell_w = width/2. For square cells, 3*cell_w = usable height, so margin = (height - 3*width/2)/2
+if ((mon_width < resolution)); then
+    T_val=$(awk "BEGIN {printf \"%.0f\", ($resolution - 3 * $mon_width / 2) / 4}")
+    B_val=$T_val
+    echo "Setting parameters for portrait orientation"
+    wlogout --protocol layer-shell -b 2 -T $T_val -B $B_val &
 # Set parameters based on screen resolution and scaling factor
-if ((resolution >= 2160)); then
+elif ((resolution >= 2160)); then
     T_val=$(awk "BEGIN {printf \"%.0f\", $A_2160 * 2160 * $hypr_scale / $resolution}")
     B_val=$(awk "BEGIN {printf \"%.0f\", $B_2160 * 2160 * $hypr_scale / $resolution}")
     echo "Setting parameters for resolution >= 4k"
