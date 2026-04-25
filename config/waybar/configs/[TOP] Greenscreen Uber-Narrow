@@ -1,5 +1,5 @@
 /* ---- 💫 https://github.com/JaKooLit 💫 ---- */
-/* -- Greenscreen compact layout for narrow outputs -- */
+/* -- Greenscreen ultra-compact layout for uber-narrow outputs -- */
 /* -- used by GenerateWaybarGreenscreen.sh -- */
 
 {
@@ -10,7 +10,7 @@
   "$HOME/.config/waybar/ModulesGroups",
   "$HOME/.config/waybar/UserModules",
   ],
-"name": "greenscreen-narrow",
+"name": "greenscreen-uber-narrow",
 "layer": "top",
 "exclusive": true,
 "passthrough": false,
@@ -25,7 +25,7 @@
 "modules-left": [
   "custom/phalanx",
   "custom/separator#blank_tight",
-  "hyprland/workspaces#rw",
+  "custom/current_workspace",
   "custom/separator#blank_1",
   "group/greenscreen-notify",
   "custom/notify_cap_narrow"
@@ -34,9 +34,9 @@
   "clock#forest_compact"
 ],
 "modules-right": [
+  "custom/separator#blank_1",
   "custom/status_left_cap_narrow",
   "group/greenscreen-status",
-  "temperature#forest_narrow",
   "custom/status_cap",
   "custom/separator#blank_1",
   "battery#forest_narrow",
@@ -91,24 +91,16 @@
     "memory#forest_narrow",
     "cpu#forest_narrow",
     "network#speed_narrow",
+    "temperature#forest_narrow",
     "disk#forest_narrow",
     "backlight"
   ]
 },
 
 "pulseaudio": {
-  "format": "{icon} {volume}%",
-  "format-bluetooth": "{icon} 󰂰 {volume}%",
+  "format": "  {volume}%",
+  "format-bluetooth": " 󰂰  {volume}%",
   "format-muted": "󰖁",
-  "format-icons": {
-    "headphone": "",
-    "hands-free": "",
-    "headset": "",
-    "phone": "",
-    "portable": "",
-    "car": "",
-    "default": ["", "", "󰕾", ""]
-  },
   "scroll-step": 5.0,
   "on-click": "$HOME/.config/hypr/scripts/Volume.sh --toggle",
   "on-click-right": "pavucontrol -t 3",
@@ -186,7 +178,7 @@
     "critical": 15
   },
   "format": "{icon} {capacity}%",
-  "format-charging": "{icon}  {capacity}%",
+  "format-charging": " {capacity}%",
   "format-plugged": "󱘖 {capacity}%",
   "format-alt-click": "click",
   "format-full": "{icon} Full",
@@ -228,9 +220,9 @@
 },
 "network#speed_narrow": {
   "interval": 1,
-  "format-wifi": "󰤨 {signalStrength}%",
-  "format-ethernet": "󰈀 {bandwidthUpBytes}  {bandwidthDownBytes}",
-  "format-linked": "{ifname} (No IP) ",
+  "format-wifi": "{signalStrength}% ",
+  "format-ethernet": "{bandwidthUpBytes}  {bandwidthDownBytes} ",
+  "format-linked": "{ifname} (No IP) ",
   "format-disconnected": "󰖪",
   "tooltip-format": "{ifname} via {gwaddr}",
   "tooltip-format-wifi": "{essid} ({signalStrength}%)",

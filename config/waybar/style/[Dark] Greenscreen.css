@@ -643,3 +643,15 @@ window#waybar.greenscreen-narrow #battery {
     padding-bottom: 1px;
 }
 
+/* Backlight sits in the narrow status drawer and needs matching top/bottom borders */
+window#waybar.greenscreen-narrow #backlight {
+    border-top: 2px solid @fg;
+    border-bottom: 2px solid @fg;
+    border-radius: 0px;
+}
+
+/* Wifi icon + signal strength needs a bit more horizontal room */
+window#waybar.greenscreen-narrow #network {
+    min-width: 72px;
+}
+
