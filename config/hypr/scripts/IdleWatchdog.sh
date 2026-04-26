@@ -44,6 +44,12 @@ tier_for_squawk() {
     esac
 }
 
+# Fail-closed: if hyprctl is unavailable, treat as off so the watchdog still
+# does its job. We only skip when we can positively confirm a screen is lit.
+any_monitor_dpms_on() {
+    hyprctl monitors 2>/dev/null | grep -q $'^\tdpmsStatus: 1$'
+}
+
 interval_for_tier() {
     case "$1" in
         dumbass) echo "$INTERVAL_DUMBASS" ;;
@@ -80,6 +86,14 @@ while :; do
     tier=$(tier_for_squawk "$n")
     sleep "$(interval_for_tier "$tier")"
     pidof hyprlock >/dev/null 2>&1 || exit 0
+    # Skip while a screen is lit: the user has woken hyprlock to unlock,
+    # so squawking would interrupt them and the flash pattern would yank
+    # dpms off mid-typing. The hypridle screen-off listener will flip
+    # dpms back off once they actually walk away; we resume from the
+    # same tier on the next interval.
+    if any_monitor_dpms_on; then
+        continue
+    fi
     # Escalation tracks battery-drain time, not wall-clock time since lock:
     # AC-present intervals neither squawk nor advance the tier.
     if "$ON_BATTERY"; then
