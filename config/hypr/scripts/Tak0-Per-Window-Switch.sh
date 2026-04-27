@@ -1,5 +1,11 @@
+# ==================================================
+#  KoolDots (2026)
+#  Project URL: https://github.com/LinuxBeginnings
+#  License: GNU GPLv3
+#  SPDX-License-Identifier: GPL-3.0-or-later
+# ==================================================
 ##################################################################
-#                                                                #   
+#                                                                #
 #                                                                #
 #                  TAK_0'S Per-Window-Switch                     #
 #                                                                #
@@ -7,13 +13,14 @@
 #                                                                #
 #  Just a little script that I made to switch keyboard layouts   #
 #       per-window instead of global switching for the more      #
-#                 smooth and comfortable workflow.               #  
+#                 smooth and comfortable workflow.               #
 #                                                                #
 ##################################################################
 # This is for changing kb_layouts. Set kb_layouts in 
 
 MAP_FILE="$HOME/.cache/kb_layout_per_window"
-CFG_FILE="$HOME/.config/hypr/configs/SystemSettings.conf"
+USER_CFG="$HOME/.config/hypr/UserConfigs/UserSettings.conf"
+SYS_CFG="$HOME/.config/hypr/configs/SystemSettings.conf"
 ICON="$HOME/.config/swaync/images/ja.png"
 SCRIPT_NAME="$(basename "$0")"
 
@@ -21,13 +28,16 @@ SCRIPT_NAME="$(basename "$0")"
 touch "$MAP_FILE"
 
 # Read layouts from config
-if ! grep -q 'kb_layout' "$CFG_FILE"; then
-  echo "Error: cannot find kb_layout in $CFG_FILE" >&2
+if grep -q 'kb_layout' "$USER_CFG" 2>/dev/null; then
+  CFG_FILE="$USER_CFG"
+elif grep -q 'kb_layout' "$SYS_CFG" 2>/dev/null; then
+  CFG_FILE="$SYS_CFG"
+else
+  echo "Error: cannot find kb_layout in UserSettings.conf nor SystemSettings.conf" >&2
   exit 1
 fi
 kb_layouts=($(grep 'kb_layout' "$CFG_FILE" | cut -d '=' -f2 | tr -d '[:space:]' | tr ',' ' '))
 count=${#kb_layouts[@]}
-
 # Get current active window ID
 get_win() {
   hyprctl activewindow -j | jq -r '.address // .id'
@@ -96,7 +106,10 @@ cmd_restore() {
 # Listen to focus events and restore window-specific layouts
 subscribe() {
   local SOCKET2="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
-  [[ -S "$SOCKET2" ]] || { echo "Error: Hyprland socket not found." >&2; exit 1; }
+  [[ -S "$SOCKET2" ]] || {
+    echo "Error: Hyprland socket not found." >&2
+    exit 1
+  }
 
   socat -u UNIX-CONNECT:"$SOCKET2" - | while read -r line; do
     [[ "$line" =~ ^activewindow ]] && cmd_restore

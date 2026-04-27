@@ -1,4 +1,133 @@
-# Changelog — JAK's Hyprland Dotfiles
+# Changelog — KoolDots
+
+## v2.3.22
+
+- Fixed: Kitty font issue
+  - Thank you `@JasonNero` for the fix
+- Enabled `touch on tablet` in `hypr/configs/SystemSettings.conf`
+- Updated `copy.sh` to support `ghostty`
+- The ghostty config directory is now backed up
+- Restore ghostty config added to restore options
+- [S3cBar0n](https://github.com/S3cBar0n) updated `WallpaperSelect.sh`
+  - It shows filename for the random image, and current wallpaper
+  - Thanks for support Kooldots!
+- `SWWW` project is archived moving to `AWWW`
+  - It's feature, syntax compatible
+  - Already has some fixes added
+  - Created a startup script to check for `awww-daemon` or fallback to `swww-daemon`
+  - Suggest everyone remove `swww` and replace with `awww`
+    - This has been done in `NixOS-Hyprland` but you have to update to current build in main branch
+- FIXED: Long delay updating colors after wallpaper change
+- Added more app icons for `WaybarWorkspaces`
+  - Emacs
+  - Nautilus
+  - Set new default icon to terminal with red X if no icon is available
+- Fixed delay is `ScreenShot.sh` script
+  - Removed existing `sleep` commands
+  - Moved audio `Sound.sh` to background
+  - This relates to `pipewire` [issue](https://gitlab.freedesktop.org/pipewire/pipewire/-/issues/5155)
+- Fixed delay in `Sounds.sh`
+- Now uses `paplay` for sounds
+- Rewrote core logic of `DropDownterminal.sh`
+  - Doesn't use `specialworkspace` anymore
+  - Updates to Hyprland seem to break old logic
+  - The Dropdown would flash on hide
+- Fixed all float toggle
+  - Old command drepreciated
+  - Replaced with a script `Float-All-Windows.sh` in `Keybinds.conf` file
+- Fixed Package name for `waybar-weather`
+- Added `monocle` layout
+- Experimenting with some additional layerrules
+- Improving wallpaper based theming
+  - More consistent results
+  - Reducing the time to make change effective
+- Fixed several waybar style files with inconsitent colors
+- Updated `ChangeLayout` script for scrolling
+  - Requires Hyprland v0.54+
+- Added two keybinds for scrolling layout as a start
+  - SUPERSHIFT + comma swap columns
+  - SUPERSHIFT + period move to next column
+  - SUPERALT + H Horizonal Scrolling
+  - SUPERALT + V Vertical Scrolling
+- Updated `togglesplit` to `layoutmsg,togglesplit`
+  - Has been depreciated, w/0.54 it's not supported
+    - No errors just doesn't work
+- Fixed many of the WALLUST based waybars color issues
+  - Foreground/background colors were same light color
+- Kitty now has a "No color/no theme" option
+- Updated the Headers in the scripts to:
+  - KoolDots
+  - Added Project name and URL
+  - Added License info GPLv3 to each file also
+- Added new Rofi themes:
+  - dwm Horizontal (old classic dmenu style)
+  - dwm Vertical (dmenu with small dropdown list)
+  - TokyoNight
+- Changed `fastfetch` dotfiles name to `KoolDots`
+- ENVvariables file had both QT5CT and QT6CT variables
+  `    #Added style ENV for kvantum
+env = QT_QPA_PLATFORMTHEME,qt6ct
+env = QT_STYLE_OVERRIDE,kvantum`
+  > Note: Not sure how will this will work as I don't normally use kvantum
+
+## v2.3.21
+
+- Added script from `@ivy` and `@sl1ng` to Toggle audio on active Wundow
+  - `$HOME/.config/hypr/scripts/Toggle-Active-Window-Audio.sh`
+  - Keybind is `SUPER + SHIFT + H` (hush)
+  - Added check for `pactl` otherwise keybind fails silently
+- Added check for ubunutu v26.04 in startup
+  - For as of yet unknown reason waybar won't startup without this
+  ```
+  exec-once = /usr/libexec/xdg-desktop-portal-hyprland &
+  exec-once = /usr/libexec/xdg-desktop-portal &
+  exec-once = waybar
+  ```
+- Updated `waybar-weather`
+  - Created default files in `.config/waybar-weather`
+    - You can manually override settings or providers
+    - The defaults should work for most users
+  - Added question during install to set `metric` or `imperial` Temp units
+  - Added Menu item is Quick Settings to toggle units
+    - Note: After changing units click on the weather widget to update units
+- Updated look of `fastfetch` compact config file
+- Fixed no tooltips when `waybar cava` running
+  - Thank you Max Gangel for the fix!
+- Added check for `rsync` in `copy.sh`
+- Fixed two more style sheets with hardcoded colors that broke with global theme
+- Fixed Window Rules for `zapzap`
+- Added French Translations
+  - Moved docs to proper i18n locations
+  - Thank you @Loris383v
+- Fixed `waybar-cava` starting many new processes
+  - When you switched waybarconfigs, old processes remained
+  - This is especially bad with mulitple monitors
+  - New code kills the `waybar-cava` processes on refresh
+- Fixed setting SDDM/Wallpaper/Waybar defaults on update/installs
+- Added WindowRule for proton-laucher games
+- Added WindowRule for CachyOS Kernel Manager
+- Added WindowRule for CachyOS Hello app
+- Added WindowRule for CachyOS Package Installer app
+- Added `Hyprshot` screenshot tool set to region capture
+  - `ALT + S` Saves to clipboard and `~/Pictures/Screenshots/`
+  - Not all keyboards have `PrtScr` button
+  - `hyprshot.sh` is fast, simple, no system bell sound
+- Fixed start CLI apps from rofi like `htop`, `btop` being started with `xterm`
+  - This made the apps run in light mode with tiny fonts
+  - Now they are started with `kitty`
+- Added alternative `RainbowBorders-low-cpu.sh`
+  - Based on code from `DemiGoD`
+  - I added variables for finer control
+  - Some tweaks to lower CPU further
+  - Added `-h/--help`
+  - Added `--run-once` to set RainbowBorders but no animation
+- Added 'TOP-ddubs-simple-bar'
+- Fixed CSS formatting in `ML4W-Glass.css`
+- Added keybind for "Static Rainbow border"
+  - Run `RainbowBorders-low-cpu --exec-once` to set the rainbow border w/o animation
+  - Updated `Picture-in-Picture` rule
+    - Works properly with `Brave` and other chromium browsers
+      - Thanks to `Goodborn` for the fix
 
 ## v2.3.22 — fork additions
 
@@ -225,7 +354,7 @@ features layered on top of upstream and do not correspond to upstream releases.
 - Fixed: Not all waybars had `custom/nightlight`
 - Fixed: `Weather.py` cache wasn't updating when UNITS changed from C to F
 - Fixed: Wallpapers with periods in names truncated
-  - https://github.com/JaKooLit/Hyprland-Dots/pull/873
+  - https://github.com/LinuxBeginnings/Hyprland-Dots/pull/873
   - Thanks to @godlyfast for the fix.
 - Fixed: Overview Toggle keyind SUPER + A now properly detects QuickShell
   - If QS `overview` fails, or is not installed, AGS `overview` will be started instead
@@ -246,7 +375,7 @@ features layered on top of upstream and do not correspond to upstream releases.
 - GameMode.sh / Refresh.sh
   - Enabling / Disabling repeatedly would result in multiple waybars
   - Added additional `sleep` commands in `GameMode.sh` and `Refresh.sh`
-  - Resolves [Issue 870](https://github.com/JaKooLit/Hyprland-Dots/issues/870)
+  - Resolves [Issue 870](https://github.com/LinuxBeginnings/Hyprland-Dots/issues/870)
 
 ## CHANGES:
 
@@ -366,5 +495,5 @@ Key Changes:
 - [SVIGHNESH](https://github.com/SVIGHNESH)
 
 If you have any questions, feel free to contact via
-[GitHub Discussions](https://github.com/JaKooLit/Hyprland-Dots/discussions) or
+[GitHub Discussions](https://github.com/LinuxBeginnings/Hyprland-Dots/discussions) or
 [Through Discord Server](https://discord.gg/kool-tech-world)

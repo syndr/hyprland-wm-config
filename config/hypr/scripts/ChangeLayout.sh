@@ -1,105 +1,112 @@
 #!/usr/bin/env bash
-# /* ---- 💫 https://github.com/JaKooLit 💫 ---- */  ##
-# for changing Hyprland Layouts (Master, Dwindle, or hy3) on the fly
+# ==================================================
+#  KoolDots (2026)
+#  Project URL: https://github.com/LinuxBeginnings
+#  License: GNU GPLv3
+#  SPDX-License-Identifier: GPL-3.0-or-later
+# ==================================================
+# for changing Hyprland Layouts (master, dwindle, scrolling, monocle) on the fly
 
 notif="$HOME/.config/swaync/images/ja.png"
 
-LAYOUT=$(hyprctl -j getoption general:layout | jq '.str' | sed 's/"//g')
+layouts=(master dwindle scrolling monocle)
 
-set_standard_binds() {
-  hyprctl keyword unbind SUPER,O
-  hyprctl keyword unbind SUPER_SHIFT,O
-  hyprctl keyword unbind SUPER,J
-  hyprctl keyword unbind SUPER,K
-  hyprctl keyword bind SUPER,J,cyclenext
-  hyprctl keyword bind SUPER,K,cyclenext,prev
-  hyprctl keyword bindd "SUPER,left,focus left,movefocus,l"
-  hyprctl keyword bindd "SUPER,right,focus right,movefocus,r"
-  hyprctl keyword bindd "SUPER,up,focus up,movefocus,u"
-  hyprctl keyword bindd "SUPER,down,focus down,movefocus,d"
-  hyprctl keyword bindd "SUPER_CTRL,left,move window left,movewindow,l"
-  hyprctl keyword bindd "SUPER_CTRL,right,move window right,movewindow,r"
-  hyprctl keyword bindd "SUPER_CTRL,up,move window up,movewindow,u"
-  hyprctl keyword bindd "SUPER_CTRL,down,move window down,movewindow,d"
+get_layout() {
+  hyprctl -j getoption general:layout | jq -r '.str'
 }
 
-set_master_binds() {
-  hyprctl keyword unbind SUPER,O
-  hyprctl keyword unbind SUPER_SHIFT,O
-  hyprctl keyword unbind SUPER,J
-  hyprctl keyword unbind SUPER,K
-  hyprctl keyword bind SUPER,J,layoutmsg,cyclenext
-  hyprctl keyword bind SUPER,K,layoutmsg,cycleprev
-  hyprctl keyword bindd "SUPER,left,focus left,movefocus,l"
-  hyprctl keyword bindd "SUPER,right,focus right,movefocus,r"
-  hyprctl keyword bindd "SUPER,up,focus up,movefocus,u"
-  hyprctl keyword bindd "SUPER,down,focus down,movefocus,d"
-  hyprctl keyword bindd "SUPER_CTRL,left,move window left,movewindow,l"
-  hyprctl keyword bindd "SUPER_CTRL,right,move window right,movewindow,r"
-  hyprctl keyword bindd "SUPER_CTRL,up,move window up,movewindow,u"
-  hyprctl keyword bindd "SUPER_CTRL,down,move window down,movewindow,d"
+next_layout() {
+  local current="$1"
+  local i
+  for i in "${!layouts[@]}"; do
+    if [[ "${layouts[i]}" == "$current" ]]; then
+      echo "${layouts[((i + 1) % ${#layouts[@]})]}"
+      return
+    fi
+  done
+  echo "${layouts[0]}"
 }
 
-set_hy3_binds() {
-  hyprctl keyword unbind SUPER,O
-  hyprctl keyword unbind SUPER_SHIFT,O
-  hyprctl keyword unbind SUPER,J
-  hyprctl keyword unbind SUPER,K
-  hyprctl keyword bind SUPER,J,cyclenext
-  hyprctl keyword bind SUPER,K,cyclenext,prev
-  hyprctl keyword bindd "SUPER,O,expand focus (raise),hy3:changefocus,raise"
-  hyprctl keyword bindd "SUPER_SHIFT,O,shrink focus (lower),hy3:changefocus,lower"
-  hyprctl keyword bindd "SUPER,left,focus left,hy3:movefocus,l"
-  hyprctl keyword bindd "SUPER,right,focus right,hy3:movefocus,r"
-  hyprctl keyword bindd "SUPER,up,focus up,hy3:movefocus,u"
-  hyprctl keyword bindd "SUPER,down,focus down,hy3:movefocus,d"
-  hyprctl keyword bindd "SUPER_CTRL,left,move window left,hy3:movewindow,l"
-  hyprctl keyword bindd "SUPER_CTRL,right,move window right,hy3:movewindow,r"
-  hyprctl keyword bindd "SUPER_CTRL,up,move window up,hy3:movewindow,u"
-  hyprctl keyword bindd "SUPER_CTRL,down,move window down,hy3:movewindow,d"
-}
+set_layout() {
+  local target="$1"
 
-apply_current_layout_binds() {
-  case "$LAYOUT" in
-    master)
-      set_master_binds
-      ;;
-    hy3)
-      set_hy3_binds
-      ;;
-    *)
-      set_standard_binds
-      hyprctl keyword bind SUPER,O,togglesplit
-      ;;
+  hyprctl keyword general:layout "$target"
+  hyprctl keyword unbind SUPER,j
+  hyprctl keyword unbind SUPER,k
+  hyprctl keyword unbind SUPER,left
+  hyprctl keyword unbind SUPER,right
+  hyprctl keyword unbind SUPER,up
+  hyprctl keyword unbind SUPER,down
+  hyprctl keyword unbind SUPER,O
+  hyprctl keyword unbind SUPER_SHIFT,M
+
+  case "$target" in
+  "dwindle")
+    hyprctl keyword bind SUPER,j,cyclenext
+    hyprctl keyword bind SUPER,k,cyclenext,prev
+    hyprctl keyword bind SUPER,left,cyclenext,prev
+    hyprctl keyword bind SUPER,up,cyclenext,prev
+    hyprctl keyword bind SUPER,right,cyclenext
+    hyprctl keyword bind SUPER,down,cyclenext
+    hyprctl keyword bind SUPER,O,layoutmsg,togglesplit
+    notify-send -e -u low -i "$notif" " Dwindle Layout"
+    ;;
+  "scrolling")
+    hyprctl keyword bind SUPER,j,cyclenext
+    hyprctl keyword bind SUPER,k,cyclenext,prev
+    hyprctl keyword bind SUPER,left,cyclenext,prev
+    hyprctl keyword bind SUPER,up,cyclenext,prev
+    hyprctl keyword bind SUPER,right,cyclenext
+    hyprctl keyword bind SUPER,down,cyclenext
+    notify-send -e -u low -i "$notif" " Scrolling Layout"
+    ;;
+  "monocle")
+    hyprctl keyword bind SUPER,j,layoutmsg,cyclenext
+    hyprctl keyword bind SUPER,k,layoutmsg,cycleprev
+    hyprctl keyword bind SUPER,left,layoutmsg,cycleprev
+    hyprctl keyword bind SUPER,up,layoutmsg,cycleprev
+    hyprctl keyword bind SUPER,right,layoutmsg,cyclenext
+    hyprctl keyword bind SUPER,down,layoutmsg,cyclenext
+    hyprctl keyword bind SUPER_SHIFT,M,layoutmsg,swapnext
+    notify-send -e -u low -i "$notif" " Monocle Layout"
+    ;;
+  "master")
+    hyprctl keyword bind SUPER,j,layoutmsg,cyclenext
+    hyprctl keyword bind SUPER,k,layoutmsg,cycleprev
+    hyprctl keyword bind SUPER,left,movefocus,l
+    hyprctl keyword bind SUPER,right,movefocus,r
+    hyprctl keyword bind SUPER,up,movefocus,u
+    hyprctl keyword bind SUPER,down,movefocus,d
+    notify-send -e -u low -i "$notif" " Master Layout"
+    ;;
+  *)
+    hyprctl keyword bind SUPER,j,layoutmsg,cyclenext
+    hyprctl keyword bind SUPER,k,layoutmsg,cycleprev
+    hyprctl keyword bind SUPER,left,movefocus,l
+    hyprctl keyword bind SUPER,right,movefocus,r
+    hyprctl keyword bind SUPER,up,movefocus,u
+    hyprctl keyword bind SUPER,down,movefocus,d
+    echo "Unknown layout: $target" >&2
+    return 1
+    ;;
   esac
 }
 
-if [ "${1:-}" = "init" ]; then
-  apply_current_layout_binds
-  exit 0
-fi
+current="$(get_layout)"
+arg="${1:-toggle}"
 
-case "$LAYOUT" in
-  dwindle)
-    hyprctl keyword general:layout master
-    set_master_binds
-    notify-send -e -u low -i "$notif" " Master Layout"
-    ;;
-  master)
-    hyprctl keyword general:layout hy3
-    set_hy3_binds
-    notify-send -e -u low -i "$notif" "󰕰 hy3 Layout"
-    ;;
-  hy3)
-    hyprctl keyword general:layout dwindle
-    set_standard_binds
-    hyprctl keyword bind SUPER,O,togglesplit
-    notify-send -e -u low -i "$notif" " Dwindle Layout"
-    ;;
-  *)
-    hyprctl keyword general:layout dwindle
-    set_standard_binds
-    hyprctl keyword bind SUPER,O,togglesplit
-    notify-send -e -u low -i "$notif" " Dwindle Layout"
-    ;;
+case "$arg" in
+init)
+  set_layout "$current"
+  ;;
+toggle|next)
+  set_layout "$(next_layout "$current")"
+  ;;
+master|dwindle|scrolling|monocle)
+  set_layout "$arg"
+  ;;
+*)
+  echo "Usage: $(basename "$0") [toggle|next|init|master|dwindle|scrolling|monocle]" >&2
+  exit 1
+  ;;
 esac

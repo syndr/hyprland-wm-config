@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# /* ---- 💫 https://github.com/JaKooLit 💫 ---- */  ##
+# ==================================================
+#  KoolDots (2026)
+#  Project URL: https://github.com/LinuxBeginnings
+#  License: GNU GPLv3
+#  SPDX-License-Identifier: GPL-3.0-or-later
+# ==================================================
 # Rofi menu for KooL Hyprland Quick Settings (SUPER SHIFT E)
 # Updated for UserConfigs/configs separation
 
@@ -193,6 +198,7 @@ Edit System Default Settings
 --- UTILITIES ---
 Set SDDM Wallpaper
 Choose Kitty Terminal Theme
+Choose Ghostty Terminal Theme
 Configure Monitors (nwg-displays)
 Configure Workspace Rules (nwg-displays)
 GTK Settings (nwg-look)
@@ -202,6 +208,7 @@ Choose Hyprland Animations
 Choose Monitor Profiles
 Choose Rofi Themes
 Search for Keybinds
+Toggle Waybar Weather units (C/F)
 Toggle Game Mode
 Switch Dark-Light Theme
 Rainbow Borders Mode
@@ -229,6 +236,7 @@ main() {
         "Edit System Default Settings") file="$configs/SystemSettings.conf" ;;
         "Set SDDM Wallpaper") $scriptsDir/sddm_wallpaper.sh --normal ;;
         "Choose Kitty Terminal Theme") $scriptsDir/Kitty_themes.sh ;;
+        "Choose Ghostty Terminal Theme") $scriptsDir/Ghostty_themes.sh ;;
         "Configure Monitors (nwg-displays)") 
             if ! command -v nwg-displays &>/dev/null; then
                 notify-send -i "$iDIR/error.png" "E-R-R-O-R" "Install nwg-displays first"
@@ -263,6 +271,7 @@ main() {
         "Choose Monitor Profiles") $scriptsDir/MonitorProfiles.sh ;;
         "Choose Rofi Themes") $scriptsDir/RofiThemeSelector.sh ;;
         "Search for Keybinds") $scriptsDir/KeyBinds.sh ;;
+        "Toggle Waybar Weather units (C/F)") $scriptsDir/Toggle-weather-waybar-units.sh ;;
         "Toggle Game Mode") $scriptsDir/GameMode.sh ;;
         "Switch Dark-Light Theme") $scriptsDir/DarkLight.sh ;;
         "Rainbow Borders Mode") rainbow_borders_menu ;;

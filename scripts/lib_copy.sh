@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# ==================================================
+#  KoolDots (2026)
+#  Project URL: https://github.com/LinuxBeginnings
+#  License: GNU GPLv3
+#  SPDX-License-Identifier: GPL-3.0-or-later
+# ==================================================
 # Copy helpers split into phases to keep copy.sh lean.
 
 snapshot_theme_state() {
@@ -372,7 +378,14 @@ restore_hypr_assets() {
     else
       echo -e "\n${NOTE:-[NOTE]} Restoring ${SKY_BLUE:-}Animations & Monitor Profiles${RESET:-} into ${YELLOW:-}$HYPR_DIR${RESET:-}..."
 
-      local DIR_B=("Monitor_Profiles" "animations" "wallpaper_effects")
+      # Fresh installs should apply repo defaults; do not restore a previous wallpaper.
+      # RUN_MODE is set by copy.sh (install|upgrade|express) and is visible here.
+      local DIR_B=("Monitor_Profiles" "animations")
+      if [ "${RUN_MODE:-}" != "install" ]; then
+        DIR_B+=("wallpaper_effects")
+      else
+        echo "${NOTE:-[NOTE]} Fresh install: skipping restore of wallpaper_effects so default wallpaper applies." 2>&1 | tee -a "$log"
+      fi
       for DIR_RESTORE in "${DIR_B[@]}"; do
         local BACKUP_SUBDIR="$BACKUP_HYPR_PATH/$DIR_RESTORE"
         if [ -d "$BACKUP_SUBDIR" ]; then
@@ -432,6 +445,14 @@ cleanup_duplicate_userconfigs() {
     echo "${INFO:-[INFO]} Running UserConfigs duplicate cleanup for detected version v$current_version." 2>&1 | tee -a "$log"
   else
     echo "${INFO:-[INFO]} Running UserConfigs duplicate cleanup." 2>&1 | tee -a "$log"
+  fi
+
+  # Run de-dupe only for existing installs up to and including v2.3.18.
+  # For v2.3.19 and newer, UserConfigs should be left as-is to avoid
+  # removing user modifications.
+  if version_gte "$current_version" "2.3.19"; then
+    echo "${INFO:-[INFO]} Skipping UserConfigs duplicate cleanup for detected version v$current_version (>= 2.3.19)." 2>&1 | tee -a "$log"
+    return
   fi
 
   local HYPR_DIR="$HOME/.config/hypr"
@@ -574,6 +595,9 @@ restore_user_configs() {
   local log="$1"
   local express_mode="$2"
   local old_version="$3"
+  if [ "${RUN_MODE:-}" = "install" ]; then
+    return
+  fi
 
   local DIRPATH="$HOME/.config/hypr"
   local BACKUP_DIR
@@ -601,6 +625,10 @@ restore_user_configs() {
     fi
 
     local TARGET_VERSION="2.3.19"
+    local AUTO_RESTORE=0
+    if version_gte "$CURRENT_VERSION" "2.3.18"; then
+      AUTO_RESTORE=1
+    fi
 
     echo -e "${NOTE:-[NOTE]} Restoring previous ${MAGENTA:-}User-Configs${RESET:-}... " 2>&1 | tee -a "$log"
     printf "${WARNING:-}\\
@@ -613,13 +641,19 @@ restore_user_configs() {
 " >&2
 
     if version_gte "$CURRENT_VERSION" "$TARGET_VERSION"; then
-      read -r -p "${CAT:-[ACTION]} Do you want to restore your previous UserConfigs directory? (Y/n): " restore_userconfigs_dir
-      if [[ "$restore_userconfigs_dir" != [Nn]* ]]; then
-        echo "${NOTE:-[NOTE]} Restoring UserConfigs directory..." 2>&1 | tee -a "$log"
+      if [ "$express_mode" -eq 1 ] || [ "$AUTO_RESTORE" -eq 1 ]; then
+        echo "${NOTE:-[NOTE]} Restoring UserConfigs directory automatically." 2>&1 | tee -a "$log"
         rsync -a "$BACKUP_DIR_PATH/" "$DIRPATH/UserConfigs/" 2>&1 | tee -a "$log"
         echo "${OK:-[OK]} - UserConfigs directory restored." 2>&1 | tee -a "$log"
       else
-        echo "${NOTE:-[NOTE]} - Skipped restoring UserConfigs." 2>&1 | tee -a "$log"
+        read -r -p "${CAT:-[ACTION]} Do you want to restore your previous UserConfigs directory? (Y/n): " restore_userconfigs_dir
+        if [[ "$restore_userconfigs_dir" != [Nn]* ]]; then
+          echo "${NOTE:-[NOTE]} Restoring UserConfigs directory..." 2>&1 | tee -a "$log"
+          rsync -a "$BACKUP_DIR_PATH/" "$DIRPATH/UserConfigs/" 2>&1 | tee -a "$log"
+          echo "${OK:-[OK]} - UserConfigs directory restored." 2>&1 | tee -a "$log"
+        else
+          echo "${NOTE:-[NOTE]} - Skipped restoring UserConfigs." 2>&1 | tee -a "$log"
+        fi
       fi
     else
       echo -e "${NOTE:-[NOTE]} Detected version ${YELLOW:-}v$CURRENT_VERSION${RESET:-} (older than v$TARGET_VERSION). Using legacy restoration mode." 2>&1 | tee -a "$log"
@@ -651,18 +685,25 @@ restore_user_configs() {
             echo "${OK:-[OK]} - Migrated overlay for ${YELLOW:-}$FILE_NAME${RESET:-}" 2>&1 | tee -a "$log"
             continue
           fi
-
-          printf "\n${INFO:-[INFO]} Found ${YELLOW:-}$FILE_NAME${RESET:-} in hypr backup...\n"
-          read -r -p "${CAT:-[ACTION]} Do you want to restore ${YELLOW:-}$FILE_NAME${RESET:-} from backup? (Y/n): " file_restore
-
-          if [[ "$file_restore" != [Nn]* ]]; then
+          if [ "$express_mode" -eq 1 ] || [ "$AUTO_RESTORE" -eq 1 ]; then
             if cp "$BACKUP_FILE" "$DIRPATH/UserConfigs/$FILE_NAME"; then
               echo "${OK:-[OK]} - $FILE_NAME restored!" 2>&1 | tee -a "$log"
             else
               echo "${ERROR:-[ERROR]} - Failed to restore $FILE_NAME!" 2>&1 | tee -a "$log"
             fi
           else
-            echo "${NOTE:-[NOTE]} - Skipped restoring $FILE_NAME." 2>&1 | tee -a "$log"
+            printf "\n${INFO:-[INFO]} Found ${YELLOW:-}$FILE_NAME${RESET:-} in hypr backup...\n"
+            read -r -p "${CAT:-[ACTION]} Do you want to restore ${YELLOW:-}$FILE_NAME${RESET:-} from backup? (Y/n): " file_restore
+
+            if [[ "$file_restore" != [Nn]* ]]; then
+              if cp "$BACKUP_FILE" "$DIRPATH/UserConfigs/$FILE_NAME"; then
+                echo "${OK:-[OK]} - $FILE_NAME restored!" 2>&1 | tee -a "$log"
+              else
+                echo "${ERROR:-[ERROR]} - Failed to restore $FILE_NAME!" 2>&1 | tee -a "$log"
+              fi
+            else
+              echo "${NOTE:-[NOTE]} - Skipped restoring $FILE_NAME." 2>&1 | tee -a "$log"
+            fi
           fi
         fi
       done
@@ -724,6 +765,32 @@ restore_user_scripts() {
   fi
 }
 
+restore_terminal_configs() {
+  local log="$1"
+  local express_mode="$2"
+
+  local GHOSTTY_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/ghostty"
+  local BACKUP_DIR
+  BACKUP_DIR=$(get_backup_dirname)
+  local GHOSTTY_BACKUP="$GHOSTTY_DIR-backup-$BACKUP_DIR"
+
+  if [ -d "$GHOSTTY_BACKUP" ] && [ "$express_mode" -eq 1 ]; then
+    echo "${NOTE:-[NOTE]} Express mode: skipping Ghostty restore prompt." 2>&1 | tee -a "$log"
+    return
+  fi
+
+  if [ -d "$GHOSTTY_BACKUP" ] && [ "$express_mode" -eq 0 ]; then
+    echo -e "${NOTE:-[NOTE]} Restore previous ${MAGENTA:-}Ghostty${RESET:-} config?" 2>&1 | tee -a "$log"
+    read -r -p "${CAT:-[ACTION]} Do you want to restore Ghostty config from backup? (y/N): " restore_ghostty
+    if [[ "$restore_ghostty" == [Yy]* ]]; then
+      rm -rf "$GHOSTTY_DIR"
+      cp -a "$GHOSTTY_BACKUP" "$GHOSTTY_DIR" 2>&1 | tee -a "$log"
+      echo "${OK:-[OK]} - Ghostty config restored." 2>&1 | tee -a "$log"
+    else
+      echo "${NOTE:-[NOTE]} - Skipped restoring Ghostty config." 2>&1 | tee -a "$log"
+    fi
+  fi
+}
 restore_hypr_files() {
   local log="$1"
   local express_mode="$2"

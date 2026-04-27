@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# /* ---- 💫 https://github.com/JaKooLit 💫 ---- */  ##
+# ==================================================
+#  KoolDots (2026)
+#  Project URL: https://github.com/LinuxBeginnings
+#  License: GNU GPLv3
+#  SPDX-License-Identifier: GPL-3.0-or-later
+# ==================================================
 # Wallust: derive colors from the current wallpaper and update templates
 # Usage: WallustSwww.sh [absolute_path_to_wallpaper]
 
@@ -7,7 +12,15 @@ set -euo pipefail
 
 # Inputs and paths
 passed_path="${1:-}"
-cache_dir="$HOME/.cache/swww/"
+if command -v awww >/dev/null 2>&1; then
+  WWW="awww"
+  cache_dir="$HOME/.cache/awww/"
+  cache_dir_fallback="$HOME/.cache/swww/"
+else
+  WWW="swww"
+  cache_dir="$HOME/.cache/swww/"
+  cache_dir_fallback="$HOME/.cache/awww/"
+fi
 rofi_link="$HOME/.config/rofi/.current_wallpaper"
 wallpaper_current="$HOME/.config/hypr/wallpaper_effects/.wallpaper_current"
 read_cached_wallpaper() {
@@ -19,7 +32,7 @@ read_cached_wallpaper() {
 
 read_wallpaper_from_query() {
   local monitor="$1"
-  swww query | awk -v mon="$monitor" '
+  $WWW query | awk -v mon="$monitor" '
     /^Monitor/ {
       cur=$2
       gsub(":", "", cur)
@@ -46,17 +59,21 @@ wallpaper_path=""
 if [[ -n "$passed_path" && -f "$passed_path" ]]; then
   wallpaper_path="$passed_path"
 else
-  # Try to read from swww cache for the focused monitor, with a short retry loop
+  # Try to read from awww/swww cache for the focused monitor, with a short retry loop
   current_monitor="$(get_focused_monitor)"
   cache_file="$cache_dir$current_monitor"
+  alt_cache_file="${cache_dir_fallback}${current_monitor}"
 
-  # Wait briefly for swww to write its cache after an image change
+  # Wait briefly for awww/swww to write its cache after an image change
   for i in {1..10}; do
-    if [[ -f "$cache_file" ]]; then
+    if [[ -f "$cache_file" || -f "$alt_cache_file" ]]; then
       break
     fi
     sleep 0.1
   done
+  if [[ ! -f "$cache_file" && -f "$alt_cache_file" ]]; then
+    cache_file="$alt_cache_file"
+  fi
 
   if [[ -f "$cache_file" ]]; then
     # The first non-filter line is the original wallpaper path
@@ -111,26 +128,75 @@ wallust run -s "$wallpaper_path" || true
 wallust_targets=(
   "$HOME/.config/waybar/wallust/colors-waybar.css"
   "$HOME/.config/rofi/wallust/colors-rofi.rasi"
+  "$HOME/.config/hypr/wallust/wallust-hyprland.conf"
 )
 wait_for_templates "$start_ts" "${wallust_targets[@]}" || true
 
-# Normalize Ghostty palette syntax in case ':' was used by older files
-if [ -f "$HOME/.config/ghostty/wallust.conf" ]; then
-  sed -i -E 's/^(\s*palette\s*=\s*)([0-9]{1,2}):/\1\2=/' "$HOME/.config/ghostty/wallust.conf" 2>/dev/null || true
+# Normalize Rofi selection colors to a brighter accent and readable foreground
+rofi_colors="$HOME/.config/rofi/wallust/colors-rofi.rasi"
+if [ -f "$rofi_colors" ]; then
+  accent_hex=$(sed -n 's/^\s*color13:\s*\(#[0-9A-Fa-f]\{6\}\).*/\1/p' "$rofi_colors" | head -n1)
+  [ -z "$accent_hex" ] && accent_hex=$(sed -n 's/^\s*color12:\s*\(#[0-9A-Fa-f]\{6\}\).*/\1/p' "$rofi_colors" | head -n1)
+  fg_hex=$(sed -n 's/^\s*foreground:\s*\(#[0-9A-Fa-f]\{6\}\).*/\1/p' "$rofi_colors" | head -n1)
+  if [ -n "$accent_hex" ]; then
+    sed -i -E "s|^(\s*selected-normal-background:\s*).*$|\1$accent_hex;|" "$rofi_colors"
+    sed -i -E "s|^(\s*selected-active-background:\s*).*$|\1$accent_hex;|" "$rofi_colors"
+    sed -i -E "s|^(\s*selected-urgent-background:\s*).*$|\1$accent_hex;|" "$rofi_colors"
+  fi
+  if [ -n "$fg_hex" ]; then
+    sed -i -E "s|^(\s*selected-normal-foreground:\s*).*$|\1$fg_hex;|" "$rofi_colors"
+    sed -i -E "s|^(\s*selected-active-foreground:\s*).*$|\1$fg_hex;|" "$rofi_colors"
+    sed -i -E "s|^(\s*selected-urgent-foreground:\s*).*$|\1$fg_hex;|" "$rofi_colors"
+  fi
 fi
 
-# Light wait for Ghostty colors file to be present then signal Ghostty to reload (SIGUSR2)
-for _ in 1 2 3; do
-  [ -s "$HOME/.config/ghostty/wallust.conf" ] && break
-  sleep 0.1
-done
-if pidof ghostty >/dev/null; then
-  for pid in $(pidof ghostty); do kill -SIGUSR2 "$pid" 2>/dev/null || true; done
-fi
+# Run kitty-only wallust config to keep terminal palette separate
+run_wallust_with_config() {
+  local cfg="$1"
+  if wallust run --help 2>&1 | grep -q -E '(^|[[:space:]])-c([,[:space:]]|$)|--config'; then
+    wallust run -s -c "$cfg" "$wallpaper_path" || true
+  else
+    WALLUST_CONFIG="$cfg" wallust run -s "$wallpaper_path" || true
+  fi
+}
 
-# Prompt Waybar to reload colors
-if command -v waybar-msg >/dev/null 2>&1; then
-  waybar-msg cmd reload >/dev/null 2>&1 || true
-elif pidof waybar >/dev/null; then
-  killall -SIGUSR2 waybar 2>/dev/null || true
-fi
+kitty_cfg="$HOME/.config/wallust/wallust-kitty.toml"
+(
+  if [ -f "$kitty_cfg" ]; then
+    kitty_ts=$(date +%s)
+    run_wallust_with_config "$kitty_cfg"
+    wait_for_templates "$kitty_ts" "$HOME/.config/kitty/kitty-themes/01-Wallust.conf" || true
+  fi
+
+  # Reload kitty colors when wallpaper-based theme is active
+  kitty_wallust_theme="$HOME/.config/kitty/kitty-themes/01-Wallust.conf"
+  if [ -s "$kitty_wallust_theme" ]; then
+    if command -v kitty >/dev/null 2>&1; then
+      kitty @ load-config >/dev/null 2>&1 || true
+      kitty @ set-colors --all --configured "$kitty_wallust_theme" >/dev/null 2>&1 || true
+    fi
+    if pidof kitty >/dev/null 2>&1; then
+      for pid in $(pidof kitty); do
+        kill -SIGUSR1 "$pid" 2>/dev/null || true
+      done
+    fi
+  fi
+
+  # Normalize Ghostty palette syntax in case ':' was used by older files
+  if [ -f "$HOME/.config/ghostty/wallust.conf" ]; then
+    sed -i -E 's/^(\s*palette\s*=\s*)([0-9]{1,2}):/\1\2=/' "$HOME/.config/ghostty/wallust.conf" 2>/dev/null || true
+  fi
+
+  # Light wait for Ghostty colors file to be present then signal Ghostty to reload (SIGUSR2)
+  for _ in 1 2 3; do
+    [ -s "$HOME/.config/ghostty/wallust.conf" ] && break
+    sleep 0.1
+  done
+  if pidof ghostty >/dev/null; then
+    for pid in $(pidof ghostty); do kill -SIGUSR2 "$pid" 2>/dev/null || true; done
+  fi
+  # Reload Hyprland so new border colors from wallust-hyprland.conf take effect
+  if command -v hyprctl >/dev/null 2>&1; then
+    hyprctl reload >/dev/null 2>&1 || true
+  fi
+) >/dev/null 2>&1 &

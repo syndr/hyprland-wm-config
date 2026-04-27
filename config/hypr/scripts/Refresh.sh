@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# /* ---- 💫 https://github.com/JaKooLit 💫 ---- */  ##
+# ==================================================
+#  KoolDots (2026)
+#  Project URL: https://github.com/LinuxBeginnings
+#  License: GNU GPLv3
+#  SPDX-License-Identifier: GPL-3.0-or-later
+# ==================================================
 # Scripts for refreshing ags, waybar, rofi, swaync, wallust
 
 SCRIPTSDIR=$HOME/.config/hypr/scripts
@@ -16,7 +21,7 @@ file_exists() {
   fi
 }
 
-# Kill already running processes
+# Kill already running processes (exclude waybar to avoid double reloads)
 _ps=(rofi swaync ags)
 for _prs in "${_ps[@]}"; do
   if pidof "${_prs}" >/dev/null; then
@@ -24,13 +29,17 @@ for _prs in "${_ps[@]}"; do
   fi
 done
 
+# Clean up any Waybar-spawned cava instances (unique temp conf names)
+pkill -f 'waybar-cava\..*\.conf' 2>/dev/null || true
+
+
 # quit ags & relaunch ags
 ags -q && ags &
 
 # quit quickshell & relaunch quickshell
 #pkill qs && qs &
 
-# some process to kill
+# some process to kill (exclude waybar to avoid restart loops)
 for pid in $(pidof rofi swaync ags swaybg); do
   kill -SIGUSR1 "$pid"
   sleep 0.1
@@ -46,12 +55,14 @@ if [ -e "$WAYBAR_CONFIG" ] && [ -x "${SCRIPTSDIR}/GenerateWaybarGreenscreen.sh" 
   fi
 fi
 
-# Reload Waybar in-place so the tray host survives
+# Reload waybar in-place so the tray host survives, or start it if not running
 sleep 0.1
-if command -v waybar-msg >/dev/null 2>&1; then
-  waybar-msg cmd reload >/dev/null 2>&1 || true
-elif pidof waybar >/dev/null; then
-  killall -SIGUSR2 waybar 2>/dev/null || true
+if pidof waybar >/dev/null; then
+  if command -v waybar-msg >/dev/null 2>&1; then
+    waybar-msg cmd reload >/dev/null 2>&1 || true
+  else
+    killall -SIGUSR2 waybar 2>/dev/null || true
+  fi
 else
   waybar >/dev/null 2>&1 &
 fi
