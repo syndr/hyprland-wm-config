@@ -1,5 +1,41 @@
 # Changelog — JAK's Hyprland Dotfiles
 
+## v2.3.22 — fork additions
+
+Tracks upstream's `v2.3.22` version marker; the entries below are fork-only
+features layered on top of upstream and do not correspond to upstream releases.
+
+- 2026-04-26
+- Idle alert and post-lock watchdog
+  - Pre-lock 30s warning fires `IdleAlert.sh warn` plus a notification
+  - Post-lock `IdleWatchdog.sh` escalates squawks (gentle → nag → dumbass)
+  - Battery-aware via `OnBattery.sh`: AC-attached idleness is silent and
+    does not advance the escalation tier
+  - Watchdog skips squawks while any monitor's `dpmsStatus` is `1`, so the
+    flash routine no longer yanks dpms off mid-password-entry
+  - Per-tier sound pools and watchdog cadence overridable in
+    `~/.config/hypr/idle-alert.conf`
+- Greenscreen waybar uber-narrow tier
+  - New preset `[TOP] Greenscreen Uber-Narrow` for outputs below
+    `WAYBAR_UBER_NARROW_THRESHOLD` (default 900px)
+  - Auto-generator routes each output to wide / narrow / uber-narrow
+  - Narrow preset: `fixed-center: true`, native `hyprland/workspaces#rw`,
+    audio icon set, network with icons, battery moved into status drawer
+  - Matching CSS adds backlight and network selectors for the narrow class
+- Portrait laptop support
+  - Ship `hyprlock-720p.conf` as a sibling to `-1080p` and `-2k`
+  - `Wlogout.sh` detects portrait orientation and uses a 2x3 square-cell
+    grid with margins computed for the portrait aspect
+- Bind brightness keys in the laptop template
+  - `xf86Mon/KbdBrightness` up/down → `Brightness.sh` / `BrightnessKbd.sh`
+- Ship `base16-greenscreen` rofi theme in the repo
+  - `config.rasi` previously referenced `/usr/share/rofi/themes/...` which
+    nothing installed; theme is now under `config/rofi/themes/` with the
+    `@theme` directive pointing at the user-config path
+- Wlogout layout and styling refresh
+  - Uppercase action labels, JetBrainsMono Nerd Font, smaller font/icons,
+    tighter button radius and margins, hardened red for the danger button
+
 ## v2.3.20
 
 - Bugfix release
