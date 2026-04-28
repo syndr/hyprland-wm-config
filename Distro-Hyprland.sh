@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 # ==================================================
-#  KoolDots (2026)
-#  Project URL: https://github.com/LinuxBeginnings
+#  hyprland-wm-config (fork of LinuxBeginnings/Hyprland-Dots)
+#  Project URL: https://github.com/syndr/hyprland-wm-config
+#  Upstream:    https://github.com/LinuxBeginnings/Hyprland-Dots
 #  License: GNU GPLv3
 #  SPDX-License-Identifier: GPL-3.0-or-later
 # ==================================================
 
-# Script design to clone the Distro-Hyprland install scripts
+# Script design to clone the Distro-Hyprland install scripts.
+#
+# NOTE: This script clones upstream LinuxBeginnings/<distro>-Hyprland install
+# scripts, which in turn install upstream LinuxBeginnings/Hyprland-Dots — NOT
+# this fork. To install this fork's dotfiles, abort this script and run:
+#   git clone --depth=1 https://github.com/syndr/hyprland-wm-config.git \
+#     && cd hyprland-wm-config && ./copy.sh
 
 # Set some colors for output messages
 OK="$(tput setaf 2)[OK]$(tput sgr0)"
@@ -122,6 +129,21 @@ else
     echo "${ERROR} Unsupported distribution: $distro_name. Exiting."
     exit 1
 fi
+
+# ==================================================
+# UPSTREAM WARNING — this script does NOT install the fork
+# ==================================================
+echo
+echo "${WARN} ${WARNING}This script will clone upstream LinuxBeginnings/${Distro}.${RESET}"
+echo "${WARN} ${WARNING}That installer will pull upstream LinuxBeginnings/Hyprland-Dots,${RESET}"
+echo "${WARN} ${WARNING}NOT this fork (syndr/hyprland-wm-config).${RESET}"
+echo
+echo "${INFO} If you want to install ${MAGENTA}this fork's${RESET} dotfiles, abort now and run:"
+echo "${INFO}   ${SKY_BLUE}git clone --depth=1 https://github.com/syndr/hyprland-wm-config.git${RESET}"
+echo "${INFO}   ${SKY_BLUE}cd hyprland-wm-config && ./copy.sh${RESET}"
+echo
+read -r -p "${CAT} Press Enter to continue with upstream install, or Ctrl+C to abort: " _
+echo
 
 # Check for Git and install if not found
 if ! command -v git &> /dev/null; then
