@@ -1,69 +1,65 @@
-# Contributing to KooL Hyprland Projects
+# Contributing to hyprland-wm-config
 
-Thank you for your interest in contributing to KooL Hyprland Projects! We welcome any contributions, including bug fixes, feature enhancements, documentation improvements, and other general improvements.
+Thank you for your interest in contributing! This is a fork of
+[LinuxBeginnings/Hyprland-Dots](https://github.com/LinuxBeginnings/Hyprland-Dots)
+(originally JaKooLit/Hyprland-Dots). Bug fixes, feature enhancements,
+documentation improvements, and other improvements are all welcome.
 
 ## Getting Started
 
-1. Fork the branch development repository to your GitHub account. This will create a copy of this repository in your account. You can make changes to this copy without affecting the original repository.
-  - For fork this repository, click the **Fork** button in the top right corner of this page or click [here](https://github.com/LinuxBeginnings/Hyprland-Dots/fork).
-  - Make sure to uncheck the Copy the `main` branch only. This will copy the development branch and other branches (if any)
- 
-2. Clone your forked repository to your local machine.
+1. Fork the repository to your GitHub account. Click the **Fork** button at the
+   top right of the project page, or [click here](https://github.com/syndr/hyprland-wm-config/fork).
 
-  - Use the following command to clone your forked repository to your local machine.
+2. Clone your fork to your local machine:
 
      ```bash
-     git clone --depth=1 -b development https://github.com/LinuxBeginnings/Hyprland-Dots.git
+     git clone --depth=1 https://github.com/<your-username>/hyprland-wm-config.git
      ```
 
-3. Create a new branch for your changes.
-
-  - For example, to create a new branch named `your-branch-name`, use the following command.
+3. Create a new branch for your changes:
 
      ```bash
      git checkout -b your-branch-name
      ```
 
-4. Make your changes and commit them with a descriptive commit message.
-
-  - For example, to commit your changes, use the following command and make sure to follow the [commit message guidelines](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/COMMIT_MESSAGE_GUIDELINES.md).
+4. Make your changes and commit them with a descriptive commit message. Follow
+   the [commit message guidelines](https://github.com/syndr/hyprland-wm-config/blob/main/COMMIT_MESSAGE_GUIDELINES.md).
 
      ```bash
      git commit -m "feat: add a new feature"
      ```
 
-5. Push your changes to your forked repository.
-
-  - For example, to push your changes to your forked repository, use the following command.
+5. Push your branch to your fork:
 
      ```bash
      git push origin your-branch-name
      ```
 
-6. Submit a **pull request** to the development branch repository.
-   - For example, to create a pull request, use the following steps.
-     1. Go to your forked repository.
-     2. Click the **Compare & pull request** button next to your `your-branch-name` branch.
-     3. Add a title and description for your pull request.
-     4. Click **Create pull request** and remember to add the relevant labels with using the [pull request template](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/.github/PULL_REQUEST_TEMPLATE.md).
+6. Open a **pull request** against `main`:
+     1. Go to your fork on GitHub.
+     2. Click **Compare & pull request** next to your branch.
+     3. Add a title and description, and use the
+        [pull request template](https://github.com/syndr/hyprland-wm-config/blob/main/.github/PULL_REQUEST_TEMPLATE.md).
+     4. Click **Create pull request**.
 
 ## Guidelines
 
 - Follow the code style of the project.
-- Update the **documentation** if necessary.
-- Add tests if applicable.
-- Make sure all tests pass or fully tested before submitting your changes.
-- Keep your pull request focused and avoid including unrelated changes.
-- Remember to follow the following files before submitting your changes.
-  - [bug.yml](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/.github/ISSUE_TEMPLATE/bug.yml) - Use this template to create a report to help us improve.
-  - [feature.yml](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/.github/ISSUE_TEMPLATE/feature.yml) - Use this template to suggest a feature for this project.
-  - [documentation-update.yml](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/.github/ISSUE_TEMPLATE/documentation-update.yml) - Use this template to propose a change to the documentation.
-  - [PULL_REQUEST_TEMPLATE.md](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/.github/PULL_REQUEST_TEMPLATE.md) - Use this template to submit a pull request.
-  - [COMMIT_MESSAGE_GUIDELINES.md](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/COMMIT_MESSAGE_GUIDELINES.md) - Read this file to learn about the commit message guidelines.
-  - [CONTRIBUTING.md](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/CONTRIBUTING.md) - Read this file to learn about the contributing guidelines.
-  - [LICENSE](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/LICENSE.md) - Read this file to learn about the license.
-  - [README.md](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/README.md) - Read this file to learn about the project.
+- Update **documentation** when behavior changes.
+- Keep pull requests focused; avoid bundling unrelated changes.
+- Reference these files before submitting:
+  - [bug.yml](https://github.com/syndr/hyprland-wm-config/blob/main/.github/ISSUE_TEMPLATE/bug.yml) — bug report template.
+  - [feature.yml](https://github.com/syndr/hyprland-wm-config/blob/main/.github/ISSUE_TEMPLATE/feature.yml) — feature request template.
+  - [documentation-update.yml](https://github.com/syndr/hyprland-wm-config/blob/main/.github/ISSUE_TEMPLATE/documentation-update.yml) — documentation change template.
+  - [PULL_REQUEST_TEMPLATE.md](https://github.com/syndr/hyprland-wm-config/blob/main/.github/PULL_REQUEST_TEMPLATE.md) — pull request template.
+  - [COMMIT_MESSAGE_GUIDELINES.md](https://github.com/syndr/hyprland-wm-config/blob/main/COMMIT_MESSAGE_GUIDELINES.md) — commit message guidelines.
+  - [LICENSE](https://github.com/syndr/hyprland-wm-config/blob/main/LICENSE.md) — project license.
+  - [README.md](https://github.com/syndr/hyprland-wm-config/blob/main/README.md) — project overview.
 
 ## Contact
 
-If you have any questions, feel free to contact via [GitHub Discussions](https://github.com/LinuxBeginnings/Hyprland-Dots/discussions) or [Through Discord Server](https://discord.gg/kool-tech-world)
+Open an issue or start a discussion on
+[GitHub](https://github.com/syndr/hyprland-wm-config/discussions) for
+fork-related questions. For general Hyprland-Dots questions, see the upstream
+[LinuxBeginnings/Hyprland-Dots](https://github.com/LinuxBeginnings/Hyprland-Dots)
+project.

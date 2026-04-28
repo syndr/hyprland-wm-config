@@ -1,4 +1,38 @@
-# Changelog — KoolDots
+# Changelog — hyprland-wm-config
+
+> Fork of [LinuxBeginnings/Hyprland-Dots](https://github.com/LinuxBeginnings/Hyprland-Dots).
+> Versions track upstream's marker; entries flagged "fork" describe changes
+> made on this fork only.
+
+## Unreleased
+
+- Retarget repository references from upstream to fork: clone URLs, issue
+  templates (assignees → `syndr`), PR template links, contributor docs,
+  CHANGELOG header, and active-script header attribution
+  (`copy.sh`, `scripts/lib_*.sh`, `config/hypr/scripts/KooLsDotsUpdate.sh`,
+  `Distro-Hyprland.sh`) now point at `syndr/hyprland-wm-config`.
+- `Distro-Hyprland.sh`: warn at runtime that it clones upstream's distro
+  installer, which installs upstream `LinuxBeginnings/Hyprland-Dots` (not
+  this fork). Wait for Enter / Ctrl+C before proceeding.
+- `copy.sh` end-of-run banner now reads
+  `hyprland-wm-config is now Loaded & Ready`.
+- README community-link buttons (Discord, YouTube, Legacy Jak) and the
+  Support section's YouTube subscribe line removed; "Forked from"
+  attribution added near the top. Distro install section kept with a
+  prominent upstream warning admonition.
+- `i18n/README/*.md` and `i18n/CONTRIBUTING/*.md` retargeted: clone /
+  fork / discussions / blob URLs point at the fork; community-link
+  rows stripped; "Forked from" line added.
+- `.github/FUNDING.yml` removed (no fork sponsorship URL configured).
+- Bulk-flipped the `💫 https://github.com/LinuxBeginnings 💫` template
+  attribution comment to the fork URL in fork-modified files only
+  (≈19 files); untouched template files retain upstream attribution.
+- Removed `archive/release.sh`, `archive/update-dots.sh`, and
+  `archive/upgrade.sh` — dead code that targeted upstream's release
+  flow.
+- `copy.sh:811` Wallpaper-Bank clone left pointing upstream
+  (`LinuxBeginnings/Wallpaper-Bank`) — fork does not maintain a
+  wallpaper bank.
 
 ## v2.3.22
 

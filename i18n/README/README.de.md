@@ -5,6 +5,8 @@
 [![ua](https://img.shields.io/badge/lang-ua-white.svg)](./README.ua.md)
 [![fr](https://img.shields.io/badge/lang-fr-cyan.svg)](./README.fr.md)
 
+> Forked from [LinuxBeginnings/Hyprland-Dots](https://github.com/LinuxBeginnings/Hyprland-Dots) (originally JaKooLit/Hyprland-Dots).
+
 <h3 align="center">
 <img align="center" width="80%" src=https://github.com/user-attachments/assets/bc18bd4d-944b-4d5f-a119-7578fa38f9b4 />
 </h3>
@@ -16,11 +18,9 @@
 <div align="center">
 <br>
   <a href="#-kopieren--installation--update-anleitung-"><kbd> <br> Installation <br> </kbd></a>&ensp;&ensp;
-  <a href="https://www.youtube.com/playlist?list=PLDtGd5Fw5_GjXCznR0BzCJJDIQSZJRbxx"><kbd> <br> Youtube <br> </kbd></a>&ensp;&ensp;
   <a href="https://github.com/LinuxBeginnings/Hyprland-Dots/wiki"><kbd> <br> Wiki <br> </kbd></a>&ensp;&ensp;
-  <a href="https://github.com/LinuxBeginnings/Hyprland-Dots/discussions"><kbd> <br> Discussions <br> </kbd></a>&ensp;&ensp;
+  <a href="https://github.com/syndr/hyprland-wm-config/discussions"><kbd> <br> Discussions <br> </kbd></a>&ensp;&ensp;
   <a href="https://github.com/LinuxBeginnings/Hyprland-Dots/wiki/Keybinds"><kbd> <br> Keybinds <br> </kbd></a>&ensp;&ensp;
-  <a href="https://discord.gg/kool-tech-world"><kbd> <br> Discord <br> </kbd></a>
 </div><br>
 
 <div align="center">
@@ -115,14 +115,14 @@ sh <(curl -L https://raw.githubusercontent.com/LinuxBeginnings/Hyprland-Dots/mai
 > Um den Master-Branch herunterzuladen
 
 ```bash
-git clone --depth=1 https://github.com/LinuxBeginnings/Hyprland-Dots.git
+git clone --depth=1 https://github.com/syndr/hyprland-wm-config.git
 cd Hyprland-Dots
 ```
 
 > Um den Entwicklungs-Branch (Development & Testing) herunterzuladen:
 
 ```bash
-git clone --depth=1 https://github.com/LinuxBeginnings/Hyprland-Dots.git -b development
+git clone --depth=1 https://github.com/syndr/hyprland-wm-config.git -b development
 cd Hyprland-Dots
 ```
 
@@ -196,7 +196,7 @@ chmod +x upgrade.sh
 
 #### ✍️ Contributing
 
-- Möchtest du contributen? Klicke [`HIER`](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/CONTRIBUTING.md) für eine Anleitung.
+- Möchtest du contributen? Klicke [`HIER`](https://github.com/syndr/hyprland-wm-config/blob/main/CONTRIBUTING.md) für eine Anleitung.
 
 #### 🤷‍♂️ TO DO!
 
@@ -211,7 +211,6 @@ chmod +x upgrade.sh
 
 - ein Star auf meinen Github repos wäre nett 🌟
 
-- Abbonieren meinen Youtube Kanal [YouTube](https://www.youtube.com/@Ja.KooLit)
 
 - du kannst mich auch mit Kaffees oder BTC unterstützen 😊
 

@@ -7,7 +7,7 @@
 ## Primeros pasos
 
 1. Haz un fork del repositorio de la rama `development` en tu cuenta de GitHub. Así tendrás una copia sobre la cual trabajar sin afectar el repositorio original.
-   - Para hacer fork, pulsa el botón **Fork** en la esquina superior derecha de esta página o haz clic [aquí](https://github.com/LinuxBeginnings/Hyprland-Dots/fork).
+   - Para hacer fork, pulsa el botón **Fork** en la esquina superior derecha de esta página o haz clic [aquí](https://github.com/syndr/hyprland-wm-config/fork).
    - Asegúrate de desmarcar la opción de copiar solo la rama `main`. Así se copiarán la rama `development` y otras ramas (si existen).
 
 2. Clona tu repositorio bifurcado en tu equipo.
@@ -15,7 +15,7 @@
    - Usa el siguiente comando para clonar tu fork:
 
      ```bash
-     git clone --depth=1 -b development https://github.com/LinuxBeginnings/Hyprland-Dots.git
+     git clone --depth=1 -b development https://github.com/syndr/hyprland-wm-config.git
      ```
 
 3. Crea una rama nueva para tus cambios.
@@ -45,7 +45,7 @@
      1. Ve a tu fork en GitHub.
      2. Haz clic en **Compare & pull request** junto a tu rama.
      3. Añade un título y una descripción.
-     4. Pulsa **Create pull request** y recuerda añadir las etiquetas correspondientes usando la [plantilla de PR](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/.github/PULL_REQUEST_TEMPLATE.md).
+     4. Pulsa **Create pull request** y recuerda añadir las etiquetas correspondientes usando la [plantilla de PR](https://github.com/syndr/hyprland-wm-config/blob/main/.github/PULL_REQUEST_TEMPLATE.md).
 
 ## Directrices
 
@@ -55,15 +55,15 @@
 - Asegúrate de que todos los tests pasen o que los cambios estén probados antes de enviar.
 - Mantén tu PR enfocado y evita incluir cambios no relacionados.
 - Revisa estos archivos antes de enviar tus cambios:
-  - [bug.yml](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/.github/ISSUE_TEMPLATE/bug.yml) – Reporte de errores.
-  - [feature.yml](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/.github/ISSUE_TEMPLATE/feature.yml) – Sugerir características.
-  - [documentation-update.yml](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/.github/ISSUE_TEMPLATE/documentation-update.yml) – Cambios de documentación.
-  - [PULL_REQUEST_TEMPLATE.md](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/.github/PULL_REQUEST_TEMPLATE.md) – Plantilla de PR.
+  - [bug.yml](https://github.com/syndr/hyprland-wm-config/blob/main/.github/ISSUE_TEMPLATE/bug.yml) – Reporte de errores.
+  - [feature.yml](https://github.com/syndr/hyprland-wm-config/blob/main/.github/ISSUE_TEMPLATE/feature.yml) – Sugerir características.
+  - [documentation-update.yml](https://github.com/syndr/hyprland-wm-config/blob/main/.github/ISSUE_TEMPLATE/documentation-update.yml) – Cambios de documentación.
+  - [PULL_REQUEST_TEMPLATE.md](https://github.com/syndr/hyprland-wm-config/blob/main/.github/PULL_REQUEST_TEMPLATE.md) – Plantilla de PR.
   - [COMMIT_MESSAGE_GUIDELINES.md](./COMMIT_MESSAGE_GUIDELINES.md) – Guía de mensajes de commit.
   - [CONTRIBUTING.md](./CONTRIBUTING.md) – Guía en inglés.
-  - [LICENSE](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/LICENSE.md) – Licencia.
-  - [README.md](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/README.md) – Proyecto.
+  - [LICENSE](https://github.com/syndr/hyprland-wm-config/blob/main/LICENSE.md) – Licencia.
+  - [README.md](https://github.com/syndr/hyprland-wm-config/blob/main/README.md) – Proyecto.
 
 ## Contacto
 
-Si tienes preguntas, utiliza [GitHub Discussions](https://github.com/LinuxBeginnings/Hyprland-Dots/discussions) o el [Servidor de Discord](https://discord.gg/kool-tech-world).
+Si tienes preguntas, utiliza [GitHub Discussions](https://github.com/syndr/hyprland-wm-config/discussions) o el [Servidor de Discord](https://discord.gg/kool-tech-world).

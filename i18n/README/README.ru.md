@@ -5,6 +5,8 @@
 [![de](https://img.shields.io/badge/lang-de-magenta.svg)](./README.de.md)
 [![fr](https://img.shields.io/badge/lang-fr-cyan.svg)](./README.fr.md)
 
+> Forked from [LinuxBeginnings/Hyprland-Dots](https://github.com/LinuxBeginnings/Hyprland-Dots) (originally JaKooLit/Hyprland-Dots).
+
 <h3 align="center">
 <img align="center" width="80%" src=https://github.com/user-attachments/assets/bc18bd4d-944b-4d5f-a119-7578fa38f9b4 />
 </h3>
@@ -16,11 +18,9 @@
 <div align="center">
 <br>
   <a href="#-инструкции-по-копированию--установке--обновлению-"><kbd> <br> Установка <br> </kbd></a>  
-  <a href="https://www.youtube.com/playlist?list=PLDtGd5Fw5_GjXCznR0BzCJJDIQSZJRbxx"><kbd> <br> YouTube <br> </kbd></a>  
   <a href="https://github.com/LinuxBeginnings/Hyprland-Dots/wiki"><kbd> <br> Вики <br> </kbd></a>  
-  <a href="https://github.com/LinuxBeginnings/Hyprland-Dots/discussions"><kbd> <br> Обсуждения <br> </kbd></a>  
+  <a href="https://github.com/syndr/hyprland-wm-config/discussions"><kbd> <br> Обсуждения <br> </kbd></a>  
   <a href="https://github.com/LinuxBeginnings/Hyprland-Dots/wiki/Keybinds"><kbd> <br> Горячие клавиши <br> </kbd></a>  
-  <a href="https://discord.gg/kool-tech-world"><kbd> <br> Discord <br> </kbd></a>
 </div><br>
 
 <div align="center">
@@ -101,13 +101,13 @@ sh <(curl -L https://raw.githubusercontent.com/LinuxBeginnings/Hyprland-Dots/mai
 
 > для загрузки из ветки Master
 ```bash
-git clone --depth=1 https://github.com/LinuxBeginnings/Hyprland-Dots.git
+git clone --depth=1 https://github.com/syndr/hyprland-wm-config.git
 cd Hyprland-Dots
 ```
 
 > для загрузки из ветки Development (разработка и тестирование)
 ```bash
-git clone --depth=1 https://github.com/LinuxBeginnings/Hyprland-Dots.git -b development
+git clone --depth=1 https://github.com/syndr/hyprland-wm-config.git -b development
 cd Hyprland-Dots
 ```
 
@@ -168,7 +168,7 @@ chmod +x upgrade.sh
 - Если у вас есть улучшения для dotfiles или конфигураций, не стесняйтесь отправить PR для улучшений. Я всегда приветствую улучшения, так как тоже учусь, как и вы!
 
 #### ✍️ Вклад
-- Хотите внести вклад? Щёлкните [`ЗДЕСЬ`](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/CONTRIBUTING.md) для руководства по внесению вклада
+- Хотите внести вклад? Щёлкните [`ЗДЕСЬ`](https://github.com/syndr/hyprland-wm-config/blob/main/CONTRIBUTING.md) для руководства по внесению вклада
 
 #### 🤷‍♂️ ЧТО ДЕЛАТЬ!
 - [ ] Настройка dotfiles - 🚧 в постоянном прогрессе 
@@ -180,7 +180,6 @@ chmod +x upgrade.sh
 #### 💖 Поддержка
 - звезда на моих репозиториях GitHub была бы замечательной 🌟
 
-- Подпишитесь на мой канал YouTube [YouTube](https://www.youtube.com/@Ja.KooLit) 
 
 - также вы можете поддержать через кофе или btc 😊
 

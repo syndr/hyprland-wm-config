@@ -5,6 +5,8 @@
 [![de](https://img.shields.io/badge/lang-de-magenta.svg)](./README.de.md)
 [![fr](https://img.shields.io/badge/lang-fr-cyan.svg)](./README.fr.md)
 
+> Forked from [LinuxBeginnings/Hyprland-Dots](https://github.com/LinuxBeginnings/Hyprland-Dots) (originally JaKooLit/Hyprland-Dots).
+
 <h3 align="center">
 <img align="center" width="80%" src=https://github.com/user-attachments/assets/bc18bd4d-944b-4d5f-a119-7578fa38f9b4 />
 </h3>
@@ -16,11 +18,9 @@
 <div align="center">
 <br>
   <a href="#-інструкції-з-копіювання--встановлення--оновлення-"><kbd> <br> Встановлення <br> </kbd></a>  
-  <a href="https://www.youtube.com/playlist?list=PLDtGd5Fw5_GjXCznR0BzCJJDIQSZJRbxx"><kbd> <br> YouTube <br> </kbd></a>  
   <a href="https://github.com/LinuxBeginnings/Hyprland-Dots/wiki"><kbd> <br> Вікі <br> </kbd></a>  
-  <a href="https://github.com/LinuxBeginnings/Hyprland-Dots/discussions"><kbd> <br> Обговорення <br> </kbd></a>  
+  <a href="https://github.com/syndr/hyprland-wm-config/discussions"><kbd> <br> Обговорення <br> </kbd></a>  
   <a href="https://github.com/LinuxBeginnings/Hyprland-Dots/wiki/Keybinds"><kbd> <br> Гарячі клавіші <br> </kbd></a>   
-  <a href="https://discord.gg/kool-tech-world"><kbd> <br> Discord <br> </kbd></a>
 </div><br>
 
 <div align="center">
@@ -124,13 +124,13 @@ sh <(curl -L https://raw.githubusercontent.com/LinuxBeginnings/Hyprland-Dots/mai
 
 > для завантаження з гілки Master
 ```bash
-git clone --depth=1 https://github.com/LinuxBeginnings/Hyprland-Dots.git
+git clone --depth=1 https://github.com/syndr/hyprland-wm-config.git
 cd Hyprland-Dots
 ```
 
 > для завантаження з гілки Development (розробка та тестування)
 ```bash
-git clone --depth=1 https://github.com/LinuxBeginnings/Hyprland-Dots.git -b development
+git clone --depth=1 https://github.com/syndr/hyprland-wm-config.git -b development
 cd Hyprland-Dots
 ```
 
@@ -198,7 +198,7 @@ chmod +x upgrade.sh
 - Якщо у вас є покращення для dotfiles або конфігурацій, не соромтеся надіслати PR для покращень. Я завжди вітаю покращення, адже я також вчуся, як і ви!
 
 #### ✍️ Внесок
-- Хочете зробити внесок? Клікніть [`ТУТ`](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/CONTRIBUTING.md) для посібника зі внесення внеску
+- Хочете зробити внесок? Клікніть [`ТУТ`](https://github.com/syndr/hyprland-wm-config/blob/main/CONTRIBUTING.md) для посібника зі внесення внеску
 > Дякую всім, хто додав код або підтримав сервер Discord. Ваші зусилля дуже цінуються.
 
 
@@ -212,7 +212,6 @@ chmod +x upgrade.sh
 #### 💖 Підтримка
 - зірка на моїх репозиторіях GitHub була б чудовою 🌟
 
-- Підпишіться на мій канал YouTube [YouTube](https://www.youtube.com/@Ja.KooLit)  
 
 
 ## 🫰 Дякую за зірки 🩷

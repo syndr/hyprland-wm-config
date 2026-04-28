@@ -5,6 +5,8 @@
 [![de](https://img.shields.io/badge/lang-de-magenta.svg)](./README.de.md)
 [![fr](https://img.shields.io/badge/lang-fr-cyan.svg)](./README.fr.md)
 
+> Forked from [LinuxBeginnings/Hyprland-Dots](https://github.com/LinuxBeginnings/Hyprland-Dots) (originally JaKooLit/Hyprland-Dots).
+
 <h3 align="center">
 <img align="center" width="80%" src=https://github.com/user-attachments/assets/bc18bd4d-944b-4d5f-a119-7578fa38f9b4 />
 </h3>
@@ -17,11 +19,9 @@
 <div align="center">
 <br>
   <a href="#-instrucțiuni-de-copiere--instalare--actualizare-"><kbd> <br> Instalare <br> </kbd></a>&ensp;&ensp;
-  <a href="https://www.youtube.com/playlist?list=PLDtGd5Fw5_GjXCznR0BzCJJDIQSZJRbxx"><kbd> <br> Youtube <br> </kbd></a>&ensp;&ensp;
   <a href="https://github.com/LinuxBeginnings/Hyprland-Dots/wiki"><kbd> <br> Wiki <br> </kbd></a>&ensp;&ensp;
-  <a href="https://github.com/LinuxBeginnings/Hyprland-Dots/discussions"><kbd> <br> Discuții <br> </kbd></a>&ensp;&ensp;
+  <a href="https://github.com/syndr/hyprland-wm-config/discussions"><kbd> <br> Discuții <br> </kbd></a>&ensp;&ensp;
   <a href="https://github.com/LinuxBeginnings/Hyprland-Dots/wiki/Keybinds"><kbd> <br> Comenzi rapide <br> </kbd></a>&ensp;&ensp;
-  <a href="https://discord.gg/kool-tech-world"><kbd> <br> Discord <br> </kbd></a>
 </div><br>
 
 <div align="center">
@@ -102,13 +102,13 @@ sh <(curl -L https://raw.githubusercontent.com/LinuxBeginnings/Hyprland-Dots/mai
 
 > pentru a descărca din ramura Master
 ```bash
-git clone --depth=1 https://github.com/LinuxBeginnings/Hyprland-Dots.git
+git clone --depth=1 https://github.com/syndr/hyprland-wm-config.git
 cd Hyprland-Dots
 ```
 
 > pentru a descărca din ramura Development (dezvoltare și testare)
 ```bash
-git clone --depth=1 https://github.com/LinuxBeginnings/Hyprland-Dots.git -b development
+git clone --depth=1 https://github.com/syndr/hyprland-wm-config.git -b development
 cd Hyprland-Dots
 ```
 
@@ -169,7 +169,7 @@ chmod +x upgrade.sh
 - Dacă ai îmbunătățiri pentru dotfiles sau configurații, nu ezita să trimiți un PR pentru îmbunătățiri. Întotdeauna primesc cu bucurie îmbunătățiri, deoarece și eu învăț, la fel ca voi!
 
 #### ✍️ Contribuții
-- Vrei să contribui? Click [`AICI`](https://github.com/LinuxBeginnings/Hyprland-Dots/blob/main/CONTRIBUTING.md) pentru un ghid despre cum să contribui
+- Vrei să contribui? Click [`AICI`](https://github.com/syndr/hyprland-wm-config/blob/main/CONTRIBUTING.md) pentru un ghid despre cum să contribui
 
 #### 🤷‍♂️ DE FĂCUT!
 - [ ] Ajustarea dotfiles-urilor - 🚧 în progres constant 
@@ -181,7 +181,6 @@ chmod +x upgrade.sh
 #### 💖 Suport
 - o stea pe repo-urile mele de Github ar fi minunată 🌟
 
-- Abonează-te la canalul meu de YouTube [YouTube](https://www.youtube.com/@Ja.KooLit) 
 
 - de asemenea, poți oferi suport prin cafele sau btc 😊
 
