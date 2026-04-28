@@ -3,7 +3,7 @@ description: Something is not working right
 title: "[Bug]: "
 labels: ["bug"]
 assignees:
-  - LinuxBeginnings
+  - syndr
 
 body:
   - type: checkboxes
@@ -52,10 +52,10 @@ body:
   - type: textarea
     id: dots
     attributes:
-      label: KooL's Dots version
+      label: hyprland-wm-config version
       description: |
-        Paste the output of   `find ~/.config/hypr/ -type f -name 'v*' -exec basename {} \;` 
-        This is just KooL's Hyprland Dots version.
+        Paste the output of `find ~/.config/hypr/ -type f -name 'v*' -exec basename {} \;`.
+        This is the dotfiles version marker (tracks upstream KooL's Hyprland-Dots version).
     validations:
       required: true
 
