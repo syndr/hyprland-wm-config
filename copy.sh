@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # ==================================================
-#  KoolDots (2026)
-#  Project URL: https://github.com/LinuxBeginnings
+#  hyprland-wm-config (fork of LinuxBeginnings/Hyprland-Dots)
+#  Project URL: https://github.com/syndr/hyprland-wm-config
+#  Upstream:    https://github.com/LinuxBeginnings/Hyprland-Dots
 #  License: GNU GPLv3
 #  SPDX-License-Identifier: GPL-3.0-or-later
 # ==================================================
 # Purpose:
-#   Orchestrates copying/upgrading LinuxBeginnings's Hyprland dotfiles into ~/.config.
+#   Orchestrates copying/upgrading the fork's Hyprland dotfiles into ~/.config.
 #   Handles interactive prompts, backups/restores, per-app tweaks, and express mode.
 #
 # Layout (high-level; future modularization targets):
@@ -876,9 +877,9 @@ fi
 run_post_upgrade_audit "$LOG"
 
 printf "\n%.0s" {1..2}
-printf "${OK} GREAT! KooL's Hyprland-Dots is now Loaded & Ready !!! "
+printf "${OK} GREAT! hyprland-wm-config is now Loaded & Ready !!! "
 printf "\n%.0s" {1..1}
 printf "${INFO} However, it is ${MAGENTA}HIGHLY SUGGESTED${RESET} to logout and re-login or better reboot to avoid any issues"
 printf "\n%.0s" {1..1}
-printf "${SKY_BLUE}Thank you${RESET} for using ${MAGENTA}KooL's Hyprland Configuration${RESET}... ${YELLOW}ENJOY!!!${RESET}"
+printf "${SKY_BLUE}Thank you${RESET} for using ${MAGENTA}hyprland-wm-config${RESET} (fork of ${MAGENTA}KooL's Hyprland-Dots${RESET})... ${YELLOW}ENJOY!!!${RESET}"
 printf "\n%.0s" {1..3}

@@ -1,4 +1,4 @@
-/* ---- 💫 https://github.com/LinuxBeginnings 💫 ---- */
+/* ---- 💫 https://github.com/syndr/hyprland-wm-config 💫 ---- */
 
 /* ---- Global Configuration Fonts ---- */
 @import "~/.config/rofi/0-shared-fonts.rasi"

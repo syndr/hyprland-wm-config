@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ==================================================
-#  KoolDots (2026)
-#  Project URL: https://github.com/LinuxBeginnings
+#  hyprland-wm-config (fork of LinuxBeginnings/Hyprland-Dots)
+#  Project URL: https://github.com/syndr/hyprland-wm-config
+#  Upstream:    https://github.com/LinuxBeginnings/Hyprland-Dots
 #  License: GNU GPLv3
 #  SPDX-License-Identifier: GPL-3.0-or-later
 # ==================================================
