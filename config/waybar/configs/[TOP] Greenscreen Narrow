@@ -26,6 +26,7 @@
   "custom/phalanx",
   "custom/separator#blank_tight",
   "hyprland/workspaces#rw",
+  "custom/add_workspace",
   "custom/separator#blank_1",
   "group/greenscreen-notify"
 ],
@@ -161,6 +162,12 @@
       "on-click": "$HOME/.config/hypr/scripts/RofiLauncher.sh",
       "on-click-middle": "pkill rofi || rofi -show drun -modi run,drun,filebrowser,window",
       "tooltip-format": "Left Click: Launcher menu\nMiddle Click: Unified Rofi launcher"
+},
+"custom/add_workspace": {
+      "format": "󰐕",
+      "tooltip": true,
+      "tooltip-format": "Add a new workspace to this display",
+      "on-click": "$HOME/.config/hypr/scripts/AddWorkspace.sh __WAYBAR_MONITOR__"
 },
 "custom/current_workspace": {
       "return-type": "json",

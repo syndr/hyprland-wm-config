@@ -393,6 +393,22 @@ tooltip label {
   color: @fg;
 }
 
+#custom-add_workspace {
+  color: @fg;
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  border-bottom: 1px solid @fg;
+  background-color: @bg_dark;
+  transition: color 200ms ease, border-color 200ms ease, background-color 200ms ease;
+}
+
+#custom-add_workspace:hover {
+  color: @fg_accent;
+  background-color: alpha(@bg_light, 0.5);
+}
+
 #custom-phalanx {
   color: @fg_bright;
   border-bottom: 1px solid @fg;

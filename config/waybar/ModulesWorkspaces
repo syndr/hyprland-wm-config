@@ -178,7 +178,7 @@
 // NUMBERS and ICONS style with window rewrite
 "hyprland/workspaces#rw": {
 	"disable-scroll": true,
-	"all-outputs": true,
+	"all-outputs": false,
 	"warp-on-scroll": false,
 	"sort-by": "number",
 	"show-special": false,
@@ -186,7 +186,8 @@
 	"on-scroll-up": "hyprctl dispatch workspace e+1",
 	"on-scroll-down": "hyprctl dispatch workspace e-1",
 	"persistent-workspaces": {
-		"*": 5
+		"HDMI-A-1": [5, 6],
+		"DSI-2": [1, 2]
 	},
 	"format": "{icon} {windows}",
 	"format-window-separator": " ",

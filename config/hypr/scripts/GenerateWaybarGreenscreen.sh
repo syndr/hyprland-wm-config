@@ -155,8 +155,13 @@ main() {
 
     local emitted=0
     if [ "${#wide_outputs[@]}" -gt 0 ]; then
-      render_with_outputs "$WIDE_TEMPLATE" "$(json_array_from_lines "${wide_outputs[@]}")"
-      emitted=1
+      for i in "${!wide_outputs[@]}"; do
+        if [ "$emitted" -eq 1 ] || [ "$i" -gt 0 ]; then
+          echo ","
+        fi
+        render_with_outputs "$WIDE_TEMPLATE" "$(json_array_from_lines "${wide_outputs[$i]}")" "${wide_outputs[$i]}"
+        emitted=1
+      done
     fi
 
     if [ "${#narrow_outputs[@]}" -gt 0 ]; then
