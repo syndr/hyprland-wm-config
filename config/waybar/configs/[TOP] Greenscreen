@@ -30,28 +30,21 @@
 	"hyprland/workspaces#rw",
 	"custom/separator#blank_2",
 //	"mpris",
-	"tray",
-	"custom/nightlight",
-	"group/notify",
+	"group/greenscreen-notify",
 	],
 "modules-center": [
 	"clock#forest",
 	],
 "modules-right": [
-	"cpu#forest",
-	"memory#forest",
-	"network#speed",
-	"temperature#forest",
-	"disk#forest",
+	"group/greenscreen-stats",
 	"custom/separator#blank_2",
-	"backlight",
-  "battery#forest",
+	"group/greenscreen-brightness",
 	"custom/separator#blank_2",
-	"custom/audio_left_cap",
 	"group/audio",
-	"custom/audio_cap",
 	],
 
+// Parked: launcher drawer (settings/tty/etc.). Not referenced in modules-* yet —
+// will be re-wired into the bar at a different location in a later change.
 "group/notify": {
 	"orientation": "inherit",
 	"drawer": {
@@ -69,6 +62,44 @@
 		"custom/power",
 		"custom/lock",
 		"custom/hypridle"
+	]
+},
+
+"group/greenscreen-notify": {
+	"orientation": "inherit",
+	"drawer": {
+		"transition-duration": 350,
+		"children-class": "custom/swaync",
+		"transition-left-to-right": true
+	},
+	"modules": [
+		"custom/swaync",
+		"custom/nightlight",
+		"tray"
+	]
+},
+
+"group/greenscreen-stats": {
+	"orientation": "inherit",
+	"modules": [
+		"cpu#forest",
+		"memory#forest",
+		"group/network_stack",
+		"temperature#forest",
+		"disk#forest"
+	]
+},
+
+"group/greenscreen-brightness": {
+	"orientation": "inherit",
+	"drawer": {
+		"transition-duration": 350,
+		"children-class": "backlight",
+		"transition-left-to-right": false
+	},
+	"modules": [
+		"battery#forest",
+		"backlight"
 	]
 },
 
@@ -124,12 +155,12 @@
 		"warning": 30,
 		"critical": 15
 	},
-	"format": "Battery {icon}  {capacity}%",
-	"format-charging": "Battery  {capacity}%",
-	"format-plugged": "Battery 󱘖 {capacity}%",
+	"format": "{icon}  {capacity}%",
+	"format-charging": " {capacity}%",
+	"format-plugged": "󱘖 {capacity}%",
 	"format-alt-click": "click",
-	"format-full": "Battery {icon} Full",
-	"format-alt": "Battery {icon} {time}",
+	"format-full": "{icon} Full",
+	"format-alt": "{icon} {time}",
 	"format-icons": [
 		"󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"
 	],
@@ -141,7 +172,7 @@
 },
 
 "cpu#forest": {
-	"format": "Cpu  󰍛  {usage}%",
+	"format": "󰍛  {usage:>2}%",
 	"interval": 1,
 	"min-length": 5,
 	"format-alt-click": "click",
@@ -155,9 +186,9 @@
 "disk#forest": {
 	"interval": 30,
 	//"format": "Disk    󰋊",
-	"path": "/var/home/",
+	"path": "/home/",
 	//"format-alt-click": "click",
-	"format": "Disk 󰋊  {free}",
+	"format": "󰋊  {free}",
   "on-click-right": "baobab",
 //	"tooltip": true,
 //	"tooltip-format": "Disk    {used} used out of {total} on {path} ({percentage_used}%)",
@@ -165,8 +196,8 @@
 
 "memory#forest": {
 	"interval": 10,
-	"format": "Ram  󰾆  {used:0.1f}G",
-	"format-alt": "Ram    {percentage}%    󰾆",
+	"format": "󰾆  {used:0.1f}G",
+	"format-alt": "󰾆  {percentage}%",
 	"format-alt-click": "click",
 	"tooltip": true,
 	"tooltip-format": "Ram    {used:0.1f}GB/{total:0.1f}G",
@@ -180,11 +211,30 @@
 	],
 	//"thermal-zone": 0,
 	"critical-threshold": 82,
-	"format-critical": "Temp {icon}  {temperatureC}°C",
-	"format": "Temp {icon}  {temperatureC}°C",
+	"format-critical": "{icon}  {temperatureC}°C",
+	"format": "{icon}  {temperatureC}°C",
 	"format-icons": [
 		" 󰈸"
 	],
 	"on-click-right": "kitty --title nvtop sh -c 'nvtop'"
 },
+"custom/network_up": {
+	"exec": "$HOME/.config/hypr/scripts/NetworkBandwidth.sh --up",
+	"interval": 1,
+	"format": "{}",
+	"tooltip": false
+},
+"custom/network_down": {
+	"exec": "$HOME/.config/hypr/scripts/NetworkBandwidth.sh --down",
+	"interval": 1,
+	"format": "{}",
+	"tooltip": false
+},
+"group/network_stack": {
+	"orientation": "vertical",
+	"modules": [
+		"custom/network_up",
+		"custom/network_down"
+	]
+}
 }

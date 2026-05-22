@@ -155,9 +155,10 @@ tooltip label {
 
 #workspaces button.urgent {
   color: @fg_accent;
-  border-bottom: none;
+  border: 2px solid @fg_accent;
   border-radius: 0px; /* RADIUS_MD */
   background: alpha(@bg_light, 0.7);
+  animation: blink 1s linear infinite alternate;
 }
 
 #workspaces button:hover {
@@ -316,15 +317,6 @@ tooltip label {
   border-radius: 0px; /* 0px RADIUS_LG RADIUS_LG 0px */
 }
 
-#cpu.forest_narrow {
-  border-left: none;
-  padding-left: 8px;
-}
-
-#disk.forest_narrow {
-  border-right: none;
-  padding-right: 8px;
-}
 
 #temperature.critical {
   background-color: @bg_light;
@@ -505,19 +497,31 @@ tooltip label {
   background-color: @bg_dark;
 }
 
-window#waybar.greenscreen-narrow #custom-swaync {
-  border-left: 2px solid @fg;
-  border-right: none;
+/* Narrow + uber-narrow notifier: group owns the border (see rule below for
+   #greenscreen-notify); children carry none so drawer transitions don't
+   strand half a box. */
+window#waybar.greenscreen-narrow #custom-swaync,
+window#waybar.greenscreen-narrow #custom-nightlight,
+window#waybar.greenscreen-narrow #tray,
+window#waybar.greenscreen-uber-narrow #custom-swaync,
+window#waybar.greenscreen-uber-narrow #custom-nightlight,
+window#waybar.greenscreen-uber-narrow #tray {
+  border: none;
 }
 
-window#waybar.greenscreen-narrow #custom-nightlight {
-  border-left: none;
-  border-right: none;
+/* All three Greenscreen variants put the notifier box on the group itself so
+   the right edge survives drawer transitions; children carry no borders. */
+window#waybar.greenscreen-wide #greenscreen-notify,
+window#waybar.greenscreen-narrow #greenscreen-notify,
+window#waybar.greenscreen-uber-narrow #greenscreen-notify {
+  border: 2px solid @fg;
+  border-radius: 0px;
+  background-color: @bg_dark;
 }
-
-window#waybar.greenscreen-narrow #tray {
-  border-left: none;
-  border-right: none;
+window#waybar.greenscreen-wide #custom-swaync,
+window#waybar.greenscreen-wide #custom-nightlight,
+window#waybar.greenscreen-wide #tray {
+  border: none;
 }
 
 #pulseaudio.bluetooth {
@@ -619,8 +623,14 @@ window#waybar.greenscreen-narrow #tray {
   }
 }
 
-/* User requested bottom borders */
+/* Brightness drawer decorator: battery + backlight share a 1px bottom border
+   on all three Greenscreen variants (no full box — same look as wide). */
 window#waybar.greenscreen-wide #battery,
+window#waybar.greenscreen-wide #backlight,
+window#waybar.greenscreen-narrow #battery,
+window#waybar.greenscreen-narrow #backlight,
+window#waybar.greenscreen-uber-narrow #battery,
+window#waybar.greenscreen-uber-narrow #backlight,
 window#waybar.greenscreen-wide #custom-settings,
 window#waybar.greenscreen-wide #custom-tty,
 window#waybar.greenscreen-wide #custom-file_manager,
@@ -634,24 +644,120 @@ window#waybar.greenscreen-wide #custom-hypridle {
     padding-top: 1px;
 }
 
-
-/* User requested top and bottom borders for narrow battery */
-window#waybar.greenscreen-narrow #battery {
-    border-top: none;
-    border-bottom: 1px solid @fg;
-    padding-top: 1px;
-    padding-bottom: 1px;
-}
-
-/* Backlight sits in the narrow status drawer and needs matching top/bottom borders */
-window#waybar.greenscreen-narrow #backlight {
-    border-top: 2px solid @fg;
-    border-bottom: 2px solid @fg;
-    border-radius: 0px;
-}
-
 /* Wifi icon + signal strength needs a bit more horizontal room */
 window#waybar.greenscreen-narrow #network {
     min-width: 72px;
 }
 
+/* Stats group draws the full cpu→disk box on the wide bar, so no widget inside
+   (cpu/memory/network_stack/temperature/disk) carries its own border. */
+window#waybar.greenscreen-wide #greenscreen-stats {
+    border: 2px solid @fg;
+    border-radius: 0px;
+    background-color: @bg_dark;
+}
+window#waybar.greenscreen-wide #cpu,
+window#waybar.greenscreen-wide #memory,
+window#waybar.greenscreen-wide #temperature,
+window#waybar.greenscreen-wide #disk,
+window#waybar.greenscreen-wide #network_stack {
+    border: none;
+    background-color: @bg_dark;
+}
+
+/* Audio drawer — group owns the border, pulseaudio children carry none so the
+   box stays closed even if pulseaudio has no sink to render. */
+window#waybar.greenscreen-wide #audio {
+    border: 2px solid @fg;
+    border-radius: 0px;
+    background-color: @bg_dark;
+}
+window#waybar.greenscreen-wide #pulseaudio,
+window#waybar.greenscreen-wide #pulseaudio#microphone {
+    border: none;
+}
+window#waybar.greenscreen-wide #custom-network_up,
+window#waybar.greenscreen-wide #custom-network_down {
+    background-color: @bg_dark;
+    color: @fg;
+    font-size: 75%;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 6px;
+    padding-right: 6px;
+    min-width: 72px;
+    min-height: 0;
+    margin: 0;
+    border: none;
+}
+window#waybar.greenscreen-wide #custom-network_up {
+    margin-top: 2px;
+    margin-bottom: -2px;
+}
+
+/* =====================================================================
+   Narrow + uber-narrow: same group-border pattern as wide, adapted for
+   the compact drawer-based layout. Stats wrapper differs: narrow has a
+   `greenscreen-status-bay` wrapper that contains the drawer + temperature
+   (which sits outside the drawer); uber-narrow's drawer already contains
+   temperature so the group border goes directly on `greenscreen-status`.
+   ===================================================================== */
+
+window#waybar.greenscreen-narrow #greenscreen-status,
+window#waybar.greenscreen-uber-narrow #greenscreen-status {
+    border: 2px solid @fg;
+    border-radius: 0px;
+    background-color: @bg_dark;
+}
+
+window#waybar.greenscreen-narrow #cpu,
+window#waybar.greenscreen-narrow #memory,
+window#waybar.greenscreen-narrow #disk,
+window#waybar.greenscreen-narrow #temperature,
+window#waybar.greenscreen-narrow #network_stack,
+window#waybar.greenscreen-uber-narrow #cpu,
+window#waybar.greenscreen-uber-narrow #memory,
+window#waybar.greenscreen-uber-narrow #disk,
+window#waybar.greenscreen-uber-narrow #temperature,
+window#waybar.greenscreen-uber-narrow #network_stack {
+    border: none;
+    background-color: @bg_dark;
+}
+
+/* Audio drawer group border on compact bars */
+window#waybar.greenscreen-narrow #audio,
+window#waybar.greenscreen-uber-narrow #audio {
+    border: 2px solid @fg;
+    border-radius: 0px;
+    background-color: @bg_dark;
+}
+window#waybar.greenscreen-narrow #pulseaudio,
+window#waybar.greenscreen-narrow #pulseaudio#microphone,
+window#waybar.greenscreen-uber-narrow #pulseaudio,
+window#waybar.greenscreen-uber-narrow #pulseaudio#microphone {
+    border: none;
+}
+
+/* Stacked network widget styling on compact bars (slightly smaller font
+   than wide, tighter padding) */
+window#waybar.greenscreen-narrow #custom-network_up,
+window#waybar.greenscreen-narrow #custom-network_down,
+window#waybar.greenscreen-uber-narrow #custom-network_up,
+window#waybar.greenscreen-uber-narrow #custom-network_down {
+    background-color: @bg_dark;
+    color: @fg;
+    font-size: 70%;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 4px;
+    padding-right: 4px;
+    min-width: 64px;
+    min-height: 0;
+    margin: 0;
+    border: none;
+}
+window#waybar.greenscreen-narrow #custom-network_up,
+window#waybar.greenscreen-uber-narrow #custom-network_up {
+    margin-top: 2px;
+    margin-bottom: -2px;
+}

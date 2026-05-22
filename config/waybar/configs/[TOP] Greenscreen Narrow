@@ -27,23 +27,17 @@
   "custom/separator#blank_tight",
   "hyprland/workspaces#rw",
   "custom/separator#blank_1",
-  "group/greenscreen-notify",
-  "custom/notify_cap_narrow"
+  "group/greenscreen-notify"
 ],
 "modules-center": [
   "clock#forest_compact"
 ],
 "modules-right": [
-  "custom/status_left_cap_narrow",
   "group/greenscreen-status",
-  "temperature#forest_narrow",
-  "custom/status_cap",
   "custom/separator#blank_1",
-  "battery#forest_narrow",
+  "group/greenscreen-brightness",
   "custom/separator#blank_1",
-  "custom/audio_left_cap_narrow",
-  "group/audio",
-  "custom/audio_cap"
+  "group/audio"
 ],
 
 "group/notify": {
@@ -88,12 +82,56 @@
     "transition-left-to-right": false
   },
   "modules": [
-    "memory#forest_narrow",
+    "group/mem_temp",
     "cpu#forest_narrow",
-    "network#speed_narrow",
-    "disk#forest_narrow",
+    "group/network_stack",
+    "disk#forest_narrow"
+  ]
+},
+
+// Handle for the stats drawer — both memory and temperature are visible by
+// default so hovering either triggers the drawer expansion.
+"group/mem_temp": {
+  "orientation": "inherit",
+  "modules": [
+    "memory#forest_narrow",
+    "temperature#forest_narrow"
+  ]
+},
+
+"group/greenscreen-brightness": {
+  "orientation": "inherit",
+  "drawer": {
+    "transition-duration": 350,
+    "children-class": "backlight",
+    "transition-left-to-right": false
+  },
+  "modules": [
+    "battery#forest_narrow",
     "backlight"
   ]
+},
+
+"group/network_stack": {
+  "orientation": "vertical",
+  "modules": [
+    "custom/network_up",
+    "custom/network_down"
+  ]
+},
+
+"custom/network_up": {
+  "exec": "$HOME/.config/hypr/scripts/NetworkBandwidth.sh --up",
+  "interval": 1,
+  "format": "{}",
+  "tooltip": false
+},
+
+"custom/network_down": {
+  "exec": "$HOME/.config/hypr/scripts/NetworkBandwidth.sh --down",
+  "interval": 1,
+  "format": "{}",
+  "tooltip": false
 },
 
 "pulseaudio": {
@@ -213,7 +251,7 @@
 },
 "disk#forest_narrow": {
   "interval": 30,
-  "path": "/var/home/",
+  "path": "/home/",
   "format": "󰋊 {free}",
   "on-click-right": "baobab"
 },
