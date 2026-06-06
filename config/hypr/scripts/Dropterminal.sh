@@ -33,9 +33,11 @@ fi
 TERMINAL_CMD="$1"
 
 # Debug echo function
+# NOTE: must write to stderr — several functions return values via stdout
+# command substitution, and debug lines on stdout corrupt those captures.
 debug_echo() {
   if [ "$DEBUG" = true ]; then
-    echo "$@"
+    echo "$@" >&2
   fi
 }
 
@@ -259,27 +261,21 @@ spawn_terminal() {
   # Launch terminal directly in special workspace to avoid visible spawn
   hyprctl dispatch exec "[float; size $width $height; workspace special:scratchpad silent] $TERMINAL_CMD"
 
-  # Wait for window to appear
-  sleep 0.1
-
-  # Get windows after spawning
-  local windows_after=$(hyprctl clients -j)
-  local count_after=$(echo "$windows_after" | jq 'length')
-
+  # Wait for the new window to appear (poll up to ~3s; terminals routinely
+  # take >100ms to map, and grabbing the wrong window here means yanking an
+  # unrelated window out of its workspace and pinning it).
   local new_addr=""
-
-  if [ "$count_after" -gt "$count_before" ]; then
-    # Find the new window by comparing before/after lists
+  local i
+  for i in $(seq 1 30); do
     new_addr=$(comm -13 \
       <(echo "$windows_before" | jq -r '.[].address' | sort) \
-      <(echo "$windows_after" | jq -r '.[].address' | sort) |
+      <(hyprctl clients -j | jq -r '.[].address' | sort) |
       head -1)
-  fi
-
-  # Fallback: try to find by the most recently mapped window
-  if [ -z "$new_addr" ] || [ "$new_addr" = "null" ]; then
-    new_addr=$(hyprctl clients -j | jq -r 'sort_by(.focusHistoryID) | .[-1] | .address')
-  fi
+    if [ -n "$new_addr" ] && [ "$new_addr" != "null" ]; then
+      break
+    fi
+    sleep 0.1
+  done
 
   if [ -n "$new_addr" ] && [ "$new_addr" != "null" ]; then
     # Store the address and monitor name
