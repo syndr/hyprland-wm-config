@@ -65,7 +65,8 @@ case "${choice#* }" in
     "Applications")       rofi -show drun        -config "$rofi_config" ;;
     "Run Command")        rofi -show run         -config "$rofi_config" ;;
     "Files")              rofi -show filebrowser -config "$rofi_config" ;;
-    "Windows")            rofi -show window      -config "$rofi_config" ;;
+    # Filtered switcher (hides special-workspace windows) instead of rofi's built-in window modi
+    "Windows")            "$HOME/.config/hypr/UserScripts/WindowSwitcher.sh" ;;
     "Settings")           "$HOME/.config/hypr/scripts/Kool_Quick_Settings.sh" ;;
     "Terminal")           "$HOME/.config/hypr/scripts/WaybarScripts.sh" --term ;;
     "File Manager")       "$HOME/.config/hypr/scripts/WaybarScripts.sh" --files ;;
