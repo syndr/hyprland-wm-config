@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
 # Backup helper utilities shared by copy.sh (and future scripts).
 
-# Create a unique backup directory name with month, day, hours, and minutes.
+# Backup-directory suffix shared across a single installer run.
+#
+# Every backup created during a run and every later restore must agree on this
+# name. Callers use command substitution -- $(get_backup_dirname) -- so a
+# function-local cache would not survive the subshell; instead copy.sh exports
+# KOOL_RUN_BACKUP_SUFFIX once in the parent shell and we honor it here. Without
+# it (standalone callers) we fall back to a fresh timestamp.
 get_backup_dirname() {
-  echo "back-up_$(date +"%m%d_%H%M")"
+  if [ -n "${KOOL_RUN_BACKUP_SUFFIX:-}" ]; then
+    printf '%s\n' "$KOOL_RUN_BACKUP_SUFFIX"
+  else
+    printf '%s\n' "back-up_$(date +"%m%d_%H%M")"
+  fi
 }
 
 # Move a directory to a timestamped backup alongside the original.

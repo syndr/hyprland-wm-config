@@ -182,6 +182,12 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 INSTALLED_VERSION=$(get_installed_dotfiles_version)
+
+# Fix the backup-directory suffix once for the whole run (parent shell) so every
+# backup and its matching restore reference the same path even if the wall-clock
+# minute changes between them. get_backup_dirname() honors this exported value.
+export KOOL_RUN_BACKUP_SUFFIX="back-up_$(date +"%m%d_%H%M")"
+
 EXPRESS_SUPPORTED=0
 if express_supported; then
   EXPRESS_SUPPORTED=1
@@ -437,10 +443,10 @@ fi
 
 printf "\\n%.0s" {1..1}
 
-# Capture installed dotfiles version at the start of the workflow so we
-# can apply cleanup rules based on the pre-upgrade state, even if a newer
-# version marker is copied in later.
-INSTALLED_VERSION_AT_START="$(get_installed_dotfiles_version || true)"
+# Reuse the version captured before copy_phase2 overwrote the hypr tree, so
+# restore/cleanup rules see the pre-upgrade state. Re-reading the marker here
+# would pick up the freshly copied (new) version and defeat the version gate.
+INSTALLED_VERSION_AT_START="$INSTALLED_VERSION"
 
 # quickshell (ags alternative)
 # Check if quickshell is installed
