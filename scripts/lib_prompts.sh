@@ -144,19 +144,22 @@ prompt_resolution_choice() {
 
   local choice
   while true; do
-    echo "${INFO:-[INFO]} Select monitor resolution for scaling:"
-    echo "  1) < 1440p   (lower DPI; smaller displays)"
-    echo "  2) ≥ 1440p   (default; 1440p/2k/4k)"
+    # The caller captures this function via command substitution, so only the
+    # resolved value ("< 1440p"/"≥ 1440p") may go to stdout. All user-facing UI
+    # must go to stderr or it gets swallowed and the menu never displays.
+    echo "${INFO:-[INFO]} Select monitor resolution for scaling:" >&2
+    echo "  1) < 1440p   (lower DPI; smaller displays)" >&2
+    echo "  2) ≥ 1440p   (default; 1440p/2k/4k)" >&2
 
     if ! read -r -p "${CAT} Enter the number of your choice (1 or 2): " choice </dev/tty; then
-      echo "${ERROR} Unable to read input (tty unavailable)."
+      echo "${ERROR} Unable to read input (tty unavailable)." >&2
       continue
     fi
-    echo "${INFO:-[INFO]} You entered: '$choice'"
+    echo "${INFO:-[INFO]} You entered: '$choice'" >&2
     case "$choice" in
       1) echo "< 1440p"; return ;;
       2) echo "≥ 1440p"; return ;;
-      *) echo "${ERROR} Invalid choice. Please enter 1 for < 1440p or 2 for ≥ 1440p." ;;
+      *) echo "${ERROR} Invalid choice. Please enter 1 for < 1440p or 2 for ≥ 1440p." >&2 ;;
     esac
   done
 }
