@@ -175,7 +175,6 @@ choose_default_editor() {
 install_waybar_weather_binary() {
   local log="$1"
   local APP_NAME="waybar-weather"
-  local INSTALL_PATH="/usr/bin/${APP_NAME}"
   local ASSET="${SCRIPT_DIR:-.}/assets/${APP_NAME}.gz"
 
   # Helper: log wrappers may not be defined here; reuse INFO/WARN/ERROR if available
@@ -189,15 +188,10 @@ install_waybar_weather_binary() {
     return 0
   fi
 
-  # Sudo handling for /usr/bin and /usr/local/bin
+  # sudo is optional (only used below for the Arch/AUR system-path cleanup).
   local SUDO=""
-  if [[ $EUID -ne 0 ]]; then
-    if command -v sudo >/dev/null 2>&1; then
-      SUDO="sudo"
-    else
-      _err "sudo not available; cannot write to ${INSTALL_PATH} as non-root"
-      return 1
-    fi
+  if [[ $EUID -ne 0 ]] && command -v sudo >/dev/null 2>&1; then
+    SUDO="sudo"
   fi
 
   if grep -qi '^ID=arch' /etc/os-release 2>/dev/null; then
@@ -236,10 +230,29 @@ install_waybar_weather_binary() {
   fi
 
 
+  # Pick an install dir that does not require writing to a read-only /usr.
+  # Prefer a user-local bin: no sudo, works on rpm-ostree / immutable distros.
+  # The Waybar module invokes "waybar-weather" by name, so any PATH dir works.
+  local INSTALL_DIR install_sudo=""
+  if [ -w /usr/bin ]; then
+    INSTALL_DIR="/usr/bin"
+  elif [ -n "$SUDO" ] && sudo -n test -w /usr/bin 2>/dev/null; then
+    INSTALL_DIR="/usr/bin"
+    install_sudo="sudo -n"
+  else
+    INSTALL_DIR="${XDG_BIN_HOME:-$HOME/.local/bin}"
+    mkdir -p "$INSTALL_DIR"
+    case ":$PATH:" in
+    *":$INSTALL_DIR:"*) : ;;
+    *) _warn "${INSTALL_DIR} is not on PATH; add it so Waybar can find ${APP_NAME}." ;;
+    esac
+  fi
+  local INSTALL_PATH="${INSTALL_DIR}/${APP_NAME}"
+
   _log "Installing prebuilt binary to ${INSTALL_PATH} from ${ASSET}"
-  if ${SUDO} sh -c "tmp=\$(mktemp '${INSTALL_PATH}.XXXXXX') && gzip -dc '$ASSET' > \"\$tmp\" && chmod 0755 \"\$tmp\" && mv -f \"\$tmp\" '${INSTALL_PATH}'"; then
+  if ${install_sudo} sh -c "tmp=\$(mktemp '${INSTALL_PATH}.XXXXXX') && gzip -dc '$ASSET' > \"\$tmp\" && chmod 0755 \"\$tmp\" && mv -f \"\$tmp\" '${INSTALL_PATH}'"; then
     if "${INSTALL_PATH}" -h >/dev/null 2>&1; then
-      _log "Installed ${APP_NAME} successfully."
+      _log "Installed ${APP_NAME} successfully to ${INSTALL_DIR}."
     else
       _warn "${APP_NAME} installed, but a basic self-check did not run."
     fi
