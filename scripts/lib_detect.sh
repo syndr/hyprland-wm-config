@@ -72,8 +72,9 @@ detect_nixos_adjust() {
 # Qt Quick Controls style safety: enable Hyprland style only when module exists.
 adjust_qt_quick_controls_style() {
   local log="$1"
-  local env_conf="config/hypr/configs/ENVariables.conf"
-  local env_lua="config/hypr/lua/env.lua"
+  local config_root="${WORK_CONFIG_DIR:-config}"
+  local env_conf="$config_root/hypr/configs/ENVariables.conf"
+  local env_lua="$config_root/hypr/lua/env.lua"
   local style="Basic"
   local qt_style_override="Fusion"
   local has_kvantum_qml=0
