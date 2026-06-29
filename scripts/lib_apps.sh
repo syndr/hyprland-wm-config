@@ -114,10 +114,31 @@ choose_default_editor() {
   fi
   local editor_set=0
   local config_root="${WORK_CONFIG_DIR:-config}"
+  local defaults_file="$config_root/hypr/UserConfigs/01-UserDefaults.conf"
   update_editor() {
     local editor=$1
-    sed -i "s/#env = EDITOR,.*/env = EDITOR,$editor #default editor/" "$config_root/hypr/UserConfigs/01-UserDefaults.conf"
+    sed -i "s/#env = EDITOR,.*/env = EDITOR,$editor #default editor/" "$defaults_file"
     echo "${OK:-[OK]} Default editor set to ${MAGENTA:-}$editor${RESET:-}." 2>&1 | tee -a "$log"
+  }
+  # Set (or, with empty value, comment out) an `env = VAR,value note` line in the
+  # defaults file; appends the line if absent. Used for the optional VISUAL editor.
+  set_env_default() {
+    local var_name="$1" value="$2" note="$3" tmp_file
+    tmp_file=$(mktemp)
+    awk -v var_name="$var_name" -v value="$value" -v note="$note" '
+      BEGIN { updated = 0 }
+      {
+        if ($0 ~ "^[[:space:]#]*env[[:space:]]*=[[:space:]]*" var_name ",") {
+          if (value != "") { print "env = " var_name "," value note } else { print "#env = " var_name "," note }
+          updated = 1
+        } else { print $0 }
+      }
+      END {
+        if (!updated) {
+          if (value != "") { print "env = " var_name "," value note } else { print "#env = " var_name "," note }
+        }
+      }
+    ' "$defaults_file" > "$tmp_file" && mv "$tmp_file" "$defaults_file"
   }
   if command -v nvim &>/dev/null; then
     printf "${INFO:-[INFO]} ${MAGENTA:-}neovim${RESET:-} is detected as installed\n"

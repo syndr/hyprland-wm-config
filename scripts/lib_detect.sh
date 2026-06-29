@@ -77,7 +77,7 @@ adjust_qt_quick_controls_style() {
   local env_lua="$config_root/hypr/lua/env.lua"
   local style="Basic"
   local qt_style_override="Fusion"
-  local has_kvantum_qml=0
+  local has_kvantum=0
 
   if find /usr/lib /usr/lib64 /usr/share -type d -path '*/qml/*/org/hyprland/style' -print -quit 2>/dev/null | grep -q .; then
     style="org.hyprland.style"
@@ -85,8 +85,12 @@ adjust_qt_quick_controls_style() {
     style="org.hyprland.style"
   fi
 
-  if find /usr/lib /usr/lib64 /usr/share -type d -path '*/qml/*/kvantum' -print -quit 2>/dev/null | grep -q .; then
-    has_kvantum_qml=1
+  # Kvantum is a Qt *widget* style plugin (libkvantum.so under qt5/qt6
+  # plugins/styles), not a QML module. Detect the plugin so QT_STYLE_OVERRIDE
+  # stays kvantum when the engine is present (also accept a QML kvantum dir).
+  if find /usr/lib /usr/lib64 -type f -path '*/plugins/styles/libkvantum.so' -print -quit 2>/dev/null | grep -q . \
+     || find /usr/lib /usr/lib64 /usr/share -type d -path '*/qml/*/kvantum' -print -quit 2>/dev/null | grep -q .; then
+    has_kvantum=1
     qt_style_override="kvantum"
   fi
 
@@ -104,10 +108,10 @@ adjust_qt_quick_controls_style() {
   else
     echo "${WARN:-[WARN]} hyprland Qt style module not found. Using QT_QUICK_CONTROLS_STYLE=Basic to avoid Qt app crashes." 2>&1 | tee -a "$log" || true
   fi
-  if [ "$has_kvantum_qml" -eq 1 ]; then
-    echo "${INFO:-[INFO]} Kvantum QML module detected. Using QT_STYLE_OVERRIDE=kvantum" 2>&1 | tee -a "$log" || true
+  if [ "$has_kvantum" -eq 1 ]; then
+    echo "${INFO:-[INFO]} Kvantum style plugin detected. Using QT_STYLE_OVERRIDE=kvantum" 2>&1 | tee -a "$log" || true
   else
-    echo "${WARN:-[WARN]} Kvantum QML module not found. Using QT_STYLE_OVERRIDE=Fusion as fallback." 2>&1 | tee -a "$log" || true
+    echo "${WARN:-[WARN]} Kvantum style plugin not found. Using QT_STYLE_OVERRIDE=Fusion as fallback." 2>&1 | tee -a "$log" || true
   fi
 }
 
