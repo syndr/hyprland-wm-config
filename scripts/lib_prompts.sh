@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# ==================================================
+#  KoolDots (2026)
+#  Project URL: https://github.com/LinuxBeginnings
+#  License: GNU GPLv3
+#  SPDX-License-Identifier: GPL-3.0-or-later
+# ==================================================
 # User interaction helpers extracted from copy.sh. Each helper echoes state or sets
 # globals deliberately to minimize side effects.
 
@@ -54,7 +60,7 @@ You need to set it Manually
 
 Setting a wrong Keyboard Layout will cause Hyprland to crash
 If you are not sure, just type ${YELLOW}us${RESET}
-${SKYBLUE}You can change later in ~/.config/hypr/UserConfigs/UserSettings.conf${RESET}
+${SKYBLUE}You can change later in ${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/UserSettings.conf${RESET}
 
 ${MAGENTA} NOTE:${RESET}
 •  You can also set more than 2 keyboard layouts
@@ -107,7 +113,7 @@ You need to set it Manually
 
 Setting a wrong Keyboard Layout will cause Hyprland to crash
 If you are not sure, just type ${YELLOW}us${RESET}
-${SKYBLUE}You can change later in ~/.config/hypr/UserConfigs/UserSettings.conf${RESET}
+${SKYBLUE}You can change later in ${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/UserSettings.conf${RESET}
 
 ${MAGENTA} NOTE:${RESET}
 •  You can also set more than 2 keyboard layouts

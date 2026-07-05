@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# ==================================================
+#  KoolDots (2026)
+#  Project URL: https://github.com/LinuxBeginnings
+#  License: GNU GPLv3
+#  SPDX-License-Identifier: GPL-3.0-or-later
+# ==================================================
 # Backup helper utilities shared by copy.sh (and future scripts).
 
 # Backup-directory suffix shared across a single installer run.
@@ -9,11 +15,19 @@
 # KOOL_RUN_BACKUP_SUFFIX once in the parent shell and we honor it here. Without
 # it (standalone callers) we fall back to a fresh timestamp.
 get_backup_dirname() {
+  # Fork: copy.sh exports an authoritative per-run suffix; honor it first.
   if [ -n "${KOOL_RUN_BACKUP_SUFFIX:-}" ]; then
     printf '%s\n' "$KOOL_RUN_BACKUP_SUFFIX"
-  else
-    printf '%s\n' "back-up_$(date +"%m%d_%H%M")"
+    return
   fi
+  # Upstream: self-caching exported BACKUP_DIR so repeated subshell calls agree.
+  if [ -n "${BACKUP_DIR:-}" ]; then
+    printf '%s\n' "$BACKUP_DIR"
+    return
+  fi
+  BACKUP_DIR="back-up_$(date +"%m%d_%H%M")"
+  export BACKUP_DIR
+  printf '%s\n' "$BACKUP_DIR"
 }
 
 # Move a directory to a timestamped backup alongside the original.
@@ -28,12 +42,12 @@ backup_dir() {
   mv "$dir" "${dir}-backup-${backup_suffix}" 2>&1 | tee -a "$log"
 }
 
-# Cleanup old backups under ~/.config, keeping the newest for each base dir.
+# Cleanup old backups under ${XDG_CONFIG_HOME:-$HOME/.config}, keeping the newest for each base dir.
 # mode: "auto" (no prompts) or "prompt" (asks before delete); log optional.
 cleanup_backups() {
   local mode="${1:-prompt}"
   local log="${2:-/dev/null}"
-  local CONFIG_DIR="$HOME/.config"
+  local CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
   local BACKUP_PREFIX="-backup"
 
   for DIR in "$CONFIG_DIR"/*; do
