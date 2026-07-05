@@ -40,6 +40,11 @@ waybar_style="$HOME/.config/waybar/style/[Dark] Greenscreen.css"
 waybar_config="$HOME/.config/waybar/configs/[TOP] Greenscreen"
 waybar_config_laptop="$HOME/.config/waybar/configs/[TOP] Greenscreen"
 chassis_type_file="$HOME/.config/hypr/.chassis_type"
+# Standalone Hackerer theme repo, fetched at install time by
+# apply_hackerer_theme() in scripts/lib_copy.sh. Override to pin a tag, e.g.
+# THEME_REPO_REF=v1.0.0 ./copy.sh
+THEME_REPO_URL="${THEME_REPO_URL:-https://github.com/syndr/hackerer-theme}"
+THEME_REPO_REF="${THEME_REPO_REF:-main}"
 
 # Set some colors for output messages
 OK="$(tput setaf 2)[OK]$(tput sgr0)"
@@ -693,39 +698,9 @@ else
   echo "${ERROR} Failed to copy some ${YELLOW}wallpapers${RESET}" | tee -a "$LOG"
 fi
 
-# cursor themes
-cursor_DIR="$HOME/.local/share/icons"
-if [ ! -d "$cursor_DIR" ]; then
-  mkdir -p "$cursor_DIR"
-fi
-
-if cp -r assets/cursors/* "$cursor_DIR/"; then
-  echo "${OK} Cursor themes copied successfully." 2>&1 | tee -a "$LOG"
-else
-  echo "${ERROR} Failed to copy cursor themes" 2>&1 | tee -a "$LOG"
-fi
-
-# GTK themes
-gtk_themes_DIR="$HOME/.themes"
-if [ ! -d "$gtk_themes_DIR" ]; then
-  mkdir -p "$gtk_themes_DIR"
-fi
-
-# Extract theme zips
-for theme_zip in assets/themes/*.zip; do
-  if [ -f "$theme_zip" ]; then
-    theme_name=$(basename "$theme_zip" .zip)
-    echo "${NOTE} Extracting GTK theme: $theme_name" 2>&1 | tee -a "$LOG"
-    unzip -q -o "$theme_zip" -d "$gtk_themes_DIR/"
-    # Rename extracted dir to match zip name (for -Dark suffix)
-    extracted_dir=$(unzip -Z1 "$theme_zip" | head -1 | cut -d'/' -f1)
-    if [ "$extracted_dir" != "$theme_name" ] && [ -d "$gtk_themes_DIR/$extracted_dir" ]; then
-      rm -rf "$gtk_themes_DIR/$theme_name"
-      mv "$gtk_themes_DIR/$extracted_dir" "$gtk_themes_DIR/$theme_name"
-    fi
-  fi
-done
-echo "${OK} GTK themes installed successfully." 2>&1 | tee -a "$LOG"
+# Cursor and GTK themes are part of the Hackerer theme family, which now
+# lives in its own repository. prompt_apply_hackerer_theme (below) fetches it
+# and its install.sh lays down the broodwar cursor and Hackerer-Dark GTK theme.
 
 prompt_apply_hackerer_theme "$SCRIPT_DIR" "$WORK_CONFIG_DIR" "$LOG" "install"
 
