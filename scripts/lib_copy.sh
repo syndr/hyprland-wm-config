@@ -38,75 +38,38 @@ hackerer_theme_installed() {
 }
 
 apply_hackerer_theme() {
-  local source_root="$1"
-  local config_root="$2"
+  # The Hackerer theme now lives in its own repository and is fetched at
+  # install time rather than vendored here. See https://github.com/syndr/hackerer-theme
+  # $1/$2 (source_root/config_root) are kept for call-site compatibility but unused.
   local log="$3"
-  local profile="$config_root/hypr/themes/Hackerer.conf"
-  local gtk_theme="Hackerer-Dark"
-  local icon_theme="Sours-Full-Color"
-  local cursor_theme="broodwar"
+  local repo_url="${THEME_REPO_URL:-https://github.com/syndr/hackerer-theme}"
+  local repo_ref="${THEME_REPO_REF:-main}"
 
-  mkdir -p "$HOME/.config/Kvantum" \
-    "$HOME/.config/qt5ct/colors" \
-    "$HOME/.config/qt6ct/colors" \
-    "$HOME/.config/hypr/UserConfigs" \
-    "$HOME/.local/share/color-schemes" \
-    "$HOME/.themes"
-
-  if [ -f "$profile" ]; then
-    # shellcheck disable=SC1090
-    source "$profile"
-    gtk_theme="${DARK_GTK_THEME:-$gtk_theme}"
-    icon_theme="${DARK_ICON_THEME:-$icon_theme}"
-    cursor_theme="${DARK_CURSOR_THEME:-$cursor_theme}"
+  if ! command -v git >/dev/null 2>&1; then
+    echo "${WARN:-[WARN]} git not found; cannot fetch the Hackerer theme from $repo_url. Skipping (current theme unchanged)." 2>&1 | tee -a "$log"
+    return 1
   fi
 
-  if [ -f "$source_root/assets/themes/Hackerer-Dark.zip" ]; then
-    unzip -q -o "$source_root/assets/themes/Hackerer-Dark.zip" -d "$HOME/.themes/" 2>&1 | tee -a "$log" || true
-    extracted_dir=$(unzip -Z1 "$source_root/assets/themes/Hackerer-Dark.zip" | head -1 | cut -d'/' -f1)
-    if [ -n "$extracted_dir" ] && [ "$extracted_dir" != "Hackerer-Dark" ] && [ -d "$HOME/.themes/$extracted_dir" ]; then
-      rm -rf "$HOME/.themes/Hackerer-Dark"
-      mv "$HOME/.themes/$extracted_dir" "$HOME/.themes/Hackerer-Dark" 2>&1 | tee -a "$log" || true
+  local tmp
+  tmp="$(mktemp -d)" || {
+    echo "${WARN:-[WARN]} Could not create a temp dir to fetch the Hackerer theme. Skipping." 2>&1 | tee -a "$log"
+    return 1
+  }
+
+  echo "${NOTE:-[NOTE]} Fetching Hackerer theme ('$repo_ref') from $repo_url ..." 2>&1 | tee -a "$log"
+  if git clone --depth 1 --branch "$repo_ref" "$repo_url" "$tmp/hackerer-theme" >>"$log" 2>&1; then
+    if [ -f "$tmp/hackerer-theme/install.sh" ]; then
+      bash "$tmp/hackerer-theme/install.sh" 2>&1 | tee -a "$log"
+      echo "${OK:-[OK]} - Hackerer theme installed from $repo_url." 2>&1 | tee -a "$log"
+      rm -rf "$tmp"
+      return 0
     fi
+    echo "${WARN:-[WARN]} Fetched theme repo has no install.sh. Skipping." 2>&1 | tee -a "$log"
+  else
+    echo "${WARN:-[WARN]} Could not fetch the Hackerer theme (check network or ref '$repo_ref'). Skipping; current theme unchanged." 2>&1 | tee -a "$log"
   fi
-
-  if [ -d "$config_root/Kvantum/Hackerer-Dark" ]; then
-    rm -rf "$HOME/.config/Kvantum/Hackerer-Dark"
-    cp -r "$config_root/Kvantum/Hackerer-Dark" "$HOME/.config/Kvantum/" 2>&1 | tee -a "$log"
-  fi
-
-  [ -f "$config_root/Kvantum/kvantum.kvconfig" ] \
-    && cp -f "$config_root/Kvantum/kvantum.kvconfig" "$HOME/.config/Kvantum/kvantum.kvconfig" 2>&1 | tee -a "$log"
-  [ -f "$config_root/qt5ct/qt5ct.conf" ] \
-    && cp -f "$config_root/qt5ct/qt5ct.conf" "$HOME/.config/qt5ct/qt5ct.conf" 2>&1 | tee -a "$log"
-  [ -f "$config_root/qt6ct/qt6ct.conf" ] \
-    && cp -f "$config_root/qt6ct/qt6ct.conf" "$HOME/.config/qt6ct/qt6ct.conf" 2>&1 | tee -a "$log"
-  [ -f "$config_root/qt5ct/colors/Hackerer-Dark.colors" ] \
-    && cp -f "$config_root/qt5ct/colors/Hackerer-Dark.colors" "$HOME/.config/qt5ct/colors/Hackerer-Dark.colors" 2>&1 | tee -a "$log"
-  [ -f "$config_root/qt6ct/colors/Hackerer-Dark.colors" ] \
-    && cp -f "$config_root/qt6ct/colors/Hackerer-Dark.colors" "$HOME/.config/qt6ct/colors/Hackerer-Dark.colors" 2>&1 | tee -a "$log"
-  [ -f "$config_root/color-schemes/Hackerer.colors" ] \
-    && cp -f "$config_root/color-schemes/Hackerer.colors" "$HOME/.local/share/color-schemes/Hackerer.colors" 2>&1 | tee -a "$log"
-  [ -f "$config_root/hypr/UserConfigs/ThemeConfig.conf" ] \
-    && cp -f "$config_root/hypr/UserConfigs/ThemeConfig.conf" "$HOME/.config/hypr/UserConfigs/ThemeConfig.conf" 2>&1 | tee -a "$log"
-
-  if command -v kwriteconfig6 >/dev/null 2>&1; then
-    kwriteconfig6 --file "$HOME/.config/kdeglobals" --group General --key ColorScheme "Hackerer" 2>&1 | tee -a "$log" || true
-    kwriteconfig6 --file "$HOME/.config/kdeglobals" --group KDE --key widgetStyle "kvantum" 2>&1 | tee -a "$log" || true
-  fi
-
-  if command -v kvantummanager >/dev/null 2>&1; then
-    kvantummanager --set "Hackerer-Dark" >/dev/null 2>&1 || true
-  fi
-
-  if command -v gsettings >/dev/null 2>&1; then
-    gsettings set org.gnome.desktop.interface color-scheme "prefer-dark" 2>&1 | tee -a "$log" || true
-    gsettings set org.gnome.desktop.interface gtk-theme "$gtk_theme" 2>&1 | tee -a "$log" || true
-    gsettings set org.gnome.desktop.interface icon-theme "$icon_theme" 2>&1 | tee -a "$log" || true
-    gsettings set org.gnome.desktop.interface cursor-theme "$cursor_theme" 2>&1 | tee -a "$log" || true
-  fi
-
-  echo "${OK:-[OK]} - Hackerer GTK/Qt/KDE theme installed and applied." 2>&1 | tee -a "$log"
+  rm -rf "$tmp"
+  return 1
 }
 
 prompt_apply_hackerer_theme() {
