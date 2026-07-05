@@ -63,6 +63,7 @@ tooltip label {
 #backlight,
 #backlight-slider,
 #battery,
+#custom-uconsole-battery,
 #bluetooth,
 #clock,
 #cpu,
@@ -633,6 +634,25 @@ window#waybar.greenscreen-wide #tray {
   animation: blink 0.5s linear infinite alternate;
 }
 
+/* uconsole-battery mirrors the #battery state colors (same class names
+   emitted by the voltage gauge script). */
+#custom-uconsole-battery {
+  color: @fg;
+}
+
+#custom-uconsole-battery.charging {
+  color: @fg_bright;
+}
+
+#custom-uconsole-battery.warning:not(.charging) {
+  color: @fg_mid;
+}
+
+#custom-uconsole-battery.critical:not(.charging) {
+  color: @fg_accent;
+  animation: blink 0.5s linear infinite alternate;
+}
+
 @keyframes blink {
   to {
     color: @bg_light;
@@ -642,10 +662,13 @@ window#waybar.greenscreen-wide #tray {
 /* Brightness drawer decorator: battery + backlight share a 1px bottom border
    on all three Greenscreen variants (no full box — same look as wide). */
 window#waybar.greenscreen-wide #battery,
+window#waybar.greenscreen-wide #custom-uconsole-battery,
 window#waybar.greenscreen-wide #backlight,
 window#waybar.greenscreen-narrow #battery,
+window#waybar.greenscreen-narrow #custom-uconsole-battery,
 window#waybar.greenscreen-narrow #backlight,
 window#waybar.greenscreen-uber-narrow #battery,
+window#waybar.greenscreen-uber-narrow #custom-uconsole-battery,
 window#waybar.greenscreen-uber-narrow #backlight,
 window#waybar.greenscreen-wide #custom-settings,
 window#waybar.greenscreen-wide #custom-tty,

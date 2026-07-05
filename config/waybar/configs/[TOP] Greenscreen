@@ -99,7 +99,7 @@
 		"transition-left-to-right": false
 	},
 	"modules": [
-		"battery#forest",
+		"custom/uconsole-battery#forest",
 		"backlight"
 	]
 },
@@ -149,31 +149,20 @@
                   "calendar": 1
                    }
 },
-"battery#forest": {
-	//"interval": 5,
-	"align": 0,
-	"rotate": 0,
-	//"bat": "BAT1",
-	//"adapter": "ACAD",
-	"full-at": 100,
-	"design-capacity": false,
-	"states": {
-		"good": 95,
-		"warning": 30,
-		"critical": 15
-	},
-	"format": "{icon}  {capacity}%",
-	"format-charging": " {capacity}%",
-	"format-plugged": "󱘖 {capacity}%",
-	"format-alt-click": "click",
-	"format-full": "{icon} Full",
-	"format-alt": "{icon} {time}",
+"custom/uconsole-battery#forest": {
+	// AXP223 kernel capacity register is stuck at 100%; use the
+	// voltage-based gauge (uconsole-tweaks: /usr/local/bin/uconsole-battery).
+	// Icon is picked from format-icons by the JSON `percentage`; the
+	// tooltip and CSS class (charging/warning/critical/...) come from
+	// the script, so #custom-uconsole-battery mirrors the #battery CSS.
+	"exec": "/usr/local/bin/uconsole-battery",
+	"return-type": "json",
+	"interval": 30,
+	"format": "{icon}  {}",
 	"format-icons": [
 		"󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"
 	],
-	"format-time": "{H}h {M}min",
 	"tooltip": true,
-	"tooltip-format": "{timeTo} {power}w",
 	"on-click-middle": "$HOME/.config/hypr/scripts/ChangeBlur.sh",
 	"on-click-right": "$HOME/.config/hypr/scripts/Wlogout.sh",
 },
