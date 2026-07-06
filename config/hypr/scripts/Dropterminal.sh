@@ -4,13 +4,16 @@
 # Made and brought to by Kiran George
 # /* -- ✨ https://github.com/SherLock707 ✨ -- */  ##
 # Dropdown Terminal
-# Usage: ./Dropdown.sh [-d] <terminal_command>
+# Usage: ./Dropdown.sh [-d] [-p|--preload] <terminal_command>
 # Example: ./Dropdown.sh foot
 #          ./Dropdown.sh -d foot (with debug output)
+#          ./Dropdown.sh -p foot (ensure it exists hidden in the scratchpad
+#                                 without revealing it — for exec-once at login)
 #          ./Dropdown.sh "kitty -e zsh"
 #          ./Dropdown.sh "alacritty --working-directory /home/user"
 
 DEBUG=false
+PRELOAD=false
 SPECIAL_WS="special:scratchpad"
 ADDR_FILE="/tmp/dropdown_terminal_addr"
 
@@ -25,14 +28,17 @@ SLIDE_STEPS=5
 SLIDE_DELAY=5 # milliseconds between steps
 
 # Parse arguments
-if [ "$1" = "-d" ]; then
-  DEBUG=true
-  shift
-fi
+while :; do
+  case "$1" in
+    -d) DEBUG=true; shift ;;
+    -p | --preload) PRELOAD=true; shift ;;
+    *) break ;;
+  esac
+done
 
 TERMINAL_CMD="$1"
 
-# Windows we adopt or reuse must look like the terminal we launch. At login
+# Windows we adopt at spawn must look like the terminal we launch. At login
 # this script races other autostarts (xwaylandvideobridge), and a bare
 # new-address diff used to grab whichever window mapped first — yanking the
 # bridge onto the active workspace front and center. Class is matched
@@ -220,16 +226,28 @@ get_terminal_address() {
 # Function to get stored monitor name
 get_terminal_monitor() {
   if [ -f "$ADDR_FILE" ] && [ -s "$ADDR_FILE" ]; then
-    cut -d' ' -f2- "$ADDR_FILE"
+    cut -d' ' -f2 "$ADDR_FILE"
   fi
 }
 
-# Function to check if terminal exists
+# Function to get stored terminal class (recorded at adopt time)
+get_terminal_class() {
+  if [ -f "$ADDR_FILE" ] && [ -s "$ADDR_FILE" ]; then
+    cut -d' ' -f3 "$ADDR_FILE"
+  fi
+}
+
+# The stored window counts as our dropdown only if it is the same window we
+# adopted: address AND class must both match what was recorded. Identity is
+# checked against the file, not against $TERM_BIN, so the keybind toggles
+# the existing dropdown even when invoked with a different terminal than the
+# one that preloaded it — and a poisoned or reused address never qualifies.
 terminal_exists() {
   local addr=$(get_terminal_address)
-  if [ -n "$addr" ]; then
-    hyprctl clients -j | jq -e --arg ADDR "$addr" --arg BIN "$TERM_BIN" \
-      'any(.[]; .address == $ADDR and ((.class // "") | ascii_downcase | contains($BIN | ascii_downcase)))' >/dev/null 2>&1
+  local class=$(get_terminal_class)
+  if [ -n "$addr" ] && [ -n "$class" ]; then
+    hyprctl clients -j | jq -e --arg ADDR "$addr" --arg CLS "$class" \
+      'any(.[]; .address == $ADDR and .class == $CLS)' >/dev/null 2>&1
   else
     return 1
   fi
@@ -292,9 +310,16 @@ spawn_terminal() {
   done
 
   if [ -n "$new_addr" ] && [ "$new_addr" != "null" ]; then
-    # Store the address and monitor name
-    echo "$new_addr $monitor_name" >"$ADDR_FILE"
-    debug_echo "Terminal created with address: $new_addr in special workspace on monitor $monitor_name"
+    # Store address, monitor, and class — class is the identity token
+    # terminal_exists() checks on later invocations.
+    local new_class=$(hyprctl clients -j | jq -r --arg ADDR "$new_addr" '.[] | select(.address == $ADDR) | .class')
+    echo "$new_addr $monitor_name $new_class" >"$ADDR_FILE"
+    debug_echo "Terminal created with address: $new_addr ($new_class) in special workspace on monitor $monitor_name"
+
+    if [ "$PRELOAD" = true ]; then
+      debug_echo "Preload mode: leaving terminal parked in $SPECIAL_WS"
+      return 0
+    fi
 
     # Small delay to ensure it's properly in special workspace
     sleep 0.2
@@ -313,6 +338,17 @@ spawn_terminal() {
 }
 
 # Main logic
+if [ "$PRELOAD" = true ]; then
+  # exec-once path: make sure a dropdown exists in the scratchpad, but never
+  # reveal or focus anything at login.
+  if terminal_exists; then
+    debug_echo "Preload: dropdown already exists"
+  else
+    spawn_terminal
+  fi
+  exit 0
+fi
+
 if terminal_exists; then
   TERMINAL_ADDR=$(get_terminal_address)
   debug_echo "Found existing terminal: $TERMINAL_ADDR"
@@ -330,8 +366,8 @@ if terminal_exists; then
     # Move and resize window
     hyprctl dispatch movewindowpixel "exact $target_x $target_y,address:$TERMINAL_ADDR"
     hyprctl dispatch resizewindowpixel "exact $width $height,address:$TERMINAL_ADDR"
-    # Update ADDR_FILE
-    echo "$TERMINAL_ADDR $monitor_name" >"$ADDR_FILE"
+    # Update ADDR_FILE (keep the recorded class)
+    echo "$TERMINAL_ADDR $monitor_name $(get_terminal_class)" >"$ADDR_FILE"
   fi
 
   if terminal_in_special; then
