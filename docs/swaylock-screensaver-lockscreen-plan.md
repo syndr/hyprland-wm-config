@@ -308,6 +308,21 @@ copy-mechanism task (exec bits + new-file pickup verified by design —
 
 ---
 
+## Future: upstream as a swaylock-plugin add-on
+
+The user-facing tooling here (lock launcher, rofi hack picker, live preview)
+could later ship as an add-on in the `syndr/swaylock-plugin` fork (e.g.
+`contrib/`) for other swaylock-plugin users — separate task, but it shapes how
+we write the scripts **now**:
+
+- make paths/defaults **env-overridable** (`HACK_DIR`, `WRAPPER`, state file,
+  default hack) rather than hardcoded;
+- keep generic logic (hack listing/filtering, state persistence, windowed
+  preview spawning) separate from repo-specific glue (JaKooLit header, hypridle
+  wiring, keybinds, `windowrulev2`, rofi theme paths);
+- don't bake `~/.config/hypr` assumptions into the core logic — it's just this
+  repo's default state-file location.
+
 ## Remaining verifications (post-install, task 10)
 
 - **X window class** the hacks set when windowed — needed for the preview
