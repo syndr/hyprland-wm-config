@@ -171,7 +171,10 @@ Hosts without it fall back to hyprlock automatically — no config change needed
 - The choice persists to `~/.config/hypr/.swaylock_hack`; the default is
   `xrayswarm`.
 - Screens still power off after ~20 minutes of screensaver (see
-  `hypr/hypridle.conf`).
+  `hypr/hypridle.conf`). On hosts with `KOOL_IDLE_DPMS_OFF=0` in
+  `UserConfigs/IdleSettings.conf` (outputs that don't wake from DPMS-off),
+  the deploy strips all DPMS-off listeners and the screensaver runs
+  **indefinitely**.
 - **Recovery** if the locker misbehaves: `Ctrl+Alt+F2` → log in →
   `killall swaylock-plugin` → `Ctrl+Alt+F1`. You will land in **hyprlock**
   (fail-secure fallback), not an unlocked session — unlock there normally.
