@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Post-lock idle watchdog. Squawks every IDLE_WATCHDOG_INTERVAL seconds with
-# escalating tiers until hyprlock exits. Spawned (detached) from hypridle's
-# lock_cmd. Exits cleanly on unlock.
+# escalating tiers until the locker (hyprlock or swaylock-plugin) exits.
+# Spawned (detached) from hypridle's lock_cmd. Exits cleanly on unlock.
 #
 #   Squawk 1   -> gentle
 #   Squawk 2   -> nag
@@ -85,7 +85,7 @@ n=1
 while :; do
     tier=$(tier_for_squawk "$n")
     sleep "$(interval_for_tier "$tier")"
-    pidof hyprlock >/dev/null 2>&1 || exit 0
+    pidof hyprlock swaylock-plugin >/dev/null 2>&1 || exit 0
     # Skip while a screen is lit: the user has woken hyprlock to unlock,
     # so squawking would interrupt them and the flash pattern would yank
     # dpms off mid-typing. The hypridle screen-off listener will flip

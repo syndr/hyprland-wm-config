@@ -1,5 +1,21 @@
 # Changelog — KoolDots
 
+## Unreleased
+
+## Added
+
+- Screensaver lockscreen: `swaylock-plugin` with a live xscreensaver "hack"
+  background replaces hyprlock when installed (hyprlock remains the automatic
+  fallback on hosts without it)
+  - `SUPER SHIFT L` rofi picker to choose the hack (`Alt+P` live preview,
+    `. random` entry); choice persists to `~/.config/hypr/.swaylock_hack`
+  - hypridle DPMS listeners now give the screensaver a 5-minute window after
+    lock before screens power off (hyprlock keeps its quick-off behavior)
+  - `IdleWatchdog.sh` and the installer's idle-policy rewrite are
+    swaylock-aware
+  - Recovery from a misbehaving locker: TTY → `killall swaylock-plugin` lands
+    in hyprlock (fail-secure), see README
+
 ## v2.3.25
 
 ## Fixed

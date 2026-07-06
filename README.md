@@ -159,6 +159,23 @@ chmod +x copy.sh
 
 - Keybinds [`HERE`](https://github.com/LinuxBeginnings/Hyprland-Dots/wiki/Keybinds)
 
+#### 🔒 Screensaver lockscreen (swaylock-plugin)
+
+When `swaylock-plugin` is installed (e.g. via the phalanx rpm-ostree image:
+COPR `syndr/swaylock-plugin` + the xscreensaver hack packages), the lock screen
+runs a live xscreensaver "hack" as its animated background instead of hyprlock.
+Hosts without it fall back to hyprlock automatically — no config change needed.
+
+- **Pick the hack**: `SUPER + SHIFT + L` opens a rofi menu (`. random` entry
+  included). Highlight a hack and press `Alt + P` for a live windowed preview.
+- The choice persists to `~/.config/hypr/.swaylock_hack`; the default is
+  `xrayswarm`.
+- Screens still power off after ~5 minutes of screensaver (see
+  `hypr/hypridle.conf`).
+- **Recovery** if the locker misbehaves: `Ctrl+Alt+F2` → log in →
+  `killall swaylock-plugin` → `Ctrl+Alt+F1`. You will land in **hyprlock**
+  (fail-secure fallback), not an unlocked session — unlock there normally.
+
 ### ✍️ Contributing
 
 - If you have improvements on the dotfiles or configuration, feel free to submit a PR for improvement.

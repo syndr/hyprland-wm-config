@@ -223,11 +223,11 @@ adjust_idle_dpms_policy() {
     END { flush_pending() }
   ' "$hypridle" > "$tmp_file" && mv "$tmp_file" "$hypridle"
 
-  # Watchdog is part of the nag: when disabled, drop the IdleWatchdog spawn from
-  # lock_cmd, leaving a plain hyprlock. '#' delimiter so the literal '||' in the
-  # replacement is safe.
+  # Watchdog is part of the nag: when disabled, drop only the IdleWatchdog spawn
+  # from lock_cmd, preserving whatever locker is configured (swaylock-plugin
+  # screensaver or plain hyprlock). '#' delimiter so literal '|' stays safe.
   if [ "$strip_nag" -eq 1 ]; then
-    sed -i -E 's#^([[:space:]]*lock_cmd[[:space:]]*=[[:space:]]*).*IdleWatchdog\.sh.*$#\1pidof hyprlock || hyprlock#' "$hypridle"
+    sed -i -E 's#^([[:space:]]*lock_cmd[[:space:]]*=[[:space:]]*.*)[[:space:]]*&[[:space:]]*setsid[[:space:]]+-f[[:space:]]+[^[:space:]]*IdleWatchdog\.sh.*$#\1#' "$hypridle"
   fi
 
   # Adjust the lock-on-idle timeout: rewrite the timeout line of the listener
