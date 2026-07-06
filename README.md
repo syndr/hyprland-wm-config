@@ -170,7 +170,7 @@ Hosts without it fall back to hyprlock automatically — no config change needed
   included). Highlight a hack and press `Alt + P` for a live windowed preview.
 - The choice persists to `~/.config/hypr/.swaylock_hack`; the default is
   `xrayswarm`.
-- Screens still power off after ~5 minutes of screensaver (see
+- Screens still power off after ~20 minutes of screensaver (see
   `hypr/hypridle.conf`).
 - **Recovery** if the locker misbehaves: `Ctrl+Alt+F2` → log in →
   `killall swaylock-plugin` → `Ctrl+Alt+F1`. You will land in **hyprlock**

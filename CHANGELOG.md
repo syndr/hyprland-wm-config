@@ -9,7 +9,7 @@
   fallback on hosts without it)
   - `SUPER SHIFT L` rofi picker to choose the hack (`Alt+P` live preview,
     `. random` entry); choice persists to `~/.config/hypr/.swaylock_hack`
-  - hypridle DPMS listeners now give the screensaver a 5-minute window after
+  - hypridle DPMS listeners now give the screensaver a 20-minute window after
     lock before screens power off (hyprlock keeps its quick-off behavior)
   - `IdleWatchdog.sh` and the installer's idle-policy rewrite are
     swaylock-aware
