@@ -32,6 +32,14 @@ fi
 
 TERMINAL_CMD="$1"
 
+# Windows we adopt or reuse must look like the terminal we launch. At login
+# this script races other autostarts (xwaylandvideobridge), and a bare
+# new-address diff used to grab whichever window mapped first — yanking the
+# bridge onto the active workspace front and center. Class is matched
+# case-insensitively as a substring so app-id styles like
+# org.wezfurlong.wezterm still match "wezterm".
+TERM_BIN=$(basename "${TERMINAL_CMD%% *}")
+
 # Debug echo function
 # NOTE: must write to stderr — several functions return values via stdout
 # command substitution, and debug lines on stdout corrupt those captures.
@@ -220,7 +228,8 @@ get_terminal_monitor() {
 terminal_exists() {
   local addr=$(get_terminal_address)
   if [ -n "$addr" ]; then
-    hyprctl clients -j | jq -e --arg ADDR "$addr" 'any(.[]; .address == $ADDR)' >/dev/null 2>&1
+    hyprctl clients -j | jq -e --arg ADDR "$addr" --arg BIN "$TERM_BIN" \
+      'any(.[]; .address == $ADDR and ((.class // "") | ascii_downcase | contains($BIN | ascii_downcase)))' >/dev/null 2>&1
   else
     return 1
   fi
@@ -262,14 +271,19 @@ spawn_terminal() {
   hyprctl dispatch exec "[float; size $width $height; workspace special:scratchpad silent] $TERMINAL_CMD"
 
   # Wait for the new window to appear (poll up to ~3s; terminals routinely
-  # take >100ms to map, and grabbing the wrong window here means yanking an
-  # unrelated window out of its workspace and pinning it).
+  # take >100ms to map). Only accept a window that landed on the scratchpad
+  # workspace with a matching class — the exec rule above guarantees ours
+  # does, and unrelated windows mapping concurrently (xwaylandvideobridge at
+  # login) must never be adopted, moved, and pinned by mistake.
   local new_addr=""
   local i
   for i in $(seq 1 30); do
     new_addr=$(comm -13 \
       <(echo "$windows_before" | jq -r '.[].address' | sort) \
-      <(hyprctl clients -j | jq -r '.[].address' | sort) |
+      <(hyprctl clients -j | jq -r --arg WS "$SPECIAL_WS" --arg BIN "$TERM_BIN" \
+        '.[] | select(.workspace.name == $WS)
+             | select((.class // "") | ascii_downcase | contains($BIN | ascii_downcase))
+             | .address' | sort) |
       head -1)
     if [ -n "$new_addr" ] && [ "$new_addr" != "null" ]; then
       break
