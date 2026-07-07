@@ -154,7 +154,17 @@ edit_hacks_conf() {
 #   xrayswarm  --delay 10000
 #   *          --fps
 EOF
-  local editor="${VISUAL:-${EDITOR:-nano}}"
+  local editor="${VISUAL:-${EDITOR:-nano}}" first
+  # GUI editors open their own window -- wrapping them in a terminal leaves
+  # an empty terminal window behind. Run them directly.
+  first="${editor%% *}"
+  case "${first##*/}" in
+    neovide|gvim|code|codium|subl|zed|zeditor|gedit|kate|gnome-text-editor)
+      # shellcheck disable=SC2086  # $editor may carry its own flags
+      $editor "$HACKS_CONF"
+      return 0
+      ;;
+  esac
   # shellcheck disable=SC2086  # $editor may carry its own flags
   "${SCREENHACK_TERMINAL:-kitty}" -e $editor "$HACKS_CONF"
 }
