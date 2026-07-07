@@ -4,6 +4,22 @@
 
 ## Fixed
 
+- `copy.sh`: upgrades wiped externally-installed theme payloads. `copy_phase2`
+  replaces `qt5ct`/`qt6ct`/`Kvantum` wholesale, and the theme-state snapshot
+  only preserved the top-level configs — so after an upgrade, `qt6ct.conf` and
+  `kvantum.kvconfig` pointed at `Hackerer-Dark` color-scheme/theme files that
+  no longer existed, silently reverting Qt apps to a default palette. The
+  snapshot now also captures `qt5ct/colors`, `qt6ct/colors`, and `Kvantum/`
+  and restores any files the new release doesn't ship (fill-in only, so
+  repo-shipped scheme updates still land).
+- Logout now goes through `Logout.sh` (the wlogout "logout" button and the
+  `CTRL ALT Delete` keybind in `Keybinds.conf` previously ran
+  `hyprctl dispatch exit 0` directly; the lua keybind already used it).
+  Killing the compositor out from under its Wayland clients made the
+  xdg-desktop-portal implementations, swaync, nm-applet, etc. die on a broken
+  pipe as failed systemd user units, which fumon then reported as portal
+  errors at the next login. `Logout.sh` shuts the session down via
+  hyprshutdown/loginctl/uwsm so units are stopped cleanly first.
 - `copy.sh`: every express upgrade (and any interactive run declining the
   Hackerer theme) silently aborted at the theme prompt — the function's
   "declined/skipped" return code tripped `set -e`, skipping the exec-bit
