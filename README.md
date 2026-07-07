@@ -170,6 +170,11 @@ Hosts without it fall back to hyprlock automatically — no config change needed
   included) showing each hack's screenshot and one-line description (both
   searchable). Highlight a hack and press `Alt + P` for a live windowed
   preview — the picker reopens when you close the preview window (`SUPER + Q`).
+- **Per-hack flags**: `Alt + C` in the picker opens
+  `~/.config/swaylock-screensaver/hacks.conf` in `$VISUAL`/`$EDITOR`
+  (template seeded on first use): `<hack> <flags...>` lines, `*` applies to
+  every hack. Both the lockscreen and the preview honor them — a flag the
+  hack rejects makes it exit, so preview before locking.
 - The choice persists to `~/.config/hypr/.swaylock_hack`; the default is
   `xrayswarm`.
 - **Thumbnails** are generated locally by `UserScripts/ScreenHackShots.sh`

@@ -24,7 +24,10 @@ HACK_DIR="${HACK_DIR:-/usr/libexec/xscreensaver}"
 HACK_STATE="${HACK_STATE:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr/.swaylock_hack}"
 DEFAULT_HACK="${DEFAULT_HACK:-xrayswarm}"
 rofi_theme="${SCREENHACK_ROFI_THEME:-${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config-screenhack.rasi}"
-PREVIEW_KEY="Alt+p"
+PREVIEW_KEY="${SCREENHACK_PREVIEW_KEY:-Alt+p}"
+EDIT_KEY="${SCREENHACK_EDIT_KEY:-Alt+c}"
+# Per-hack flags (same file/format as the swaylock-plugin contrib scripts).
+HACKS_CONF="${SWAYLOCK_SCREENSAVER_HACKS_CONF:-${XDG_CONFIG_HOME:-$HOME/.config}/swaylock-screensaver/hacks.conf}"
 
 # Rows show a screenshot thumbnail + one-line description when available.
 # Shots come from ScreenHackShots.sh (auto-kicked below on first use);
@@ -113,11 +116,55 @@ row_to_hack() {
   printf '%s' "${row%"${row##*[![:space:]]}"}"
 }
 
-# Live preview (Option A): run the highlighted hack windowed. Floated, centered
+# Per-hack tuning flags from hacks.conf (same lookup as SwaylockScreensaver.sh:
+# `*` line first, then the hack's own line(s); ` # comment` suffix stripped).
+hack_args() {
+  [[ -r "$HACKS_CONF" ]] || return 0
+  awk -v h="$1" '
+    /^[[:space:]]*(#|$)/ { next }
+    {
+      line = $0
+      sub(/[[:space:]]+#.*$/, "", line)
+      n = split(line, f, /[[:space:]]+/)
+      name = f[1]; args = ""
+      for (i = 2; i <= n; i++) args = args (args == "" ? "" : " ") f[i]
+      if (args == "") next
+      if (name == "*") star = star (star == "" ? "" : " ") args
+      if (name == h)   own  = own  (own  == "" ? "" : " ") args
+    }
+    END {
+      out = star (star != "" && own != "" ? " " : "") own
+      if (out != "") print out
+    }' "$HACKS_CONF"
+}
+
+# Open hacks.conf in $VISUAL/$EDITOR (terminal-spawned, since the picker runs
+# from a keybind). Seeds a commented template on first use. Blocks until the
+# editor closes, then the caller reopens the picker -- edit flags, preview,
+# repeat.
+edit_hacks_conf() {
+  mkdir -p "$(dirname "$HACKS_CONF")"
+  [[ -s "$HACKS_CONF" ]] || cat > "$HACKS_CONF" <<'EOF'
+# swaylock screensaver per-hack flags: <hack> <flags...>
+# A '*' line applies to every hack; a hack's own flags are appended after it.
+# Flags each hack accepts: man <hack>, or /usr/share/xscreensaver/config/<hack>.xml
+# Test with the picker preview (Alt+P) -- a hack that rejects its flags shows no window.
+# Examples:
+#   glmatrix   --mode dna --speed 0.5
+#   xrayswarm  --delay 10000
+#   *          --fps
+EOF
+  local editor="${VISUAL:-${EDITOR:-nano}}"
+  # shellcheck disable=SC2086  # $editor may carry its own flags
+  "${SCREENHACK_TERMINAL:-kitty}" -e $editor "$HACKS_CONF"
+}
+
+# Live preview (Option A): run the highlighted hack windowed with its
+# hacks.conf flags (matches what the lockscreen will show). Floated, centered
 # and sized by the "from the XScreenSaver" title rule in configs/WindowRules.conf
 # (the X class is per-hack, e.g. XRaySwarm, so the title is the stable handle).
 preview() {
-  local hack="$1"
+  local hack="$1" args
   [[ -x "$HACK_DIR/$hack" ]] || return 0
   if [[ -z "${DISPLAY:-}" ]]; then
     notify-send -i "$iDIR/error.png" "Screensaver preview" \
@@ -125,7 +172,9 @@ preview() {
     return 0
   fi
   cleanup
-  setsid "$HACK_DIR/$hack" >/dev/null 2>&1 &
+  args="$(hack_args "$hack")"
+  # shellcheck disable=SC2086  # word splitting of $args is intended
+  setsid "$HACK_DIR/$hack" $args >/dev/null 2>&1 &
   preview_pid=$!
 }
 
@@ -137,7 +186,8 @@ main() {
     choice=$(menu | rofi -i -dmenu -config "$rofi_theme" \
       -select "$select_arg" \
       -kb-custom-1 "$PREVIEW_KEY" \
-      -mesg "Current: ${current:-none (default: $DEFAULT_HACK)}  |  ${PREVIEW_KEY^}: preview (close preview window to return)")
+      -kb-custom-2 "$EDIT_KEY" \
+      -mesg "Current: ${current:-none (default: $DEFAULT_HACK)}  |  ${PREVIEW_KEY^}: preview (close its window to return)  |  ${EDIT_KEY^}: edit hack flags")
     rc=$?
     case "$rc" in
       0) break ;;                                        # selection accepted
@@ -151,6 +201,11 @@ main() {
           wait "$preview_pid" 2>/dev/null
           preview_pid=""
         fi
+        ;;
+      11)
+        # kb-custom-2: edit hacks.conf, reopen when the editor closes.
+        edit_hacks_conf
+        select_arg="$choice"
         ;;
       *) exit 0 ;;                                       # Escape / abort
     esac

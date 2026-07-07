@@ -27,6 +27,9 @@ DEFAULT_HACK="${DEFAULT_HACK:-xrayswarm}"
 # disables; any other value is an image path.
 FALLBACK_BG="${SWAYLOCK_SCREENSAVER_FALLBACK_BG:-auto}"
 SHOT_DIR="${SCREENHACK_SHOT_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/screenhack-shots}"
+# Per-hack flags (same file/format as the swaylock-plugin contrib scripts, so
+# switching to the packaged tools later keeps user config intact).
+HACKS_CONF="${SWAYLOCK_SCREENSAVER_HACKS_CONF:-${XDG_CONFIG_HOME:-$HOME/.config}/swaylock-screensaver/hacks.conf}"
 
 # Hosts without the RPM (non-phalanx installs) keep hyprlock, quietly.
 command -v swaylock-plugin >/dev/null || exec hyprlock
@@ -44,6 +47,29 @@ if [ ! -x "$HACK_DIR/$HACK" ] && [ -x "$HACK_DIR/$DEFAULT_HACK" ]; then
     HACK="$DEFAULT_HACK"
 fi
 
+# Per-hack tuning flags from hacks.conf: a `*` line applies to every hack,
+# then the hack's own line(s) -- later flags win in the hacks' arg parsers.
+# Trailing ` # comment` is stripped.
+hack_args() {
+    [ -r "$HACKS_CONF" ] || return 0
+    awk -v h="$1" '
+        /^[[:space:]]*(#|$)/ { next }
+        {
+            line = $0
+            sub(/[[:space:]]+#.*$/, "", line)
+            n = split(line, f, /[[:space:]]+/)
+            name = f[1]; args = ""
+            for (i = 2; i <= n; i++) args = args (args == "" ? "" : " ") f[i]
+            if (args == "") next
+            if (name == "*") star = star (star == "" ? "" : " ") args
+            if (name == h)   own  = own  (own  == "" ? "" : " ") args
+        }
+        END {
+            out = star (star != "" && own != "" ? " " : "") own
+            if (out != "") print out
+        }' "$HACKS_CONF"
+}
+
 # The plugin surface covers the swaylock background while the hack runs;
 # --image only becomes visible if the hack dies or never starts.
 bg_args=()
@@ -54,11 +80,12 @@ case "$FALLBACK_BG" in
 esac
 
 if [ -x "$HACK_DIR/$HACK" ] && [ -x "$WRAPPER" ]; then
+    ARGS="$(hack_args "$HACK")"
     # --command-each runs one wallpaper instance per output. windowtolayer
     # adapts the Xwayland-hosted hack (via the wrapper) into a layer-shell
     # surface that swaylock-plugin composites as the lock background.
     exec swaylock-plugin "${bg_args[@]}" --command-each \
-        "windowtolayer '$WRAPPER' '$HACK_DIR/$HACK' -root"
+        "windowtolayer '$WRAPPER' '$HACK_DIR/$HACK' -root${ARGS:+ $ARGS}"
 fi
 
 # No usable hack/wrapper: still lock (fail safe -- a lock trigger must never

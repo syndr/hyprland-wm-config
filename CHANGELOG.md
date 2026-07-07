@@ -27,6 +27,10 @@
   - Fallback background: a hack that dies degrades to its generated
     screenshot (`--image`) instead of swaylock's blank gray
     (`SWAYLOCK_SCREENSAVER_FALLBACK_BG` knob: auto/none/path)
+  - Per-hack flags via `~/.config/swaylock-screensaver/hacks.conf`
+    (`<hack> <flags>`, `*` = all hacks; same file the swaylock-plugin
+    contrib tools read), honored by both the lockscreen and the preview;
+    `Alt+C` in the picker opens it in `$VISUAL`/`$EDITOR`
   - Express upgrades now migrate a restored stock `lock_cmd` in the user-owned
     `hypridle.conf` to the screensaver launcher, and land config files that are
     new in a release (e.g. the picker's rofi theme) without touching existing
