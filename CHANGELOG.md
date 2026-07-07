@@ -24,6 +24,9 @@
     `UserScripts/ScreenHackShots.sh` (headless Xvfb + ImageMagick capture,
     auto-kicked in the background on first picker use), descriptions come
     from the xscreensaver config XMLs
+  - Fallback background: a hack that dies degrades to its generated
+    screenshot (`--image`) instead of swaylock's blank gray
+    (`SWAYLOCK_SCREENSAVER_FALLBACK_BG` knob: auto/none/path)
   - Express upgrades now migrate a restored stock `lock_cmd` in the user-owned
     `hypridle.conf` to the screensaver launcher, and land config files that are
     new in a release (e.g. the picker's rofi theme) without touching existing

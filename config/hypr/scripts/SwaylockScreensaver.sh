@@ -21,6 +21,12 @@ HACK_DIR="${HACK_DIR:-/usr/libexec/xscreensaver}"
 # Shipped by the swaylock-plugin RPM (runs Xwayland rooted, execs the hack inside).
 WRAPPER="${WRAPPER:-/usr/libexec/swaylock-plugin/example_xwayland_wrapper.py}"
 DEFAULT_HACK="${DEFAULT_HACK:-xrayswarm}"
+# Background if the hack dies or never starts (otherwise a blank light-gray
+# screen, or whatever ~/.config/swaylock/config themes it to). "auto" uses the
+# chosen hack's ScreenHackShots.sh screenshot when one exists; "none"
+# disables; any other value is an image path.
+FALLBACK_BG="${SWAYLOCK_SCREENSAVER_FALLBACK_BG:-auto}"
+SHOT_DIR="${SCREENHACK_SHOT_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/screenhack-shots}"
 
 # Hosts without the RPM (non-phalanx installs) keep hyprlock, quietly.
 command -v swaylock-plugin >/dev/null || exec hyprlock
@@ -38,11 +44,20 @@ if [ ! -x "$HACK_DIR/$HACK" ] && [ -x "$HACK_DIR/$DEFAULT_HACK" ]; then
     HACK="$DEFAULT_HACK"
 fi
 
+# The plugin surface covers the swaylock background while the hack runs;
+# --image only becomes visible if the hack dies or never starts.
+bg_args=()
+case "$FALLBACK_BG" in
+    none) ;;
+    auto) [ -s "$SHOT_DIR/$HACK.jpg" ] && bg_args=(--image "$SHOT_DIR/$HACK.jpg" --scaling fill) ;;
+    *)    [ -s "$FALLBACK_BG" ] && bg_args=(--image "$FALLBACK_BG" --scaling fill) ;;
+esac
+
 if [ -x "$HACK_DIR/$HACK" ] && [ -x "$WRAPPER" ]; then
     # --command-each runs one wallpaper instance per output. windowtolayer
     # adapts the Xwayland-hosted hack (via the wrapper) into a layer-shell
     # surface that swaylock-plugin composites as the lock background.
-    exec swaylock-plugin --command-each \
+    exec swaylock-plugin "${bg_args[@]}" --command-each \
         "windowtolayer '$WRAPPER' '$HACK_DIR/$HACK' -root"
 fi
 
@@ -50,4 +65,4 @@ fi
 # leave the session unlocked), just without the animation.
 notify-send -u critical "swaylock-plugin" \
     "no usable xscreensaver hack in $HACK_DIR -- locking without animation" 2>/dev/null || true
-exec swaylock-plugin
+exec swaylock-plugin "${bg_args[@]}"

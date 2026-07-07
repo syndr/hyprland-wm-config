@@ -182,6 +182,11 @@ Hosts without it fall back to hyprlock automatically — no config change needed
   `UserConfigs/IdleSettings.conf` (outputs that don't wake from DPMS-off),
   the deploy strips all DPMS-off listeners and the screensaver runs
   **indefinitely**.
+- **Fallback background**: if the hack dies or never starts, the lockscreen
+  shows the chosen hack's generated screenshot instead of swaylock's default
+  gray (`SWAYLOCK_SCREENSAVER_FALLBACK_BG`: `auto`/`none`/image path). All
+  other lockscreen theming (colors, indicator) is standard swaylock config in
+  `~/.config/swaylock/config`.
 - **Recovery** if the locker misbehaves: `Ctrl+Alt+F2` → log in →
   `killall swaylock-plugin` → `Ctrl+Alt+F1`. You will land in **hyprlock**
   (fail-secure fallback), not an unlocked session — unlock there normally.
