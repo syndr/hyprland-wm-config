@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## Fixed
+
+- `copy.sh`: every express upgrade (and any interactive run declining the
+  Hackerer theme) silently aborted at the theme prompt — the function's
+  "declined/skipped" return code tripped `set -e`, skipping the exec-bit
+  pass, systemd user overrides, and waybar config normalization that follow.
+  Symptom: scripts new in a release (e.g. `RofiLauncher.sh` after the layout
+  refactor) deployed without exec bits, breaking the waybar app menu.
+- Four layout-refactor scripts (`ChangeLayout.sh`, `RofiLauncher.sh`,
+  `WorkspaceCycle.sh`, `WorkspacePicker.sh`) are now committed executable.
+
 ## Changed
 
 - The three screensaver scripts (`SwaylockScreensaver.sh`,
