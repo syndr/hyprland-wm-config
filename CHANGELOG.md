@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## Changed
+
+- The three screensaver scripts (`SwaylockScreensaver.sh`,
+  `ScreenHackSelect.sh`, `ScreenHackShots.sh`) are now thin wrappers around
+  the packaged `swaylock-plugin-screensaver` tools (canonical source:
+  swaylock-plugin `contrib/screensaver`, shipped by the phalanx image). The
+  wrappers pin this config's state file, rofi theme, thumbnail cache, and
+  hyprlock fallback; hosts without the package keep falling back to hyprlock.
+
 ## Added
 
 - Screensaver lockscreen: `swaylock-plugin` with a live xscreensaver "hack"
