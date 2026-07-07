@@ -155,9 +155,19 @@ edit_hacks_conf() {
 #   *          --fps
 EOF
   local editor="${VISUAL:-${EDITOR:-nano}}" first
+  # The session env (keybind context) can carry a $VISUAL that is not on the
+  # session PATH (e.g. set for interactive shells only). Fall back instead of
+  # exiting silently and flapping the picker.
+  first="${editor%% *}"
+  if ! command -v "$first" >/dev/null; then
+    notify-send -i "$iDIR/error.png" "Screensaver picker" \
+      "Editor '$first' not found in the session PATH -- falling back to \$EDITOR/nano."
+    editor="${EDITOR:-nano}"
+    first="${editor%% *}"
+    command -v "$first" >/dev/null || { editor="nano"; first="nano"; }
+  fi
   # GUI editors open their own window -- wrapping them in a terminal leaves
   # an empty terminal window behind. Run them directly.
-  first="${editor%% *}"
   case "${first##*/}" in
     neovide|gvim|code|codium|subl|zed|zeditor|gedit|kate|gnome-text-editor)
       # shellcheck disable=SC2086  # $editor may carry its own flags
