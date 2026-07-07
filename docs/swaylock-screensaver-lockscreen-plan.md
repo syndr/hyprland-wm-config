@@ -323,15 +323,33 @@ we write the scripts **now**:
 - don't bake `~/.config/hypr` assumptions into the core logic — it's just this
   repo's default state-file location.
 
-## Remaining verifications (post-install, task 10)
+## Task 10 results (alastor, 2026-07-06, phalanx image w/ swaylock-plugin 1.8.6.1)
 
-- **X window class** the hacks set when windowed — needed for the preview
-  `windowrulev2` (and Option B thumbnail capture, if pursued).
-- **GL perf** across 4 outputs before promoting a GL hack to default; until
-  then the default stays `xrayswarm` (2D).
-- **RPM wrapper exec bit** — if `/usr/libexec/swaylock-plugin/
-  example_xwayland_wrapper.py` ships non-executable, switch the script to
-  `python3 "$WRAPPER"`.
+- **X window class is per-hack** (`XRaySwarm`, ...), so the preview windowrule
+  matches the stable title phrase instead:
+  `match:title (.*from the XScreenSaver.*)` in `configs/WindowRules.conf`
+  (Hyprland regexes full-match, hence the wildcards). Verified: preview floats
+  centered at half the monitor size.
+- **RPM wrapper ships executable** (`rwxr-xr-x`) — direct exec works, no
+  `python3 "$WRAPPER"` fallback needed.
+- **Lock verified end-to-end**: `loginctl lock-session` → swaylock-plugin with
+  4× windowtolayer + 4× xrayswarm (one per output). GL path (`glmatrix`)
+  smoke-tested clean via windowtolayer; sustained 4-output GL perf still
+  unjudged, default stays `xrayswarm` (2D).
+- **`Alt+p`** has no rofi keybinding conflict with `config-screenhack.rasi`.
+- **Express-upgrade deploy gaps found and fixed** (`copy.sh --express-upgrade`
+  initially deployed the scripts but not the feature):
+  - `copy_phase1` skipped the whole rofi dir when one existed, so
+    `config-screenhack.rasi` never landed → express mode now `cp -rn`s files
+    that are new in a release without touching existing user files.
+  - `restore_hypr_files` restored the pre-release user-owned `hypridle.conf`
+    over the adjusted one, reverting `lock_cmd` to plain hyprlock →
+    `migrate_hypridle_lock_cmd()` now rewrites a restored *stock* old
+    `lock_cmd` to the screensaver launcher (custom lines and any watchdog
+    suffix are preserved; idempotent). Note this migration deliberately does
+    NOT add the new swaylock DPMS listener blocks to restored user files —
+    hosts with a customized hypridle.conf keep their own DPMS policy (alastor
+    runs with all dpms-off stripped via `KOOL_IDLE_DPMS_OFF=0` anyway).
 
 ## References / related work
 

@@ -150,7 +150,12 @@ copy_phase1() {
     local DIRPATH="${XDG_CONFIG_HOME:-$HOME/.config}/$DIR2"
     if [ -d "$DIRPATH" ]; then
       if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
-        echo -e "${NOTE:-[NOTE]} Express mode: preserving existing ${YELLOW:-}$DIR2${RESET:-} config." 2>&1 | tee -a "$log"
+        # Preserve every existing file, but still land files that are new in
+        # this release (e.g. a rofi theme added for a new picker) — otherwise
+        # scripts shipped by the same upgrade reference configs that never
+        # arrive on express-upgraded hosts.
+        echo -e "${NOTE:-[NOTE]} Express mode: preserving existing ${YELLOW:-}$DIR2${RESET:-} config (adding new files only)." 2>&1 | tee -a "$log"
+        cp -rn "$config_root/$DIR2/." "$DIRPATH/" >>"$log" 2>&1 || true
         continue
       fi
       while true; do
@@ -856,6 +861,23 @@ restore_terminal_configs() {
     fi
   fi
 }
+# The swaylock-plugin screensaver release changed the stock lock_cmd, but
+# hypridle.conf is user-owned and gets restored from backup on upgrades — a
+# restored pre-release file would silently keep locking with plain hyprlock.
+# Migrate the old stock locker in place (same pattern as the Quickshell
+# startup-command migration). Custom lock_cmd lines and any suffix after the
+# locker (e.g. the IdleWatchdog spawn) are left untouched; idempotent.
+migrate_hypridle_lock_cmd() {
+  local log="$1"
+  local conf="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hypridle.conf"
+  [ -f "$conf" ] || return 0
+  grep -Eq '^[[:space:]]*lock_cmd[[:space:]]*=[[:space:]]*\(?[[:space:]]*pidof hyprlock \|\| hyprlock' "$conf" || return 0
+  local locker='$scriptsDir/SwaylockScreensaver.sh'
+  grep -Eq '^\$scriptsDir[[:space:]]*=' "$conf" || locker='$HOME/.config/hypr/scripts/SwaylockScreensaver.sh'
+  sed -i -E "s#^([[:space:]]*lock_cmd[[:space:]]*=[[:space:]]*)\(?[[:space:]]*pidof hyprlock \|\| hyprlock[[:space:]]*\)?#\1(${locker} || hyprlock)#" "$conf"
+  echo "${OK:-[OK]} - hypridle.conf: migrated lock_cmd to the swaylock-plugin screensaver launcher." 2>&1 | tee -a "$log"
+}
+
 restore_hypr_files() {
   local log="$1"
   local express_mode="$2"
@@ -878,6 +900,7 @@ restore_hypr_files() {
         fi
       fi
     done
+    migrate_hypridle_lock_cmd "$log"
     return
   fi
 
@@ -903,5 +926,6 @@ restore_hypr_files() {
         echo "${NOTE:-[NOTE]} - Backup file $BACKUP_FILE does not exist. Skipping." 2>&1 | tee -a "$log"
       fi
     done
+    migrate_hypridle_lock_cmd "$log"
   fi
 }

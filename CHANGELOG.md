@@ -15,6 +15,12 @@
     swaylock-aware
   - Recovery from a misbehaving locker: TTY → `killall swaylock-plugin` lands
     in hyprlock (fail-secure), see README
+  - Hack previews float centered at half the monitor size (title-matched
+    windowrule; the X class is per-hack so the title is the stable handle)
+  - Express upgrades now migrate a restored stock `lock_cmd` in the user-owned
+    `hypridle.conf` to the screensaver launcher, and land config files that are
+    new in a release (e.g. the picker's rofi theme) without touching existing
+    user files
 
 ## v2.3.25
 

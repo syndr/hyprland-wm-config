@@ -52,9 +52,9 @@ menu() {
   printf "%s\n" "${HACKS[@]}"
 }
 
-# Live preview (Option A): run the highlighted hack windowed. Under Hyprland it
-# opens as a floating Xwayland window; add a windowrulev2 to size/center it once
-# the X class the hacks set is confirmed (hyprctl clients).
+# Live preview (Option A): run the highlighted hack windowed. Floated, centered
+# and sized by the "from the XScreenSaver" title rule in configs/WindowRules.conf
+# (the X class is per-hack, e.g. XRaySwarm, so the title is the stable handle).
 preview() {
   local hack="$1"
   [[ -x "$HACK_DIR/$hack" ]] || return 0
