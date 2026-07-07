@@ -8,6 +8,9 @@
 # Rofi picker for the xscreensaver "hack" used as the swaylock-plugin lock
 # background (SUPER SHIFT L). Mirrors WallpaperSelect.sh: menu() | rofi -dmenu,
 # persists the selection to a state file consumed by SwaylockScreensaver.sh.
+# Rows show a screenshot thumbnail (generated locally by ScreenHackShots.sh,
+# auto-kicked on first use) and the hack's one-line description from the
+# xscreensaver config XMLs; both are searchable text.
 #
 # Alt+P previews the highlighted hack live: hacks run windowed (no -root) as a
 # floating Xwayland window. The picker stays closed while the preview runs (its
@@ -22,6 +25,13 @@ HACK_STATE="${HACK_STATE:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr/.swaylock_hack}
 DEFAULT_HACK="${DEFAULT_HACK:-xrayswarm}"
 rofi_theme="${SCREENHACK_ROFI_THEME:-${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config-screenhack.rasi}"
 PREVIEW_KEY="Alt+p"
+
+# Rows show a screenshot thumbnail + one-line description when available.
+# Shots come from ScreenHackShots.sh (auto-kicked below on first use);
+# descriptions from the hack config XMLs xscreensaver installs.
+SHOT_DIR="${SCREENHACK_SHOT_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/screenhack-shots}"
+XML_DIR="${SCREENHACK_XML_DIR:-/usr/share/xscreensaver/config}"
+DESC_IDX="${XDG_CACHE_HOME:-$HOME/.cache}/screenhack-desc.tsv"
 
 # Directory for swaync icons (error notifications)
 iDIR="${XDG_CONFIG_HOME:-$HOME/.config}/swaync/images"
@@ -58,9 +68,49 @@ fi
 
 current="$([[ -r "$HACK_STATE" ]] && head -n1 "$HACK_STATE")"
 
+# name<TAB>first-description-line index from the xscreensaver config XMLs
+# (ISO-8859-1 upstream, hence iconv). Rebuilt when the XML dir changes.
+declare -A DESC
+if [[ -d "$XML_DIR" ]]; then
+  if [[ ! -s "$DESC_IDX" || "$XML_DIR" -nt "$DESC_IDX" ]]; then
+    mkdir -p "$(dirname "$DESC_IDX")"
+    awk '
+      FNR == 1 { name = FILENAME; sub(/.*\//, "", name); sub(/\.xml$/, "", name)
+                 indesc = 0; printed = 0 }
+      /<_description>/  { indesc = 1; next }
+      /<\/_description>/ { indesc = 0 }
+      indesc && !printed {
+        line = $0; gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+        if (line != "") { printf "%s\t%s\n", name, line; printed = 1 }
+      }' "$XML_DIR"/*.xml 2>/dev/null | iconv -f ISO-8859-1 -t UTF-8 > "$DESC_IDX"
+  fi
+  while IFS=$'\t' read -r n d; do DESC[$n]=$d; done < "$DESC_IDX"
+fi
+
+# Rows: padded name + truncated description (searchable), thumbnail as the row
+# icon when a shot exists. The name is recovered after selection by cutting at
+# the first double space, so it must never contain one (". random" has a
+# single space and is safe).
 menu() {
-  printf "%s\n" ". random"
-  printf "%s\n" "${HACKS[@]}"
+  local hack d row shot
+  printf "%s\n" ". random  (a different hack every lock)"
+  for hack in "${HACKS[@]}"; do
+    d="${DESC[$hack]:-}"
+    printf -v row '%-22s  %s' "$hack" "${d:0:80}"
+    shot="$SHOT_DIR/$hack.jpg"
+    if [[ -s "$shot" ]]; then
+      printf '%s\0icon\x1f%s\n' "$row" "$shot"
+    else
+      printf '%s\n' "$row"
+    fi
+  done
+}
+
+# Strip a menu row back to the bare hack name (cut at the double-space
+# delimiter, then trim padding).
+row_to_hack() {
+  local row="${1%%  *}"
+  printf '%s' "${row%"${row##*[![:space:]]}"}"
 }
 
 # Live preview (Option A): run the highlighted hack windowed. Floated, centered
@@ -95,7 +145,7 @@ main() {
         # kb-custom-1: preview windowed. Stay closed while it runs (rofi
         # would mask it), reopen with the highlight restored once the
         # preview window is closed.
-        preview "$choice"
+        preview "$(row_to_hack "$choice")"
         select_arg="$choice"
         if [[ -n "$preview_pid" ]]; then
           wait "$preview_pid" 2>/dev/null
@@ -106,7 +156,7 @@ main() {
     esac
   done
 
-  choice=$(echo "$choice" | xargs)
+  choice="$(row_to_hack "$choice")"
   [[ -z "$choice" ]] && exit 0
 
   if [[ "$choice" == ". random" ]]; then
@@ -132,6 +182,15 @@ printf '%s\n' "$$" > "$PIDFILE"
 # Check if rofi is already running
 if pidof rofi >/dev/null; then
   pkill rofi
+fi
+
+# First use: generate the row thumbnails in the background (its own pidfile
+# prevents stacking). They appear the next time the picker opens.
+if [[ -z "$(ls -A "$SHOT_DIR" 2>/dev/null)" ]] \
+    && command -v Xvfb >/dev/null && command -v import >/dev/null; then
+  notify-send "Screensaver previews" \
+    "Generating hack screenshots in the background -- thumbnails appear on the next picker open."
+  setsid "$(dirname "$(readlink -f "$0")")/ScreenHackShots.sh" >/dev/null 2>&1 &
 fi
 
 main

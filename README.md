@@ -167,9 +167,16 @@ runs a live xscreensaver "hack" as its animated background instead of hyprlock.
 Hosts without it fall back to hyprlock automatically — no config change needed.
 
 - **Pick the hack**: `SUPER + SHIFT + L` opens a rofi menu (`. random` entry
-  included). Highlight a hack and press `Alt + P` for a live windowed preview.
+  included) showing each hack's screenshot and one-line description (both
+  searchable). Highlight a hack and press `Alt + P` for a live windowed
+  preview — the picker reopens when you close the preview window (`SUPER + Q`).
 - The choice persists to `~/.config/hypr/.swaylock_hack`; the default is
   `xrayswarm`.
+- **Thumbnails** are generated locally by `UserScripts/ScreenHackShots.sh`
+  (auto-kicked in the background on first picker use; needs `Xvfb` +
+  ImageMagick): every hack runs briefly on a headless X display and a frame is
+  captured to `~/.cache/screenhack-shots/`. Descriptions come from the
+  xscreensaver config XMLs. Re-run with `--force` to regenerate.
 - Screens still power off after ~20 minutes of screensaver (see
   `hypr/hypridle.conf`). On hosts with `KOOL_IDLE_DPMS_OFF=0` in
   `UserConfigs/IdleSettings.conf` (outputs that don't wake from DPMS-off),
