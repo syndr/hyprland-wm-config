@@ -10,8 +10,9 @@
 # persists the selection to a state file consumed by SwaylockScreensaver.sh.
 #
 # Alt+P previews the highlighted hack live: hacks run windowed (no -root) as a
-# floating Xwayland window. The preview is killed on the next preview or when
-# the picker closes.
+# floating Xwayland window. The picker stays closed while the preview runs (its
+# centered rofi layer would mask the preview) and reopens with the highlight
+# restored once the preview window is closed (SUPER Q).
 #
 # Paths are env-overridable so the script stays portable outside this config
 # (see docs/swaylock-screensaver-lockscreen-plan.md).
@@ -25,14 +26,24 @@ PREVIEW_KEY="Alt+p"
 # Directory for swaync icons (error notifications)
 iDIR="${XDG_CONFIG_HOME:-$HOME/.config}/swaync/images"
 
+PIDFILE="${XDG_RUNTIME_DIR:-/tmp}/.screenhack_picker.pid"
+
 preview_pid=""
+# Kills the running preview only — also called between previews, so the
+# pidfile must NOT be removed here, or the instance guard goes blind after
+# the first preview.
 cleanup() {
   if [[ -n "$preview_pid" ]]; then
     kill "$preview_pid" 2>/dev/null
     preview_pid=""
   fi
 }
-trap cleanup EXIT
+on_exit() {
+  cleanup
+  [[ "$(cat "$PIDFILE" 2>/dev/null)" == "$$" ]] && rm -f "$PIDFILE"
+}
+trap on_exit EXIT
+trap 'exit 0' TERM INT
 
 # Hacks: executables in HACK_DIR, minus the xscreensaver-* helper binaries
 # (xscreensaver-auth, xscreensaver-getimage*, xscreensaver-text, ...).
@@ -76,11 +87,21 @@ main() {
     choice=$(menu | rofi -i -dmenu -config "$rofi_theme" \
       -select "$select_arg" \
       -kb-custom-1 "$PREVIEW_KEY" \
-      -mesg "Current: ${current:-none (default: $DEFAULT_HACK)}  |  ${PREVIEW_KEY^}: preview highlighted hack")
+      -mesg "Current: ${current:-none (default: $DEFAULT_HACK)}  |  ${PREVIEW_KEY^}: preview (close preview window to return)")
     rc=$?
     case "$rc" in
       0) break ;;                                        # selection accepted
-      10) preview "$choice"; select_arg="$choice" ;;     # kb-custom-1: preview, re-open
+      10)
+        # kb-custom-1: preview windowed. Stay closed while it runs (rofi
+        # would mask it), reopen with the highlight restored once the
+        # preview window is closed.
+        preview "$choice"
+        select_arg="$choice"
+        if [[ -n "$preview_pid" ]]; then
+          wait "$preview_pid" 2>/dev/null
+          preview_pid=""
+        fi
+        ;;
       *) exit 0 ;;                                       # Escape / abort
     esac
   done
@@ -96,6 +117,17 @@ main() {
   printf "%s\n" "$choice" > "$HACK_STATE"
   notify-send "Screensaver lock" "Hack set to: $choice"
 }
+
+# Single instance: re-invoking the keybind while a preview is open replaces
+# the running picker; TERM fires its cleanup trap so its preview dies too.
+# Pidfile rather than pgrep -f: a cmdline sweep also matches whatever shell
+# invoked us. The /proc cmdline check guards against a stale/recycled pid.
+if oldpid=$(cat "$PIDFILE" 2>/dev/null) && [[ "$oldpid" =~ ^[0-9]+$ ]] \
+    && [[ "$oldpid" != "$$" ]] \
+    && grep -qa 'ScreenHackSelect' "/proc/$oldpid/cmdline" 2>/dev/null; then
+  kill "$oldpid" 2>/dev/null
+fi
+printf '%s\n' "$$" > "$PIDFILE"
 
 # Check if rofi is already running
 if pidof rofi >/dev/null; then
