@@ -702,7 +702,11 @@ fi
 # lives in its own repository. prompt_apply_hackerer_theme (below) fetches it
 # and its install.sh lays down the broodwar cursor and Hackerer-Dark GTK theme.
 
-prompt_apply_hackerer_theme "$SCRIPT_DIR" "$WORK_CONFIG_DIR" "$LOG" "install"
+# Returns nonzero when the theme is declined or skipped (always, in express
+# mode) -- that's an answer, not an error. Guard it: under set -e a bare call
+# silently killed the whole run right here, skipping the exec-bit pass,
+# systemd overrides, and waybar normalization below.
+prompt_apply_hackerer_theme "$SCRIPT_DIR" "$WORK_CONFIG_DIR" "$LOG" "install" || true
 
 # Set some files as executable
 chmod +x "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/"* 2>&1 | tee -a "$LOG"

@@ -159,6 +159,43 @@ chmod +x copy.sh
 
 - Keybinds [`HERE`](https://github.com/LinuxBeginnings/Hyprland-Dots/wiki/Keybinds)
 
+#### 🔒 Screensaver lockscreen (swaylock-plugin)
+
+When `swaylock-plugin` is installed (e.g. via the phalanx rpm-ostree image:
+COPR `syndr/swaylock-plugin` + the xscreensaver hack packages), the lock screen
+runs a live xscreensaver "hack" as its animated background instead of hyprlock.
+Hosts without it fall back to hyprlock automatically — no config change needed.
+
+- **Pick the hack**: `SUPER + SHIFT + L` opens a rofi menu (`. random` entry
+  included) showing each hack's screenshot and one-line description (both
+  searchable). Highlight a hack and press `Alt + P` for a live windowed
+  preview — the picker reopens when you close the preview window (`SUPER + Q`).
+- **Per-hack flags**: `Alt + C` in the picker opens
+  `~/.config/swaylock-screensaver/hacks.conf` in `$VISUAL`/`$EDITOR`
+  (template seeded on first use): `<hack> <flags...>` lines, `*` applies to
+  every hack. Both the lockscreen and the preview honor them — a flag the
+  hack rejects makes it exit, so preview before locking.
+- The choice persists to `~/.config/hypr/.swaylock_hack`; the default is
+  `xrayswarm`.
+- **Thumbnails** are generated locally by `UserScripts/ScreenHackShots.sh`
+  (auto-kicked in the background on first picker use; needs `Xvfb` +
+  ImageMagick): every hack runs briefly on a headless X display and a frame is
+  captured to `~/.cache/screenhack-shots/`. Descriptions come from the
+  xscreensaver config XMLs. Re-run with `--force` to regenerate.
+- Screens still power off after ~20 minutes of screensaver (see
+  `hypr/hypridle.conf`). On hosts with `KOOL_IDLE_DPMS_OFF=0` in
+  `UserConfigs/IdleSettings.conf` (outputs that don't wake from DPMS-off),
+  the deploy strips all DPMS-off listeners and the screensaver runs
+  **indefinitely**.
+- **Fallback background**: if the hack dies or never starts, the lockscreen
+  shows the chosen hack's generated screenshot instead of swaylock's default
+  gray (`SWAYLOCK_SCREENSAVER_FALLBACK_BG`: `auto`/`none`/image path). All
+  other lockscreen theming (colors, indicator) is standard swaylock config in
+  `~/.config/swaylock/config`.
+- **Recovery** if the locker misbehaves: `Ctrl+Alt+F2` → log in →
+  `killall swaylock-plugin` → `Ctrl+Alt+F1`. You will land in **hyprlock**
+  (fail-secure fallback), not an unlocked session — unlock there normally.
+
 ### ✍️ Contributing
 
 - If you have improvements on the dotfiles or configuration, feel free to submit a PR for improvement.

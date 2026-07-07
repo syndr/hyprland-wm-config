@@ -1,5 +1,61 @@
 # Changelog — KoolDots
 
+## Unreleased
+
+## Fixed
+
+- `copy.sh`: every express upgrade (and any interactive run declining the
+  Hackerer theme) silently aborted at the theme prompt — the function's
+  "declined/skipped" return code tripped `set -e`, skipping the exec-bit
+  pass, systemd user overrides, and waybar config normalization that follow.
+  Symptom: scripts new in a release (e.g. `RofiLauncher.sh` after the layout
+  refactor) deployed without exec bits, breaking the waybar app menu.
+- Four layout-refactor scripts (`ChangeLayout.sh`, `RofiLauncher.sh`,
+  `WorkspaceCycle.sh`, `WorkspacePicker.sh`) are now committed executable.
+
+## Changed
+
+- The three screensaver scripts (`SwaylockScreensaver.sh`,
+  `ScreenHackSelect.sh`, `ScreenHackShots.sh`) are now thin wrappers around
+  the packaged `swaylock-plugin-screensaver` tools (canonical source:
+  swaylock-plugin `contrib/screensaver`, shipped by the phalanx image). The
+  wrappers pin this config's state file, rofi theme, thumbnail cache, and
+  hyprlock fallback; hosts without the package keep falling back to hyprlock.
+
+## Added
+
+- Screensaver lockscreen: `swaylock-plugin` with a live xscreensaver "hack"
+  background replaces hyprlock when installed (hyprlock remains the automatic
+  fallback on hosts without it)
+  - `SUPER SHIFT L` rofi picker to choose the hack (`Alt+P` live preview,
+    `. random` entry); choice persists to `~/.config/hypr/.swaylock_hack`
+  - hypridle DPMS listeners now give the screensaver a 20-minute window after
+    lock before screens power off (hyprlock keeps its quick-off behavior)
+  - `IdleWatchdog.sh` and the installer's idle-policy rewrite are
+    swaylock-aware
+  - Recovery from a misbehaving locker: TTY → `killall swaylock-plugin` lands
+    in hyprlock (fail-secure), see README
+  - Hack previews float centered at half the monitor size (title-matched
+    windowrule; the X class is per-hack so the title is the stable handle);
+    the picker stays closed while a preview runs and reopens when the preview
+    window is closed
+  - Picker rows show each hack's screenshot and one-line description (both
+    searchable): thumbnails are generated locally by
+    `UserScripts/ScreenHackShots.sh` (headless Xvfb + ImageMagick capture,
+    auto-kicked in the background on first picker use), descriptions come
+    from the xscreensaver config XMLs
+  - Fallback background: a hack that dies degrades to its generated
+    screenshot (`--image`) instead of swaylock's blank gray
+    (`SWAYLOCK_SCREENSAVER_FALLBACK_BG` knob: auto/none/path)
+  - Per-hack flags via `~/.config/swaylock-screensaver/hacks.conf`
+    (`<hack> <flags>`, `*` = all hacks; same file the swaylock-plugin
+    contrib tools read), honored by both the lockscreen and the preview;
+    `Alt+C` in the picker opens it in `$VISUAL`/`$EDITOR`
+  - Express upgrades now migrate a restored stock `lock_cmd` in the user-owned
+    `hypridle.conf` to the screensaver launcher, and land config files that are
+    new in a release (e.g. the picker's rofi theme) without touching existing
+    user files
+
 ## v2.3.25
 
 ## Fixed
