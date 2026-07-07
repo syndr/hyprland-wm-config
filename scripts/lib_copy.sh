@@ -9,7 +9,8 @@
 
 snapshot_theme_state() {
   local state_dir="$1"
-  mkdir -p "$state_dir"
+  rm -rf "$state_dir"
+  mkdir -p "$state_dir/conf" "$state_dir/extra"
 
   local theme_files=(
     "$HOME/.config/qt5ct/qt5ct.conf"
@@ -25,8 +26,25 @@ snapshot_theme_state() {
   for src in "${theme_files[@]}"; do
     [ -f "$src" ] || continue
     local rel="${src#$HOME/.config/}"
-    mkdir -p "$state_dir/$(dirname "$rel")"
-    cp -p "$src" "$state_dir/$rel"
+    mkdir -p "$state_dir/conf/$(dirname "$rel")"
+    cp -p "$src" "$state_dir/conf/$rel"
+  done
+
+  # Theme payloads installed by external theme packs (e.g. Hackerer) live
+  # inside directories copy_phase2 replaces wholesale. Snapshot them so
+  # schemes the shipped configs don't include survive the upgrade —
+  # otherwise the restored confs above point at files that no longer exist.
+  local payload_dirs=(
+    "$HOME/.config/qt5ct/colors"
+    "$HOME/.config/qt6ct/colors"
+    "$HOME/.config/Kvantum"
+  )
+
+  for src in "${payload_dirs[@]}"; do
+    [ -d "$src" ] || continue
+    local rel="${src#$HOME/.config/}"
+    mkdir -p "$state_dir/extra/$(dirname "$rel")"
+    cp -rp "$src" "$state_dir/extra/$rel"
   done
 }
 
@@ -114,13 +132,25 @@ restore_theme_state() {
   local restored=0
   [ -d "$state_dir" ] || return 0
 
+  # Exact restore: these files decide which theme is active.
   while IFS= read -r -d '' saved; do
-    local rel="${saved#$state_dir/}"
+    local rel="${saved#$state_dir/conf/}"
     local dst="$HOME/.config/$rel"
     mkdir -p "$(dirname "$dst")"
     cp -p "$saved" "$dst" 2>&1 | tee -a "$log"
     restored=1
-  done < <(find "$state_dir" -type f -print0)
+  done < <(find "$state_dir/conf" -type f -print0 2>/dev/null)
+
+  # Fill-in restore: put back theme payloads (color schemes, Kvantum theme
+  # dirs) the new release doesn't ship, without overwriting files it does.
+  while IFS= read -r -d '' saved; do
+    local rel="${saved#$state_dir/extra/}"
+    local dst="$HOME/.config/$rel"
+    [ -e "$dst" ] && continue
+    mkdir -p "$(dirname "$dst")"
+    cp -p "$saved" "$dst" 2>&1 | tee -a "$log"
+    restored=1
+  done < <(find "$state_dir/extra" -type f -print0 2>/dev/null)
 
   if [ "$restored" -eq 1 ]; then
     echo "${INFO:-[INFO]} Restored local visual theme state from pre-upgrade snapshot." 2>&1 | tee -a "$log"
