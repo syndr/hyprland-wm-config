@@ -71,8 +71,8 @@ case "${choice#* }" in
     "Terminal")           "$HOME/.config/hypr/scripts/WaybarScripts.sh" --term ;;
     "File Manager")       "$HOME/.config/hypr/scripts/WaybarScripts.sh" --files ;;
     "Browser")            xdg-open "https://" ;;
-    "Wallpaper")          "$HOME/.config/hypr/UserScripts/WallpaperSelect.sh" ;;
-    "Wallpaper: Random")  "$HOME/.config/hypr/UserScripts/WallpaperRandom.sh" ;;
+    "Wallpaper")          "$HOME/.config/hypr/scripts/WallpaperSelect.sh" ;;
+    "Wallpaper: Random")  "$HOME/.config/hypr/scripts/WallpaperRandom.sh" ;;
     "Waybar Styles")      "$HOME/.config/hypr/scripts/WaybarStyles.sh" ;;
     "Toggle Idle")        "$HOME/.config/hypr/scripts/Hypridle.sh" toggle ;;
     "Toggle Blur")        "$HOME/.config/hypr/scripts/ChangeBlur.sh" ;;
