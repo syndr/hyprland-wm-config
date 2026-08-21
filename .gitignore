@@ -44,3 +44,6 @@ htmlcov/
 
 # Copy-Logs
 Copy-Logs/
+
+# git worktrees live here (see AGENTS.md)
+worktrees/
