@@ -2,6 +2,55 @@
 
 ## Unreleased
 
+## Changed
+
+- **Idle/lock timeouts are now generated from
+  `UserConfigs/IdleSettings.conf`.** `hypridle.conf` used to be six listeners
+  of bare absolute seconds (15/570/600/605/1200/1800) that only made sense
+  read together, and it was restored from backup on every upgrade — so edits
+  survived but release fixes never landed. It is now a generated artifact
+  (`scripts/GenerateHypridle.sh`) and `IdleSettings.conf` is the single tuning
+  surface: named, relative, documented keys that the generator turns into the
+  schedule. See
+  [`docs/adr/generate-hypridle-config-from-idle-settings.md`](docs/adr/generate-hypridle-config-from-idle-settings.md).
+  - Timeouts differ on battery and AC: `KOOL_IDLE_LOCK_TIMEOUT_AC` (900) /
+    `_BAT` (300), `KOOL_IDLE_SCREENSAVER_AC` (1200) / `_BAT` (120),
+    `KOOL_IDLE_DPMS_DELAY_AC` / `_BAT`, plus `KOOL_IDLE_WARN_LEAD`. hypridle
+    cannot switch timeouts at runtime, so `IdlePowerWatch.sh` blocks on udev
+    `power_supply` events and re-renders + reloads on plug/unplug — deferring
+    the reload while the session is locked, since a restart resets idle timers.
+  - A legacy un-suffixed `KOOL_IDLE_LOCK_TIMEOUT` still works and seeds both
+    profiles. `KOOL_IDLE_MANAGED=0` opts out entirely and keeps the previous
+    behavior (hand-owned file, legacy awk/sed rewrite, restore-from-backup).
+  - On the first managed upgrade a hand-edited `hypridle.conf` is parked as
+    `hypridle.conf.pre-managed` instead of being restored over the generated
+    file; `run_post_upgrade_audit` warns if a stale file lands anyway.
+- Waybar's `custom/hypridle` right-click now locks through `LockScreen.sh`
+  instead of invoking `hyprlock` directly, which bypassed the swaylock-plugin
+  screensaver.
+
+## Added
+
+- **The screensaver no longer burns power while the screen is off.**
+  swaylock-plugin has no DPMS handling and forwards its plugin client's
+  buffers straight through, so an xscreensaver hack running under Xwayland +
+  `windowtolayer` is not frame-callback throttled — it kept rendering at full
+  rate with the panel dark. `ScreenPower.sh` now fronts every DPMS transition
+  this config drives and pairs it with `ScreensaverPause.sh`, which SIGSTOPs
+  the hack's process group (SIGKILL would just trigger swaylock-plugin's
+  auto-restart) and resumes it when the panel returns.
+  - `ScreensaverPause.sh watch` also covers screen-off the compositor never
+    sees — on the uConsole the power key parks the panel through
+    `uconsole-sleep` while Hyprland still thinks its outputs are lit. It runs
+    only while a locker is up. Knobs: `KOOL_IDLE_SCREENSAVER_PAUSE`,
+    `..._PAUSE_WATCH`, `..._PAUSE_INTERVAL`.
+- `Hypridle.sh reload` — restarts hypridle to pick up a regenerated config,
+  and is deliberately a no-op when hypridle is stopped so it cannot undo the
+  waybar idle-inhibit toggle.
+- The xscreensaver hack-preview float rule, which existed only in
+  `configs/WindowRules.conf`, now has its Lua equivalent in
+  `lua/window_rules.lua`.
+
 ## Fixed
 
 - `copy.sh`: upgrades wiped externally-installed theme payloads. `copy_phase2`

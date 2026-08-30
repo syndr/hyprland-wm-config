@@ -56,6 +56,8 @@ local startup_commands = {
   "sh " .. scriptsDir .. "/WaybarStartup.sh",
   "qs -c overview",
   "hypridle",
+  -- Re-renders hypridle.conf and reloads hypridle on AC/battery transitions.
+  scriptsDir .. "/IdlePowerWatch.sh",
   scriptsDir .. "/Hyprsunset.sh init",
   -- NOTE: Dropterminal is currently certified only with kitty. Not all terminals behave correctly as a dropdown.
   scriptsDir .. "/Dropterminal.sh --startup kitty",

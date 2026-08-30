@@ -23,7 +23,26 @@ elif [[ "$1" == "toggle" ]]; then
         "$PROCESS" >/dev/null 2>&1 &
         disown
     fi
+elif [[ "$1" == "reload" ]]; then
+    # Pick up a regenerated hypridle.conf. hypridle has no reload signal, so
+    # this is a restart -- which resets every idle timer, hence the callers
+    # (GenerateHypridle.sh --restart, IdlePowerWatch.sh) taking care about
+    # when they ask for it.
+    #
+    # Deliberately a no-op when hypridle is not running: the waybar toggle
+    # above is the user's idle-inhibit switch, and a reload must not undo it.
+    if pgrep -x "$PROCESS" >/dev/null; then
+        pkill -x "$PROCESS"
+        # Wait for the old instance to release its idle-notify objects before
+        # starting the new one, so both are never registered at once.
+        for _ in {1..20}; do
+            pgrep -x "$PROCESS" >/dev/null || break
+            sleep 0.1
+        done
+        "$PROCESS" >/dev/null 2>&1 &
+        disown
+    fi
 else
-    echo "Usage: $0 {status|toggle}"
+    echo "Usage: $0 {status|toggle|reload}"
     exit 1
 fi

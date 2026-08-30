@@ -908,6 +908,32 @@ migrate_hypridle_lock_cmd() {
   echo "${OK:-[OK]} - hypridle.conf: migrated lock_cmd to the swaylock-plugin screensaver launcher." 2>&1 | tee -a "$log"
 }
 
+# hypridle.conf stopped being a user-owned file in 2.3.26: it is generated
+# from UserConfigs/IdleSettings.conf (see adjust_idle_dpms_policy in
+# lib_detect.sh). Restoring the backup over the top would put a stale,
+# hand-edited file back and defeat the whole mechanism, so on the first
+# managed upgrade the backup is parked next to it instead of being restored.
+# KOOL_IDLE_MANAGED=0 keeps the old behavior.
+idle_policy_is_managed() {
+  local prefs="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/IdleSettings.conf"
+  [ -f "$prefs" ] || prefs="${WORK_CONFIG_DIR:-config}/hypr/UserConfigs/IdleSettings.conf"
+  case "$(read_idle_knob "$prefs" KOOL_IDLE_MANAGED 1)" in
+    0|false|no|off|FALSE|No|Off|NO|OFF) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+park_hypridle_backup() {
+  local log="$1" backup_dir="$2"
+  local src="$backup_dir/hypridle.conf"
+  local dst="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hypridle.conf.pre-managed"
+  [ -f "$src" ] || return 0
+  [ -e "$dst" ] && return 0
+  cp "$src" "$dst" 2>/dev/null || return 0
+  echo "${NOTE:-[NOTE]} hypridle.conf is now generated from UserConfigs/IdleSettings.conf." 2>&1 | tee -a "$log"
+  echo "${NOTE:-[NOTE]} Your previous file was kept as hypridle.conf.pre-managed for reference." 2>&1 | tee -a "$log"
+}
+
 restore_hypr_files() {
   local log="$1"
   local express_mode="$2"
@@ -917,6 +943,12 @@ restore_hypr_files() {
   BACKUP_DIR=$(get_backup_dirname)
   local BACKUP_DIR_PATH_F="$DIRPATH-backup-$BACKUP_DIR"
   local FILES_2_RESTORE=("hyprlock.conf" "hypridle.conf")
+  local MANAGED_IDLE=0
+  if idle_policy_is_managed; then
+    MANAGED_IDLE=1
+    FILES_2_RESTORE=("hyprlock.conf")
+    park_hypridle_backup "$log" "$BACKUP_DIR_PATH_F"
+  fi
 
   if [ -d "$BACKUP_DIR_PATH_F" ] && [ "$express_mode" -eq 1 ]; then
     echo "${NOTE:-[NOTE]} Express mode: automatically restoring user-owned hypr files from backup." 2>&1 | tee -a "$log"
@@ -930,8 +962,8 @@ restore_hypr_files() {
         fi
       fi
     done
-    migrate_hypridle_lock_cmd "$log"
-    return
+    [ "$MANAGED_IDLE" -eq 0 ] && migrate_hypridle_lock_cmd "$log"
+    return 0
   fi
 
   if [ -d "$BACKUP_DIR_PATH_F" ] && [ "$express_mode" -eq 0 ]; then
@@ -956,6 +988,7 @@ restore_hypr_files() {
         echo "${NOTE:-[NOTE]} - Backup file $BACKUP_FILE does not exist. Skipping." 2>&1 | tee -a "$log"
       fi
     done
-    migrate_hypridle_lock_cmd "$log"
+    [ "$MANAGED_IDLE" -eq 0 ] && migrate_hypridle_lock_cmd "$log"
   fi
+  return 0
 }
