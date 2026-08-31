@@ -442,6 +442,18 @@ restore_hypr_assets() {
       done
     fi
 
+    # Per-install state files that live directly in hypr/ and would otherwise
+    # go with the wholesale directory replace. Always restored, express
+    # included -- these are user choices, not config the release owns.
+    #   .swaylock_hack  the xscreensaver hack picked via SUPER SHIFT L
+    local STATE_FILES=(".swaylock_hack")
+    for STATE_FILE in "${STATE_FILES[@]}"; do
+      if [ -f "$BACKUP_HYPR_PATH/$STATE_FILE" ]; then
+        cp -f "$BACKUP_HYPR_PATH/$STATE_FILE" "$HYPR_DIR/$STATE_FILE" 2>/dev/null \
+          && echo "${OK:-[OK]} - Restored file: ${MAGENTA:-}$STATE_FILE${RESET:-}" 2>&1 | tee -a "$log"
+      fi
+    done
+
     # Keep monitor/workspace state across upgrades, including express mode.
     if [ "$backup_mode" = "lua" ]; then
       local LUA_USER_DIR="$HYPR_DIR/UserConfigs"
