@@ -846,11 +846,22 @@ restore_user_scripts() {
   local BACKUP_DIR_PATH_S="$DIRSHPATH-backup-$BACKUP_DIR/UserScripts"
   local SCRIPTS_TO_RESTORE=("RofiBeats.sh" "Weather.py" "Weather.sh")
 
+  # Repo-owned scripts that happen to live in UserScripts. They are thin
+  # wrappers around packaged tools -- they pin this config's paths and are not
+  # meant to be edited -- so the express rsync below must not restore a stale
+  # copy over the one this release ships. Without the exclusion a wrapper fix
+  # lands once and is silently reverted by the next express upgrade.
+  local REPO_OWNED_SCRIPTS=("ScreenHackSelect.sh" "ScreenHackShots.sh")
+
   if [ -d "$BACKUP_DIR_PATH_S" ] && [ "$express_mode" -eq 1 ]; then
     echo "${NOTE:-[NOTE]} Express mode: automatically restoring UserScripts from backup." 2>&1 | tee -a "$log"
     mkdir -p "$DIRSHPATH/UserScripts"
-    rsync -a "$BACKUP_DIR_PATH_S/" "$DIRSHPATH/UserScripts/" 2>&1 | tee -a "$log"
-    echo "${OK:-[OK]} - UserScripts directory restored." 2>&1 | tee -a "$log"
+    local RSYNC_EXCLUDES=()
+    for SCRIPT_NAME in "${REPO_OWNED_SCRIPTS[@]}"; do
+      RSYNC_EXCLUDES+=(--exclude "$SCRIPT_NAME")
+    done
+    rsync -a "${RSYNC_EXCLUDES[@]}" "$BACKUP_DIR_PATH_S/" "$DIRSHPATH/UserScripts/" 2>&1 | tee -a "$log"
+    echo "${OK:-[OK]} - UserScripts directory restored (release versions kept for: ${REPO_OWNED_SCRIPTS[*]})." 2>&1 | tee -a "$log"
     return
   fi
 
