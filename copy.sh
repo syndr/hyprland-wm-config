@@ -896,6 +896,10 @@ fi
 
 run_post_upgrade_audit "$LOG"
 
+# Make the deploy actually live. Without this the files are correct but the
+# running session is not, which looks like a failed upgrade.
+offer_session_reload "$LOG"
+
 printf "\n%.0s" {1..2}
 printf "${OK} GREAT! KooL's Hyprland-Dots is now Loaded & Ready !!! "
 printf "\n%.0s" {1..1}

@@ -59,6 +59,17 @@
   size and width for the focused output (rotation and scale accounted for).
   Knobs: `SCREENHACK_ROWS`, `SCREENHACK_ICON_SIZE`, `SCREENHACK_WIDTH_PCT`,
   and `SCREENHACK_NO_AUTOFIT=1` to keep the shipped theme unchanged.
+- `copy.sh` offers to reload the running session when it finishes. It writes
+  files but never touched the live compositor, so until the next login the
+  deploy and the session disagreed -- new keybinds absent, window rules and
+  waybar modules stale, and a regenerated `hypridle.conf` ignored by the
+  hypridle already running. That reads as a failed upgrade when the files are
+  in fact correct. `offer_session_reload` runs `hyprctl reload`, reports any
+  config errors, reloads hypridle, starts `IdlePowerWatch.sh` if it is not up,
+  and calls the existing `Refresh.sh` for waybar/swaync/rofi. Express does it
+  automatically; interactive runs prompt; it skips cleanly with no live
+  Hyprland session or no terminal. A logout is still worth doing for what a
+  reload cannot pick up (env vars, `exec-once`).
 
 ## Fixed
 
