@@ -50,8 +50,28 @@
 - The xscreensaver hack-preview float rule, which existed only in
   `configs/WindowRules.conf`, now has its Lua equivalent in
   `lua/window_rules.lua`.
+- `ScreenHackSelect.sh` fits the picker to the screen it opens on. The shipped
+  theme asks for 9 rows of 88px thumbnails -- around 850px before chrome --
+  which is taller than a small panel (the uConsole is 1280x720 logical), so
+  the list was clipped top and bottom. The packaged picker hands the theme to
+  rofi as `-config` and forwards nothing else, so the wrapper generates an
+  overlay theme that imports the shipped one and overrides rows, thumbnail
+  size and width for the focused output (rotation and scale accounted for).
+  Knobs: `SCREENHACK_ROWS`, `SCREENHACK_ICON_SIZE`, `SCREENHACK_WIDTH_PCT`,
+  and `SCREENHACK_NO_AUTOFIT=1` to keep the shipped theme unchanged.
 
 ## Fixed
+
+- `copy.sh`: the picked screensaver hack was reset on every upgrade.
+  `hypr/.swaylock_hack` (set via `SUPER SHIFT L`) sits directly in `hypr/`,
+  which is replaced wholesale, and it was in no restore list -- so the choice
+  silently reverted to the `xrayswarm` default each time. Now restored with
+  the other per-install hypr state, express included.
+- `copy.sh`: express upgrades could revert repo-owned `UserScripts`. Express
+  rsyncs the whole backed-up `UserScripts/` over the fresh copy, so the
+  packaged-tool wrappers (`ScreenHackSelect.sh`, `ScreenHackShots.sh`) would
+  come back stale one release after any fix to them. They are now excluded
+  from that restore; genuinely user-owned scripts are unaffected.
 
 - `copy.sh`: upgrades wiped externally-installed theme payloads. `copy_phase2`
   replaces `qt5ct`/`qt6ct`/`Kvantum` wholesale, and the theme-state snapshot
