@@ -51,40 +51,72 @@ self_pgid=$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ')
 # Process groups of swaylock-plugin's children -- the hack tree, never the
 # locker itself.
 screensaver_pgids() {
-    local sl sl_pgid child pgid
+    local sl sl_pgid child cname pgid
     for sl in $(pidof swaylock-plugin 2>/dev/null); do
         sl_pgid=$(ps -o pgid= -p "$sl" 2>/dev/null | tr -d ' ')
         for child in $(pgrep -P "$sl" 2>/dev/null); do
+            # swaylock-plugin daemonizes, so a "child" of one swaylock-plugin
+            # process is often the other one (or swaylock-sleep-watcher).
+            # Never signal swaylock's own processes: SIGSTOPping the locker
+            # wedges the session behind a frozen lock surface. Matching on the
+            # name is the reliable guard -- the process-group check below only
+            # catches the fork while it stays in the locker's group.
+            cname=$(ps -o comm= -p "$child" 2>/dev/null | tr -d ' ')
+            case "$cname" in swaylock*|'') continue ;; esac
             pgid=$(ps -o pgid= -p "$child" 2>/dev/null | tr -d ' ')
             [ -n "$pgid" ] || continue
             [ "$pgid" = "$self_pgid" ] && continue
-            [ "$pgid" = "$sl_pgid" ] && continue
+            [ -n "$sl_pgid" ] && [ "$pgid" = "$sl_pgid" ] && continue
             printf '%s\n' "$pgid"
         done
     done | sort -u
 }
 
-signal_groups() {
-    local sig="$1" pgid found=1
-    for pgid in $(screensaver_pgids); do
-        kill -"$sig" -- "-$pgid" 2>/dev/null && found=0
-    done
-    return $found
-}
-
 do_pause() {
     [ "$(idle_knob_bool KOOL_IDLE_SCREENSAVER_PAUSE 1)" = "1" ] || return 0
     pidof swaylock-plugin >/dev/null 2>&1 || return 0
-    if signal_groups STOP; then
+
+    local pgids pgid stopped=1
+    pgids=$(screensaver_pgids)
+    [ -n "$pgids" ] || return 0
+    for pgid in $pgids; do
+        kill -STOP -- "-$pgid" 2>/dev/null && stopped=0
+    done
+
+    # Record what we stopped. The tree can only be *found* through
+    # swaylock-plugin's children, so if the locker dies while we are stopped
+    # there is nothing left to discover -- and a SIGSTOPped process cannot
+    # notice its Wayland connection died and exit. Without this the hack tree
+    # is orphaned in state T indefinitely.
+    if [ "$stopped" = "0" ]; then
         mkdir -p "$STATE_DIR" 2>/dev/null
-        : >"$PAUSED_STAMP"
+        printf '%s\n' $pgids >"$PAUSED_STAMP"
     fi
 }
 
 # Resume is deliberately unconditional: it must work even when pausing has
-# since been disabled, so a stopped Xwayland can never be left behind.
+# since been disabled, so a stopped process tree can never be left behind.
 do_resume() {
-    signal_groups CONT
+    local pgid recorded=""
+    [ -f "$PAUSED_STAMP" ] && recorded=$(cat "$PAUSED_STAMP" 2>/dev/null)
+
+    for pgid in $( { screensaver_pgids; printf '%s\n' $recorded; } | sort -u ); do
+        [ -n "$pgid" ] || continue
+        kill -CONT -- "-$pgid" 2>/dev/null
+    done
+
+    # Locker gone: the hack has no surface left to draw into. Now that it is
+    # running again it will notice the dead Wayland connection and exit; reap
+    # whatever lingers. Only ever done when swaylock-plugin is absent -- while
+    # it lives, killing the client just makes it respawn one.
+    if [ -n "$recorded" ] && ! pidof swaylock-plugin >/dev/null 2>&1; then
+        sleep 1
+        for pgid in $recorded; do
+            [ -n "$pgid" ] || continue
+            kill -TERM -- "-$pgid" 2>/dev/null
+        done
+    fi
+
     rm -f "$PAUSED_STAMP" 2>/dev/null
     return 0
 }

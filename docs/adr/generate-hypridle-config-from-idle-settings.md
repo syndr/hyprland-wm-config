@@ -92,8 +92,22 @@ off; the hack itself never stopped.
    (`main.c:389`) — never periodically. swaylock-plugin spawns its child with
    `posix_spawn`'s setsid flag, so the hack, Xwayland and `windowtolayer` share
    one process group distinct from the locker's, and signalling that group
-   pauses the tree without touching the locker. Resume is unconditional and
-   runs from an `EXIT` trap, so a stopped process tree cannot be orphaned.
+   pauses the tree without touching the locker.
+
+   Two hazards found while verifying this on hardware:
+
+   - **swaylock-plugin daemonizes**, so `pgrep -P` on one `swaylock-plugin`
+     process returns the *other* one (and `swaylock-sleep-watcher`). Process
+     group identity alone does not reliably separate them, so children whose
+     name begins with `swaylock` are skipped explicitly. SIGSTOPping the
+     locker would wedge the session behind a frozen lock surface.
+   - **The tree is only discoverable through the locker's children.** If
+     swaylock-plugin exits while the tree is stopped, nothing can find it and
+     a stopped process cannot notice its dead Wayland connection and exit —
+     it stays in state `T` indefinitely. `pause` therefore records the process
+     groups it stopped, and `resume` continues the union of discovered and
+     recorded groups, reaping the recorded ones when the locker is gone.
+     Resume is otherwise unconditional and runs from an `EXIT` trap.
 
 6. **A polling fallback covers screen-off the compositor never sees.**
    On the uConsole the power key parks the panel through `uconsole-sleep` at
@@ -138,6 +152,11 @@ off; the hack itself never stopped.
   `udevadm monitor` being usable unprivileged.
 - The pause watcher polls. It is bounded (only while locked, 5s) but it is
   polling, and it reads a `/sys/class/backlight` path that not every host has.
+- Pausing depends on process-tree shape that swaylock-plugin does not promise:
+  that the plugin command is a direct child, and that it is setsid'd into its
+  own process group. A refactor upstream could silently break the discovery.
+  The guards fail closed (nothing found → nothing signalled → the hack keeps
+  animating), so the failure mode is lost power saving, not a broken lock.
 - Two escalators can now overlap on uConsole hosts: `KOOL_IDLE_NAG=1` plus
   `uconsole-sleep`'s `sleep-idle-alert.service`. Documented in
   `IdleSettings.conf`; not enforced.
