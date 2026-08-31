@@ -193,6 +193,13 @@ EOF
     fi
 
     cat <<EOF
+    # Reap a locker that outlived its unlock. hyprlock can orphan itself after
+    # a successful auth, and every dpms-off listener below is gated on
+    # a "pidof" check for the locker -- a lingering process holds those gates
+    # open, so the screen starts blanking a few seconds after you stop typing
+    # while you are actively using the machine. Also resumes the screensaver,
+    # so a hack stopped for a dark panel can never be left stopped.
+    unlock_cmd = killall hyprlock; \$scriptsDir/ScreensaverPause.sh resume
     before_sleep_cmd = loginctl lock-session
     after_sleep_cmd = \$scriptsDir/ScreenPower.sh on
     ignore_dbus_inhibit = false
