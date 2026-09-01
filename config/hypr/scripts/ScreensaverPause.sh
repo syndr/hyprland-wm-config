@@ -91,8 +91,16 @@ do_pause() {
     # is orphaned in state T indefinitely.
     if [ "$stopped" = "0" ]; then
         mkdir -p "$STATE_DIR" 2>/dev/null
+        local previous=""
+        [ -f "$PAUSED_STAMP" ] && previous=$(cat "$PAUSED_STAMP" 2>/dev/null)
         printf '%s\n' $pgids >"$PAUSED_STAMP"
-        idle_log "paused hack tree (pgid $(printf '%s' $pgids | tr '\n' ' '), $(pgrep -g "${pgids%% *}" 2>/dev/null | wc -l) procs)"
+        # Several hypridle listeners can fire in the same second, and each one
+        # calls through here. Re-stopping an already-stopped group is harmless
+        # (and still catches a client swaylock respawned), but logging it every
+        # time buries the real transitions, so only report an actual change.
+        if [ "$previous" != "$(cat "$PAUSED_STAMP" 2>/dev/null)" ]; then
+            idle_log "paused hack tree (pgid $(printf '%s' $pgids | tr '\n' ' '), $(pgrep -g "${pgids%% *}" 2>/dev/null | wc -l) procs)"
+        fi
     else
         idle_log "pause requested but nothing could be stopped"
     fi
@@ -109,7 +117,9 @@ do_resume() {
         [ -n "$pgid" ] || continue
         kill -CONT -- "-$pgid" 2>/dev/null && resumed="$resumed $pgid"
     done
-    [ -n "$resumed" ] && idle_log "resumed hack tree (pgid$resumed)"
+    # Only a resume that actually ends a pause is interesting; SIGCONT to a
+    # running group succeeds and would otherwise log on every listener.
+    [ -n "$resumed" ] && [ -n "$recorded" ] && idle_log "resumed hack tree (pgid$resumed)"
 
     # Locker gone: the hack has no surface left to draw into. Now that it is
     # running again it will notice the dead Wayland connection and exit; reap

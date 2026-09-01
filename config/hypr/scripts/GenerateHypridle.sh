@@ -102,12 +102,18 @@ if [ "$DPMS_OFF" = "1" ]; then
     # event, which is the lock keypress itself.
     add_listener "$DPMS_DELAY" \
         "Manual lock, hyprlock: blank ${DPMS_DELAY}s after the lock keypress." \
-        "pidof hyprlock && $SCREEN_OFF" \
+        "$SD/LockerAge.sh $DPMS_DELAY hyprlock && $SCREEN_OFF" \
         "pidof hyprlock && $SCREEN_ON"
 
+    # Gated on the locker's age, not just its presence. Timeouts run from the
+    # last input event, so after an idle lock this listener would otherwise
+    # fire ${SCREENSAVER}s after that event -- only $(( SCREENSAVER - LOCK ))s
+    # into the lock -- and cut the animation short. LockerAge.sh keeps it to
+    # the manual-lock case, where the keypress is the last activity and the
+    # locker really is ${SCREENSAVER}s old by the time this fires.
     add_listener "$SCREENSAVER" \
         "Manual lock, screensaver: ${SCREENSAVER}s of animation, then blank." \
-        "pidof swaylock-plugin && $SCREEN_OFF" \
+        "$SD/LockerAge.sh $SCREENSAVER swaylock-plugin && $SCREEN_OFF" \
         "pidof swaylock-plugin && $SCREEN_ON"
 fi
 

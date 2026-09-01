@@ -80,6 +80,19 @@
   `KOOL_IDLE_LOG=0` disables the former; the log is trimmed to 500 lines.
 
 ## Fixed
+- The screensaver window was cut short after an idle lock. hypridle counts
+  every timeout from the last input event, so the "manual lock" screensaver
+  listener at `SCREENSAVER` seconds also fired after an idle lock -- only
+  `SCREENSAVER - LOCK` seconds into it. On the AC defaults a 20-minute
+  animation lasted 5. Caught in the new log: an idle lock at 00:16:56 blanked
+  at 00:21:56, exactly 1200s after the last activity rather than 1200s after
+  the lock. The manual-lock listeners (screensaver and the hyprlock blank
+  delay) are now gated on `LockerAge.sh`, so they only fire when the locker is
+  genuinely that old, leaving the `lock + window` listener to handle idle
+  locks. Present in the hand-written config this generator replaced.
+- `ScreensaverPause.sh` logged a line per hypridle listener rather than per
+  actual transition -- several fire in the same second, so one wake produced
+  four "resumed" entries. It now reports only real state changes.
 - `IdlePowerWatch.sh` could be permanently blocked from restarting. Its
   single-instance `flock` lives on fd 9, which children inherit: both the
   `udevadm monitor` co-process and the hypridle started by a profile reload
