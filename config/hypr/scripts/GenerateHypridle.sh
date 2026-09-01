@@ -33,6 +33,7 @@ set -u
 SCRIPTS_DIR="${IDLE_SCRIPTS_DIR:-$(cd "$(dirname "$(readlink -f "$0")")" && pwd)}"
 # shellcheck source=./lib_idle_settings.sh
 . "$SCRIPTS_DIR/lib_idle_settings.sh"
+IDLE_LOG_TAG=generate
 
 OUTPUT="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hypridle.conf"
 TO_STDOUT=0
@@ -226,6 +227,7 @@ render >"$tmp" || exit 1
 chmod 644 "$tmp"
 mv -f "$tmp" "$OUTPUT"
 trap - EXIT
+idle_log "rendered $PROFILE_LABEL profile: lock=${LOCK}s warn=-${WARN_LEAD}s blank=+${DPMS_DELAY}s screensaver=+${SCREENSAVER}s"
 
 if [ "$RESTART" = "1" ]; then
     "$SCRIPTS_DIR/Hypridle.sh" reload

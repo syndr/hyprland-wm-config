@@ -42,6 +42,7 @@ set -u
 SCRIPTS_DIR="${IDLE_SCRIPTS_DIR:-$(cd "$(dirname "$(readlink -f "$0")")" && pwd)}"
 # shellcheck source=./lib_idle_settings.sh
 . "$SCRIPTS_DIR/lib_idle_settings.sh"
+IDLE_LOG_TAG=screensaver
 
 STATE_DIR="${XDG_RUNTIME_DIR:-/tmp}/kool-idle"
 PAUSED_STAMP="$STATE_DIR/screensaver-paused"
@@ -91,6 +92,9 @@ do_pause() {
     if [ "$stopped" = "0" ]; then
         mkdir -p "$STATE_DIR" 2>/dev/null
         printf '%s\n' $pgids >"$PAUSED_STAMP"
+        idle_log "paused hack tree (pgid $(printf '%s' $pgids | tr '\n' ' '), $(pgrep -g "${pgids%% *}" 2>/dev/null | wc -l) procs)"
+    else
+        idle_log "pause requested but nothing could be stopped"
     fi
 }
 
@@ -100,16 +104,19 @@ do_resume() {
     local pgid recorded=""
     [ -f "$PAUSED_STAMP" ] && recorded=$(cat "$PAUSED_STAMP" 2>/dev/null)
 
+    local resumed=""
     for pgid in $( { screensaver_pgids; printf '%s\n' $recorded; } | sort -u ); do
         [ -n "$pgid" ] || continue
-        kill -CONT -- "-$pgid" 2>/dev/null
+        kill -CONT -- "-$pgid" 2>/dev/null && resumed="$resumed $pgid"
     done
+    [ -n "$resumed" ] && idle_log "resumed hack tree (pgid$resumed)"
 
     # Locker gone: the hack has no surface left to draw into. Now that it is
     # running again it will notice the dead Wayland connection and exit; reap
     # whatever lingers. Only ever done when swaylock-plugin is absent -- while
     # it lives, killing the client just makes it respawn one.
     if [ -n "$recorded" ] && ! pidof swaylock-plugin >/dev/null 2>&1; then
+        idle_log "locker gone while paused -- reaping orphaned tree (pgid $(printf '%s' $recorded | tr '\n' ' '))"
         sleep 1
         for pgid in $recorded; do
             [ -n "$pgid" ] || continue
@@ -172,13 +179,18 @@ do_watch() {
         waited=$(( waited + 1 ))
     done
 
-    trap 'do_resume; exit 0' EXIT INT TERM
+    trap 'idle_log "watch exiting (locker gone)"; do_resume; exit 0' EXIT INT TERM
 
+    idle_log "watch started (interval ${interval}s)"
     local want_paused is_paused=0
     while pidof swaylock-plugin >/dev/null 2>&1; do
         if screen_is_off; then want_paused=1; else want_paused=0; fi
         if [ "$want_paused" != "$is_paused" ]; then
-            if [ "$want_paused" = "1" ]; then do_pause; else do_resume; fi
+            if [ "$want_paused" = "1" ]; then
+                idle_log "screen went dark"; do_pause
+            else
+                idle_log "screen came back"; do_resume
+            fi
             is_paused="$want_paused"
         fi
         sleep "$interval"

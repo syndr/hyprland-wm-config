@@ -27,6 +27,7 @@ set -u
 SCRIPTS_DIR="${IDLE_SCRIPTS_DIR:-$(cd "$(dirname "$(readlink -f "$0")")" && pwd)}"
 # shellcheck source=./lib_idle_settings.sh
 . "$SCRIPTS_DIR/lib_idle_settings.sh"
+IDLE_LOG_TAG=power
 
 GENERATE="$SCRIPTS_DIR/GenerateHypridle.sh"
 HYPRIDLE="$SCRIPTS_DIR/Hypridle.sh"
@@ -54,34 +55,72 @@ pending=0
 # back up, so a reload requested while locked waits for the unlock.
 maybe_reload() {
     if locker_running; then
+        idle_log "reload deferred -- session is locked (timers would reset mid-lock)"
         pending=1
         return 0
     fi
-    "$HYPRIDLE" reload >/dev/null 2>&1
+    # 9>&- keeps the single-instance lock out of hypridle, which we are about
+    # to start and which outlives us. Inheriting it would pin the lock for the
+    # rest of the session and stop this watcher ever restarting.
+    "$HYPRIDLE" reload >/dev/null 2>&1 9>&-
+    [ "$pending" = "1" ] && idle_log "deferred reload applied"
     pending=0
 }
 
 profile=$(idle_power_profile)
 before=$(conf_sum)
-"$GENERATE" --profile "$profile"
-[ "$(conf_sum)" != "$before" ] && maybe_reload
+"$GENERATE" --profile "$profile" 9>&-
+if [ "$(conf_sum)" != "$before" ]; then
+    idle_log "started on $profile -- config was stale, regenerated"
+    maybe_reload
+else
+    idle_log "started on $profile -- config already current"
+fi
+
+# Open the uevent stream on its own descriptor rather than redirecting the
+# loop, so the child's pid is capturable and it can be cleaned up on exit.
+#
+# `exec 9>&-` inside the substitution is load-bearing: fd 9 is the
+# single-instance flock, and a process-substitution child inherits it. Without
+# the close, killing this script orphans a udevadm that keeps holding the lock
+# -- after which every restart sees the lock held, exits "already running", and
+# the watcher can never come back until that udevadm is killed by hand.
+exec {UDEV_FD}< <(exec 9>&-; udevadm monitor --udev --subsystem-match=power_supply 2>/dev/null)
+udev_pid=$!
+# A signal trap that only cleans up does not stop the script -- bash resumes
+# the loop afterwards. Handle EXIT and the signals separately so a TERM
+# actually terminates us instead of dropping through to the loop below with a
+# dead descriptor.
+cleanup_udev() { kill "$udev_pid" 2>/dev/null; }
+trap cleanup_udev EXIT
+trap 'cleanup_udev; exit 0' INT TERM
 
 while :; do
     if [ "$pending" = "1" ]; then poll="$IDLE_POLL_PENDING"; else poll="$IDLE_POLL_IDLE"; fi
 
-    if read -r -t "$poll" line; then
+    if read -r -t "$poll" line <&"$UDEV_FD"; then
         case "$line" in
             *power_supply*) sleep "$IDLE_DEBOUNCE" ;;
             *) continue ;;
         esac
+    else
+        # bash returns >128 when `read -t` times out and <=128 on EOF. EOF
+        # means udevadm died: without this the loop would spin on an exhausted
+        # descriptor, burning CPU on battery for as long as the session lasts.
+        rc=$?
+        if [ "$rc" -le 128 ]; then
+            idle_log "uevent stream closed (rc=$rc) -- exiting so it can be restarted"
+            exit 1
+        fi
     fi
 
     now=$(idle_power_profile)
     if [ "$now" != "$profile" ]; then
+        idle_log "power changed: $profile -> $now"
         profile="$now"
-        "$GENERATE" --profile "$profile"
+        "$GENERATE" --profile "$profile" 9>&-
         maybe_reload
     elif [ "$pending" = "1" ]; then
         maybe_reload
     fi
-done < <(udevadm monitor --udev --subsystem-match=power_supply 2>/dev/null)
+done

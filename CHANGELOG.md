@@ -70,8 +70,28 @@
   automatically; interactive runs prompt; it skips cleanly with no live
   Hyprland session or no terminal. A logout is still worth doing for what a
   reload cannot pick up (env vars, `exec-once`).
+- The idle stack logs what it does to `~/.local/state/kool-dots/idle.log`:
+  screensaver pause/resume, screen on/off, AC/battery flips, deferred reloads
+  and config renders. These scripts are fired by hypridle and udev with no
+  terminal attached and their output went to `/dev/null`, so there was no way
+  to tell after the fact what had happened. hypridle's own output (listener
+  registration, spawn failures) now lands in
+  `~/.local/state/kool-dots/hypridle.log`, truncated on each hypridle start.
+  `KOOL_IDLE_LOG=0` disables the former; the log is trimmed to 500 lines.
 
 ## Fixed
+- `IdlePowerWatch.sh` could be permanently blocked from restarting. Its
+  single-instance `flock` lives on fd 9, which children inherit: both the
+  `udevadm monitor` co-process and the hypridle started by a profile reload
+  outlived the watcher and kept the lock held, after which every start exited
+  "already running" for the rest of the session. Observed live -- an orphaned
+  `udevadm` had held it since login. The uevent stream is now opened on its
+  own descriptor with fd 9 closed in the child and killed on exit, and
+  long-lived spawns close the descriptor explicitly.
+- `IdlePowerWatch.sh` spun at ~8% CPU after a `SIGTERM`. A trap that only
+  cleans up does not stop the script, so the loop carried on reading an
+  exhausted descriptor. The signal traps now exit, and an EOF on the uevent
+  stream (as opposed to a read timeout) exits rather than looping.
 
 - `copy.sh`: the picked screensaver hack was reset on every upgrade.
   `hypr/.swaylock_hack` (set via `SUPER SHIFT L`) sits directly in `hypr/`,

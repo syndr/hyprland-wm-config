@@ -84,11 +84,51 @@ idle_profile_knob() {
 # when the process dies -- unlike matching our own name in the process table,
 # which also matches any wrapper whose command line contains this script's
 # path (setsid, timeout, sh -c ...) and would make us exit as a false positive.
+#
+# CAUTION: the lock lives on fd 9 (IDLE_LOCK_FD) and children inherit it. A
+# child that outlives this process keeps the lock held, and every future start
+# then exits as "already running" -- the guard turns into a permanent block.
+# Spawn anything long-lived with the descriptor closed:
+#
+#     some-daemon "$@" 9>&-
+#
+IDLE_LOCK_FD=9
 idle_single_instance() { # idle_single_instance LOCKNAME
     local lock_dir="${XDG_RUNTIME_DIR:-/tmp}/kool-idle"
     mkdir -p "$lock_dir" 2>/dev/null || return 0
     command -v flock >/dev/null 2>&1 || return 0
     exec 9>"$lock_dir/$1.lock" || return 0
     flock -n 9 || return 1
+    return 0
+}
+
+# --- logging ------------------------------------------------------------
+# The idle stack is a set of small scripts fired by hypridle and udev, with no
+# terminal attached and their output going to /dev/null, so after the fact
+# there is no way to tell what it did -- when the screensaver paused, whether a
+# power flip was picked up, whether a reload was deferred because the session
+# was locked. One shared append-only log makes those answerable.
+#
+# Volume is a handful of lines per lock cycle. KOOL_IDLE_LOG=0 disables it.
+IDLE_LOG_FILE="${IDLE_LOG_FILE:-${XDG_STATE_HOME:-$HOME/.local/state}/kool-dots/idle.log}"
+IDLE_LOG_MAX_LINES="${IDLE_LOG_MAX_LINES:-500}"
+
+idle_log() {
+    [ "$(idle_knob_bool KOOL_IDLE_LOG 1)" = "1" ] || return 0
+    mkdir -p "$(dirname "$IDLE_LOG_FILE")" 2>/dev/null || return 0
+    printf '%s  %-12s %s\n' "$(date '+%m-%d %H:%M:%S')" "${IDLE_LOG_TAG:-idle}" "$*" \
+        >>"$IDLE_LOG_FILE" 2>/dev/null || return 0
+
+    # Bounded growth without rewriting the file on every line: only compact
+    # once it has drifted well past the cap.
+    local lines
+    lines=$(wc -l <"$IDLE_LOG_FILE" 2>/dev/null || echo 0)
+    if [ "$lines" -gt $(( IDLE_LOG_MAX_LINES * 2 )) ] 2>/dev/null; then
+        if tail -n "$IDLE_LOG_MAX_LINES" "$IDLE_LOG_FILE" >"$IDLE_LOG_FILE.tmp" 2>/dev/null; then
+            mv -f "$IDLE_LOG_FILE.tmp" "$IDLE_LOG_FILE" 2>/dev/null
+        else
+            rm -f "$IDLE_LOG_FILE.tmp" 2>/dev/null
+        fi
+    fi
     return 0
 }

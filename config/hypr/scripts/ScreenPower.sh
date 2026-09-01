@@ -22,9 +22,13 @@ set -u
 # staging tree).
 SCRIPTS_DIR="${IDLE_SCRIPTS_DIR:-$(cd "$(dirname "$(readlink -f "$0")")" && pwd)}"
 PAUSE="$SCRIPTS_DIR/ScreensaverPause.sh"
+# shellcheck source=./lib_idle_settings.sh
+. "$SCRIPTS_DIR/lib_idle_settings.sh"
+IDLE_LOG_TAG=screen
 
 case "${1:-}" in
     on)
+        idle_log "dpms on (locker: $(pidof hyprlock swaylock-plugin >/dev/null 2>&1 && echo yes || echo no))"
         hyprctl dispatch dpms on >/dev/null 2>&1
         # Resume after the panel is lit, so the hack's first frame lands on a
         # visible screen rather than being drawn into the dark.
@@ -33,6 +37,7 @@ case "${1:-}" in
     off)
         # Park the outputs first: pausing while the panel is still lit would
         # freeze a visible frame for a beat.
+        idle_log "dpms off (locker: $(pidof hyprlock swaylock-plugin >/dev/null 2>&1 && echo yes || echo no))"
         hyprctl dispatch dpms off >/dev/null 2>&1
         [ -x "$PAUSE" ] && "$PAUSE" pause
         ;;
