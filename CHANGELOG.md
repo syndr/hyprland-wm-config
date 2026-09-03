@@ -80,6 +80,16 @@
   `KOOL_IDLE_LOG=0` disables the former; the log is trimmed to 500 lines.
 
 ## Fixed
+- One wake produced three `dpms on` and three `resumed` log entries.
+  hypridle fires `on-resume` for every rule that had elapsed, and each
+  blanking rule needs its own (a rule that never elapsed cannot un-blank), so
+  three arrive at once by design. They raced: all three read the pause stamp
+  before any cleared it. `ScreenPower.sh` and `ScreensaverPause.sh` now
+  serialise on their own `flock` descriptors (fd 7 and fd 8, distinct from the
+  fd 9 instance lock so the nesting cannot deadlock) and act only on a real
+  transition, so redundant callers neither re-dispatch to Hyprland nor log.
+  A resume still always reaches the hack, so it cannot be left stopped behind
+  a lit screen.
 - The screensaver window was cut short after an idle lock. hypridle counts
   every timeout from the last input event, so the "manual lock" screensaver
   listener at `SCREENSAVER` seconds also fired after an idle lock -- only

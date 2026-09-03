@@ -46,6 +46,30 @@ IDLE_LOG_TAG=screensaver
 
 STATE_DIR="${XDG_RUNTIME_DIR:-/tmp}/kool-idle"
 PAUSED_STAMP="$STATE_DIR/screensaver-paused"
+STATE_LOCK="$STATE_DIR/screensaver-state.lock"
+
+# hypridle fires on-resume for every rule that had elapsed, and each blanking
+# rule needs its own (a rule that never elapsed cannot un-blank), so one wake
+# legitimately spawns three of these at once. Without serialising, all three
+# read the stamp before any clears it: they each do redundant work and each
+# logs, turning one transition into three lines.
+#
+# fd 8, distinct from the fd 9 instance lock in lib_idle_settings.sh and from
+# the lock ScreenPower.sh takes, so the nesting cannot deadlock. -w bounds the
+# wait: on timeout we proceed anyway, since a missed resume is worse than a
+# duplicated one.
+with_state_lock() {
+    mkdir -p "$STATE_DIR" 2>/dev/null
+    if command -v flock >/dev/null 2>&1 && exec 8>"$STATE_LOCK" 2>/dev/null; then
+        flock -w 5 8 2>/dev/null || true
+        "$@"
+        local rc=$?
+        flock -u 8 2>/dev/null || true
+        exec 8>&-
+        return $rc
+    fi
+    "$@"
+}
 
 self_pgid=$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ')
 
@@ -189,7 +213,7 @@ do_watch() {
         waited=$(( waited + 1 ))
     done
 
-    trap 'idle_log "watch exiting (locker gone)"; do_resume; exit 0' EXIT INT TERM
+    trap 'idle_log "watch exiting (locker gone)"; with_state_lock do_resume; exit 0' EXIT INT TERM
 
     idle_log "watch started (interval ${interval}s)"
     local want_paused is_paused=0
@@ -197,9 +221,9 @@ do_watch() {
         if screen_is_off; then want_paused=1; else want_paused=0; fi
         if [ "$want_paused" != "$is_paused" ]; then
             if [ "$want_paused" = "1" ]; then
-                idle_log "screen went dark"; do_pause
+                idle_log "screen went dark"; with_state_lock do_pause
             else
-                idle_log "screen came back"; do_resume
+                idle_log "screen came back"; with_state_lock do_resume
             fi
             is_paused="$want_paused"
         fi
@@ -208,8 +232,8 @@ do_watch() {
 }
 
 case "${1:-}" in
-    pause)  do_pause ;;
-    resume) do_resume ;;
+    pause)  with_state_lock do_pause ;;
+    resume) with_state_lock do_resume ;;
     status) do_status ;;
     watch)  do_watch ;;
     *)
