@@ -353,3 +353,86 @@ install_waybar_weather() {
     install_waybar_weather_binary "$log"
   fi
 }
+
+# Deployed config only reaches the running session when something reloads it.
+# copy.sh writes files; it never touches the live compositor, so until you log
+# out the deploy and the session disagree: new keybinds are absent, window
+# rules and waybar modules are stale, and a regenerated hypridle.conf is
+# ignored by the hypridle already running. That reads as "the upgrade didn't
+# work" when in fact it landed correctly.
+#
+# Reloading in place is cheap and safe. hyprctl reload re-reads the config
+# without disturbing windows (a bad config is reported via configerrors and
+# the session keeps running), Refresh.sh reloads waybar/swaync/rofi exactly as
+# the desktop's own refresh keybind does, and Hypridle.sh reload is a no-op
+# when hypridle is not running, so it cannot undo the waybar idle-inhibit
+# toggle.
+#
+# Express mode does this automatically, matching its "no optional prompts"
+# contract; interactive runs ask. A logout is still worth doing for anything a
+# reload cannot pick up (env vars, exec-once entries), which the closing
+# message already says.
+offer_session_reload() {
+  local log="$1"
+  local scripts_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts"
+
+  # Only meaningful inside a live Hyprland session -- an install run from a
+  # TTY before first login has nothing to reload.
+  if ! command -v hyprctl >/dev/null 2>&1 || ! hyprctl monitors >/dev/null 2>&1; then
+    echo "${NOTE:-[NOTE]} No running Hyprland session detected; skipping reload." 2>&1 | tee -a "$log"
+    return 0
+  fi
+
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+    echo "${NOTE:-[NOTE]} Express mode: reloading the running session so the new config takes effect." 2>&1 | tee -a "$log"
+  else
+    local reload_choice=""
+    # Check the terminal exists before reading from it: a bare redirect from a
+    # missing /dev/tty makes the shell print its own error before we can
+    # handle it.
+    if [ ! -r /dev/tty ]; then
+      echo "${NOTE:-[NOTE]} No terminal for the reload prompt; skipping. Run '${scripts_dir}/Refresh.sh' and 'hyprctl reload' when convenient." 2>&1 | tee -a "$log"
+      return 0
+    fi
+    printf "\n%.0s" {1..1}
+    if ! read -r -p "${CAT:-[ACTION]} Reload Hyprland, Waybar and hypridle now so the new config takes effect? (Y/n): " reload_choice </dev/tty; then
+      echo "${NOTE:-[NOTE]} Reload prompt cancelled; skipping." 2>&1 | tee -a "$log"
+      return 0
+    fi
+    case "$reload_choice" in
+      [Nn]*)
+        echo "${NOTE:-[NOTE]} Skipped. The new config applies after 'hyprctl reload' or your next login." 2>&1 | tee -a "$log"
+        return 0
+        ;;
+    esac
+  fi
+
+  if hyprctl reload >/dev/null 2>&1; then
+    echo "${OK:-[OK]} - Hyprland config reloaded." 2>&1 | tee -a "$log"
+  else
+    echo "${WARN:-[WARN]} - hyprctl reload failed; log out and back in to apply the new config." 2>&1 | tee -a "$log"
+  fi
+
+  local cfg_errors
+  cfg_errors=$(hyprctl configerrors 2>/dev/null | grep -v '^no errors' || true)
+  if [ -n "$cfg_errors" ]; then
+    echo "${WARN:-[WARN]} - Hyprland reported config errors:" 2>&1 | tee -a "$log"
+    printf '%s\n' "$cfg_errors" 2>&1 | tee -a "$log"
+  fi
+
+  if [ -x "$scripts_dir/Hypridle.sh" ]; then
+    "$scripts_dir/Hypridle.sh" reload >/dev/null 2>&1 || true
+    echo "${OK:-[OK]} - hypridle reloaded (no-op if it was not running)." 2>&1 | tee -a "$log"
+  fi
+
+  # Started by exec-once at login, so it is absent after an upgrade until the
+  # next one. Its own flock makes a duplicate launch harmless.
+  if [ -x "$scripts_dir/IdlePowerWatch.sh" ]; then
+    setsid -f "$scripts_dir/IdlePowerWatch.sh" >/dev/null 2>&1 || true
+  fi
+
+  if [ -x "$scripts_dir/Refresh.sh" ]; then
+    "$scripts_dir/Refresh.sh" >/dev/null 2>&1 || true
+    echo "${OK:-[OK]} - Waybar, swaync and rofi refreshed." 2>&1 | tee -a "$log"
+  fi
+}

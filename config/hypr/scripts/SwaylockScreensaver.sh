@@ -23,4 +23,15 @@ export HACK_STATE="${HACK_STATE:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr/.swayloc
 export SCREENHACK_SHOT_DIR="${SCREENHACK_SHOT_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/screenhack-shots}"
 export SWAYLOCK_SCREENSAVER_FALLBACK="${SWAYLOCK_SCREENSAVER_FALLBACK:-hyprlock}"
 
+# Pause the hack whenever the panel goes dark. ScreenPower.sh already handles
+# every DPMS transition this config drives; this watcher is the safety net for
+# screen-off the compositor never sees (on the uConsole, the power key parks
+# the panel through uconsole-sleep while Hyprland still thinks it is lit).
+# It exits on its own when the locker does, and resumes the hack on the way
+# out so a stopped process tree is never left behind.
+SCRIPTS_DIR="${IDLE_SCRIPTS_DIR:-$(cd "$(dirname "$(readlink -f "$0")")" && pwd)}"
+if [ -x "$SCRIPTS_DIR/ScreensaverPause.sh" ]; then
+    setsid -f "$SCRIPTS_DIR/ScreensaverPause.sh" watch >/dev/null 2>&1 || true
+fi
+
 exec swaylock-screensaver "$@"

@@ -442,6 +442,18 @@ restore_hypr_assets() {
       done
     fi
 
+    # Per-install state files that live directly in hypr/ and would otherwise
+    # go with the wholesale directory replace. Always restored, express
+    # included -- these are user choices, not config the release owns.
+    #   .swaylock_hack  the xscreensaver hack picked via SUPER SHIFT L
+    local STATE_FILES=(".swaylock_hack")
+    for STATE_FILE in "${STATE_FILES[@]}"; do
+      if [ -f "$BACKUP_HYPR_PATH/$STATE_FILE" ]; then
+        cp -f "$BACKUP_HYPR_PATH/$STATE_FILE" "$HYPR_DIR/$STATE_FILE" 2>/dev/null \
+          && echo "${OK:-[OK]} - Restored file: ${MAGENTA:-}$STATE_FILE${RESET:-}" 2>&1 | tee -a "$log"
+      fi
+    done
+
     # Keep monitor/workspace state across upgrades, including express mode.
     if [ "$backup_mode" = "lua" ]; then
       local LUA_USER_DIR="$HYPR_DIR/UserConfigs"
@@ -834,11 +846,22 @@ restore_user_scripts() {
   local BACKUP_DIR_PATH_S="$DIRSHPATH-backup-$BACKUP_DIR/UserScripts"
   local SCRIPTS_TO_RESTORE=("RofiBeats.sh" "Weather.py" "Weather.sh")
 
+  # Repo-owned scripts that happen to live in UserScripts. They are thin
+  # wrappers around packaged tools -- they pin this config's paths and are not
+  # meant to be edited -- so the express rsync below must not restore a stale
+  # copy over the one this release ships. Without the exclusion a wrapper fix
+  # lands once and is silently reverted by the next express upgrade.
+  local REPO_OWNED_SCRIPTS=("ScreenHackSelect.sh" "ScreenHackShots.sh")
+
   if [ -d "$BACKUP_DIR_PATH_S" ] && [ "$express_mode" -eq 1 ]; then
     echo "${NOTE:-[NOTE]} Express mode: automatically restoring UserScripts from backup." 2>&1 | tee -a "$log"
     mkdir -p "$DIRSHPATH/UserScripts"
-    rsync -a "$BACKUP_DIR_PATH_S/" "$DIRSHPATH/UserScripts/" 2>&1 | tee -a "$log"
-    echo "${OK:-[OK]} - UserScripts directory restored." 2>&1 | tee -a "$log"
+    local RSYNC_EXCLUDES=()
+    for SCRIPT_NAME in "${REPO_OWNED_SCRIPTS[@]}"; do
+      RSYNC_EXCLUDES+=(--exclude "$SCRIPT_NAME")
+    done
+    rsync -a "${RSYNC_EXCLUDES[@]}" "$BACKUP_DIR_PATH_S/" "$DIRSHPATH/UserScripts/" 2>&1 | tee -a "$log"
+    echo "${OK:-[OK]} - UserScripts directory restored (release versions kept for: ${REPO_OWNED_SCRIPTS[*]})." 2>&1 | tee -a "$log"
     return
   fi
 
@@ -908,6 +931,32 @@ migrate_hypridle_lock_cmd() {
   echo "${OK:-[OK]} - hypridle.conf: migrated lock_cmd to the swaylock-plugin screensaver launcher." 2>&1 | tee -a "$log"
 }
 
+# hypridle.conf stopped being a user-owned file in 2.3.26: it is generated
+# from UserConfigs/IdleSettings.conf (see adjust_idle_dpms_policy in
+# lib_detect.sh). Restoring the backup over the top would put a stale,
+# hand-edited file back and defeat the whole mechanism, so on the first
+# managed upgrade the backup is parked next to it instead of being restored.
+# KOOL_IDLE_MANAGED=0 keeps the old behavior.
+idle_policy_is_managed() {
+  local prefs="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/IdleSettings.conf"
+  [ -f "$prefs" ] || prefs="${WORK_CONFIG_DIR:-config}/hypr/UserConfigs/IdleSettings.conf"
+  case "$(read_idle_knob "$prefs" KOOL_IDLE_MANAGED 1)" in
+    0|false|no|off|FALSE|No|Off|NO|OFF) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+park_hypridle_backup() {
+  local log="$1" backup_dir="$2"
+  local src="$backup_dir/hypridle.conf"
+  local dst="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hypridle.conf.pre-managed"
+  [ -f "$src" ] || return 0
+  [ -e "$dst" ] && return 0
+  cp "$src" "$dst" 2>/dev/null || return 0
+  echo "${NOTE:-[NOTE]} hypridle.conf is now generated from UserConfigs/IdleSettings.conf." 2>&1 | tee -a "$log"
+  echo "${NOTE:-[NOTE]} Your previous file was kept as hypridle.conf.pre-managed for reference." 2>&1 | tee -a "$log"
+}
+
 restore_hypr_files() {
   local log="$1"
   local express_mode="$2"
@@ -917,6 +966,12 @@ restore_hypr_files() {
   BACKUP_DIR=$(get_backup_dirname)
   local BACKUP_DIR_PATH_F="$DIRPATH-backup-$BACKUP_DIR"
   local FILES_2_RESTORE=("hyprlock.conf" "hypridle.conf")
+  local MANAGED_IDLE=0
+  if idle_policy_is_managed; then
+    MANAGED_IDLE=1
+    FILES_2_RESTORE=("hyprlock.conf")
+    park_hypridle_backup "$log" "$BACKUP_DIR_PATH_F"
+  fi
 
   if [ -d "$BACKUP_DIR_PATH_F" ] && [ "$express_mode" -eq 1 ]; then
     echo "${NOTE:-[NOTE]} Express mode: automatically restoring user-owned hypr files from backup." 2>&1 | tee -a "$log"
@@ -930,8 +985,8 @@ restore_hypr_files() {
         fi
       fi
     done
-    migrate_hypridle_lock_cmd "$log"
-    return
+    [ "$MANAGED_IDLE" -eq 0 ] && migrate_hypridle_lock_cmd "$log"
+    return 0
   fi
 
   if [ -d "$BACKUP_DIR_PATH_F" ] && [ "$express_mode" -eq 0 ]; then
@@ -956,6 +1011,7 @@ restore_hypr_files() {
         echo "${NOTE:-[NOTE]} - Backup file $BACKUP_FILE does not exist. Skipping." 2>&1 | tee -a "$log"
       fi
     done
-    migrate_hypridle_lock_cmd "$log"
+    [ "$MANAGED_IDLE" -eq 0 ] && migrate_hypridle_lock_cmd "$log"
   fi
+  return 0
 }

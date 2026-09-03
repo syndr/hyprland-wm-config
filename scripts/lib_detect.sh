@@ -152,8 +152,16 @@ read_idle_knob() {
   if [ -n "$val" ]; then printf '%s' "$val"; else printf '%s' "$def"; fi
 }
 
-# User-configurable idle policy: DPMS-off and the nag/notifier are two
-# independent knobs in the preserved, user-owned UserConfigs/IdleSettings.conf.
+# Idle policy, dispatched on KOOL_IDLE_MANAGED in the preserved, user-owned
+# UserConfigs/IdleSettings.conf (default 1):
+#
+#   1 -> hypridle.conf is a generated artifact. Hand off to the shipped
+#        GenerateHypridle.sh, which renders every listener from the named
+#        relative knobs in that file (see adjust_idle_policy below).
+#   0 -> the user owns hypridle.conf. Fall back to the legacy in-place
+#        rewrite, which strips listener blocks by content.
+#
+# The legacy path below documents the three knobs it understands.
 #
 #   KOOL_IDLE_DPMS_OFF  default 1  -> 0 strips every dpms-off listener so the
 #                                     displays stay lit (showing hyprlock) after
@@ -168,13 +176,15 @@ read_idle_knob() {
 # Locking on idle and the after_sleep dpms-ON are always preserved. Operates on
 # the staged config and is idempotent (re-running on a stripped file is a
 # no-op). Always runs, since KOOL_IDLE_NAG defaults to stripping the nag.
-adjust_idle_dpms_policy() {
+adjust_idle_dpms_policy_legacy() {
   local log="$1"
   local config_root="${WORK_CONFIG_DIR:-config}"
   local hypridle="$config_root/hypr/hypridle.conf"
   [ -f "$hypridle" ] || return 0
 
-  local pref_file="$HOME/.config/hypr/UserConfigs/IdleSettings.conf"
+  # Caller passes the resolved prefs file (preserved user copy, else the
+  # staged one). Falling back to the $HOME path keeps direct callers working.
+  local pref_file="${2:-${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/IdleSettings.conf}"
   local dpms_off nag lock_timeout
   dpms_off=$(read_idle_knob "$pref_file" KOOL_IDLE_DPMS_OFF 1)
   nag=$(read_idle_knob "$pref_file" KOOL_IDLE_NAG 0)
@@ -208,7 +218,7 @@ adjust_idle_dpms_policy() {
     }
     inblock {
       buf = buf $0 "\n"
-      if ($0 ~ /dpms[[:space:]]+off/) hasoff = 1
+      if ($0 ~ /dpms[[:space:]]+off/ || $0 ~ /ScreenPower\.sh[[:space:]]+off/) hasoff = 1
       if ($0 ~ /IdleAlert\.sh/)       hasnag = 1
       if ($0 ~ /^[[:space:]]*}/) {
         inblock = 0
@@ -261,4 +271,52 @@ adjust_idle_dpms_policy() {
   [ "$strip_nag" -eq 1 ]  && msg="$msg nag/watchdog stripped (KOOL_IDLE_NAG=0);"
   [ -n "$lock_timeout" ]  && msg="$msg lock timeout=${lock_timeout}s;"
   echo "$msg" 2>&1 | tee -a "$log" || true
+}
+
+# Entry point called by copy.sh. Renders the staged hypridle.conf from the
+# user's IdleSettings.conf, or falls back to the legacy rewrite when the user
+# has taken the file back into their own hands.
+#
+# The generator is invoked out of the staging tree (WORK_CONFIG_DIR) so the
+# repo checkout is never dirtied, and is pointed at the *preserved* user
+# settings file rather than the one we just staged -- the user's knobs win
+# over the release's defaults. On a fresh install there is no preserved file
+# yet, so the staged copy is used and the shipped defaults apply.
+adjust_idle_dpms_policy() {
+  local log="$1"
+  local config_root="${WORK_CONFIG_DIR:-config}"
+  local hypridle="$config_root/hypr/hypridle.conf"
+  [ -f "$hypridle" ] || return 0
+
+  local user_prefs="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/IdleSettings.conf"
+  local staged_prefs="$config_root/hypr/UserConfigs/IdleSettings.conf"
+  local prefs="$user_prefs"
+  [ -f "$prefs" ] || prefs="$staged_prefs"
+
+  local managed
+  managed=$(read_idle_knob "$prefs" KOOL_IDLE_MANAGED 1)
+  case "$managed" in
+    0|false|no|off|FALSE|No|Off|NO|OFF)
+      echo "${INFO:-[INFO]} KOOL_IDLE_MANAGED=0: leaving hypridle.conf under your control." 2>&1 | tee -a "$log" || true
+      adjust_idle_dpms_policy_legacy "$log" "$prefs"
+      return 0
+      ;;
+  esac
+
+  local generator="$config_root/hypr/scripts/GenerateHypridle.sh"
+  if [ ! -f "$generator" ]; then
+    echo "${WARN:-[WARN]} GenerateHypridle.sh missing from the release; falling back to the legacy idle rewrite." 2>&1 | tee -a "$log" || true
+    adjust_idle_dpms_policy_legacy "$log" "$prefs"
+    return 0
+  fi
+
+  if IDLE_SCRIPTS_DIR="$config_root/hypr/scripts" IDLE_SETTINGS_FILE="$prefs" \
+      bash "$generator" --output "$hypridle"; then
+    local profile
+    profile=$(grep -m1 '^# Active profile:' "$hypridle" 2>/dev/null | sed 's/^# Active profile: //' || true)
+    echo "${OK:-[OK]} - hypridle.conf generated from IdleSettings.conf (${profile:-unknown} profile)." 2>&1 | tee -a "$log" || true
+  else
+    echo "${ERROR:-[ERROR]} GenerateHypridle.sh failed; falling back to the legacy idle rewrite." 2>&1 | tee -a "$log" || true
+    adjust_idle_dpms_policy_legacy "$log" "$prefs"
+  fi
 }

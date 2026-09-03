@@ -2,7 +2,130 @@
 
 ## Unreleased
 
+## Changed
+
+- **Idle/lock timeouts are now generated from
+  `UserConfigs/IdleSettings.conf`.** `hypridle.conf` used to be six listeners
+  of bare absolute seconds (15/570/600/605/1200/1800) that only made sense
+  read together, and it was restored from backup on every upgrade — so edits
+  survived but release fixes never landed. It is now a generated artifact
+  (`scripts/GenerateHypridle.sh`) and `IdleSettings.conf` is the single tuning
+  surface: named, relative, documented keys that the generator turns into the
+  schedule. See
+  [`docs/adr/generate-hypridle-config-from-idle-settings.md`](docs/adr/generate-hypridle-config-from-idle-settings.md).
+  - Timeouts differ on battery and AC: `KOOL_IDLE_LOCK_TIMEOUT_AC` (900) /
+    `_BAT` (300), `KOOL_IDLE_SCREENSAVER_AC` (1200) / `_BAT` (120),
+    `KOOL_IDLE_DPMS_DELAY_AC` / `_BAT`, plus `KOOL_IDLE_WARN_LEAD`. hypridle
+    cannot switch timeouts at runtime, so `IdlePowerWatch.sh` blocks on udev
+    `power_supply` events and re-renders + reloads on plug/unplug — deferring
+    the reload while the session is locked, since a restart resets idle timers.
+  - A legacy un-suffixed `KOOL_IDLE_LOCK_TIMEOUT` still works and seeds both
+    profiles. `KOOL_IDLE_MANAGED=0` opts out entirely and keeps the previous
+    behavior (hand-owned file, legacy awk/sed rewrite, restore-from-backup).
+  - On the first managed upgrade a hand-edited `hypridle.conf` is parked as
+    `hypridle.conf.pre-managed` instead of being restored over the generated
+    file; `run_post_upgrade_audit` warns if a stale file lands anyway.
+- Waybar's `custom/hypridle` right-click now locks through `LockScreen.sh`
+  instead of invoking `hyprlock` directly, which bypassed the swaylock-plugin
+  screensaver.
+
+## Added
+
+- **The screensaver no longer burns power while the screen is off.**
+  swaylock-plugin has no DPMS handling and forwards its plugin client's
+  buffers straight through, so an xscreensaver hack running under Xwayland +
+  `windowtolayer` is not frame-callback throttled — it kept rendering at full
+  rate with the panel dark. `ScreenPower.sh` now fronts every DPMS transition
+  this config drives and pairs it with `ScreensaverPause.sh`, which SIGSTOPs
+  the hack's process group (SIGKILL would just trigger swaylock-plugin's
+  auto-restart) and resumes it when the panel returns.
+  - `ScreensaverPause.sh watch` also covers screen-off the compositor never
+    sees — on the uConsole the power key parks the panel through
+    `uconsole-sleep` while Hyprland still thinks its outputs are lit. It runs
+    only while a locker is up. Knobs: `KOOL_IDLE_SCREENSAVER_PAUSE`,
+    `..._PAUSE_WATCH`, `..._PAUSE_INTERVAL`.
+- `Hypridle.sh reload` — restarts hypridle to pick up a regenerated config,
+  and is deliberately a no-op when hypridle is stopped so it cannot undo the
+  waybar idle-inhibit toggle.
+- The xscreensaver hack-preview float rule, which existed only in
+  `configs/WindowRules.conf`, now has its Lua equivalent in
+  `lua/window_rules.lua`.
+- `ScreenHackSelect.sh` fits the picker to the screen it opens on. The shipped
+  theme asks for 9 rows of 88px thumbnails -- around 850px before chrome --
+  which is taller than a small panel (the uConsole is 1280x720 logical), so
+  the list was clipped top and bottom. The packaged picker hands the theme to
+  rofi as `-config` and forwards nothing else, so the wrapper generates an
+  overlay theme that imports the shipped one and overrides rows, thumbnail
+  size and width for the focused output (rotation and scale accounted for).
+  Knobs: `SCREENHACK_ROWS`, `SCREENHACK_ICON_SIZE`, `SCREENHACK_WIDTH_PCT`,
+  and `SCREENHACK_NO_AUTOFIT=1` to keep the shipped theme unchanged.
+- `copy.sh` offers to reload the running session when it finishes. It writes
+  files but never touched the live compositor, so until the next login the
+  deploy and the session disagreed -- new keybinds absent, window rules and
+  waybar modules stale, and a regenerated `hypridle.conf` ignored by the
+  hypridle already running. That reads as a failed upgrade when the files are
+  in fact correct. `offer_session_reload` runs `hyprctl reload`, reports any
+  config errors, reloads hypridle, starts `IdlePowerWatch.sh` if it is not up,
+  and calls the existing `Refresh.sh` for waybar/swaync/rofi. Express does it
+  automatically; interactive runs prompt; it skips cleanly with no live
+  Hyprland session or no terminal. A logout is still worth doing for what a
+  reload cannot pick up (env vars, `exec-once`).
+- The idle stack logs what it does to `~/.local/state/kool-dots/idle.log`:
+  screensaver pause/resume, screen on/off, AC/battery flips, deferred reloads
+  and config renders. These scripts are fired by hypridle and udev with no
+  terminal attached and their output went to `/dev/null`, so there was no way
+  to tell after the fact what had happened. hypridle's own output (listener
+  registration, spawn failures) now lands in
+  `~/.local/state/kool-dots/hypridle.log`, truncated on each hypridle start.
+  `KOOL_IDLE_LOG=0` disables the former; the log is trimmed to 500 lines.
+
 ## Fixed
+- One wake produced three `dpms on` and three `resumed` log entries.
+  hypridle fires `on-resume` for every rule that had elapsed, and each
+  blanking rule needs its own (a rule that never elapsed cannot un-blank), so
+  three arrive at once by design. They raced: all three read the pause stamp
+  before any cleared it. `ScreenPower.sh` and `ScreensaverPause.sh` now
+  serialise on their own `flock` descriptors (fd 7 and fd 8, distinct from the
+  fd 9 instance lock so the nesting cannot deadlock) and act only on a real
+  transition, so redundant callers neither re-dispatch to Hyprland nor log.
+  A resume still always reaches the hack, so it cannot be left stopped behind
+  a lit screen.
+- The screensaver window was cut short after an idle lock. hypridle counts
+  every timeout from the last input event, so the "manual lock" screensaver
+  listener at `SCREENSAVER` seconds also fired after an idle lock -- only
+  `SCREENSAVER - LOCK` seconds into it. On the AC defaults a 20-minute
+  animation lasted 5. Caught in the new log: an idle lock at 00:16:56 blanked
+  at 00:21:56, exactly 1200s after the last activity rather than 1200s after
+  the lock. The manual-lock listeners (screensaver and the hyprlock blank
+  delay) are now gated on `LockerAge.sh`, so they only fire when the locker is
+  genuinely that old, leaving the `lock + window` listener to handle idle
+  locks. Present in the hand-written config this generator replaced.
+- `ScreensaverPause.sh` logged a line per hypridle listener rather than per
+  actual transition -- several fire in the same second, so one wake produced
+  four "resumed" entries. It now reports only real state changes.
+- `IdlePowerWatch.sh` could be permanently blocked from restarting. Its
+  single-instance `flock` lives on fd 9, which children inherit: both the
+  `udevadm monitor` co-process and the hypridle started by a profile reload
+  outlived the watcher and kept the lock held, after which every start exited
+  "already running" for the rest of the session. Observed live -- an orphaned
+  `udevadm` had held it since login. The uevent stream is now opened on its
+  own descriptor with fd 9 closed in the child and killed on exit, and
+  long-lived spawns close the descriptor explicitly.
+- `IdlePowerWatch.sh` spun at ~8% CPU after a `SIGTERM`. A trap that only
+  cleans up does not stop the script, so the loop carried on reading an
+  exhausted descriptor. The signal traps now exit, and an EOF on the uevent
+  stream (as opposed to a read timeout) exits rather than looping.
+
+- `copy.sh`: the picked screensaver hack was reset on every upgrade.
+  `hypr/.swaylock_hack` (set via `SUPER SHIFT L`) sits directly in `hypr/`,
+  which is replaced wholesale, and it was in no restore list -- so the choice
+  silently reverted to the `xrayswarm` default each time. Now restored with
+  the other per-install hypr state, express included.
+- `copy.sh`: express upgrades could revert repo-owned `UserScripts`. Express
+  rsyncs the whole backed-up `UserScripts/` over the fresh copy, so the
+  packaged-tool wrappers (`ScreenHackSelect.sh`, `ScreenHackShots.sh`) would
+  come back stale one release after any fix to them. They are now excluded
+  from that restore; genuinely user-owned scripts are unaffected.
 
 - `copy.sh`: upgrades wiped externally-installed theme payloads. `copy_phase2`
   replaces `qt5ct`/`qt6ct`/`Kvantum` wholesale, and the theme-state snapshot

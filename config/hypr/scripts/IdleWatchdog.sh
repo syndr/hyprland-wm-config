@@ -12,6 +12,7 @@ set -u
 SCRIPTS_DIR="$HOME/.config/hypr/scripts"
 IDLE_ALERT="$SCRIPTS_DIR/IdleAlert.sh"
 ON_BATTERY="$SCRIPTS_DIR/OnBattery.sh"
+SCREEN_POWER="$SCRIPTS_DIR/ScreenPower.sh"
 CONF_FILE="${IDLE_ALERT_CONF:-$HOME/.config/hypr/idle-alert.conf}"
 
 # shellcheck disable=SC1090
@@ -57,13 +58,24 @@ interval_for_tier() {
     esac
 }
 
+# Route through ScreenPower.sh so each pulse also resumes and re-pauses the
+# swaylock-plugin screensaver, rather than leaving the hack running through
+# the dark stretches of the flash pattern.
+screen_power() {
+    if [[ -x "$SCREEN_POWER" ]]; then
+        "$SCREEN_POWER" "$1" >/dev/null 2>&1
+    else
+        hyprctl dispatch dpms "$1" >/dev/null 2>&1
+    fi
+}
+
 flash_screen() {
     [[ "$FLASH_ENABLED" == "true" ]] || return 0
 
     # Initial long hold: screen stays on for FLASH_INITIAL_ON_SEC.
-    hyprctl dispatch dpms on >/dev/null 2>&1 || return 0
+    screen_power on || return 0
     sleep "$FLASH_INITIAL_ON_SEC"
-    hyprctl dispatch dpms off >/dev/null 2>&1 || return 0
+    screen_power off || return 0
 
     # Follow-up pulses: on-time shrinks by FLASH_PULSE_DECAY each iteration,
     # off-time between pulses stays fixed at FLASH_PULSE_OFF_SEC. No leading
@@ -72,9 +84,9 @@ flash_screen() {
     local dur="$FLASH_PULSE_START_SEC"
     local i
     for (( i = 0; i < FLASH_PULSES; i++ )); do
-        hyprctl dispatch dpms on >/dev/null 2>&1 || return 0
+        screen_power on || return 0
         sleep "$dur"
-        hyprctl dispatch dpms off >/dev/null 2>&1 || return 0
+        screen_power off || return 0
         (( i < FLASH_PULSES - 1 )) && sleep "$FLASH_PULSE_OFF_SEC"
         dur=$(awk -v d="$dur" -v f="$FLASH_PULSE_DECAY" -v m="$FLASH_PULSE_MIN_SEC" \
             'BEGIN { n = d * f; if (n < m) n = m; printf "%.4f", n }')

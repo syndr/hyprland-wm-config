@@ -182,11 +182,15 @@ Hosts without it fall back to hyprlock automatically — no config change needed
   ImageMagick): every hack runs briefly on a headless X display and a frame is
   captured to `~/.cache/screenhack-shots/`. Descriptions come from the
   xscreensaver config XMLs. Re-run with `--force` to regenerate.
-- Screens still power off after ~20 minutes of screensaver (see
-  `hypr/hypridle.conf`). On hosts with `KOOL_IDLE_DPMS_OFF=0` in
-  `UserConfigs/IdleSettings.conf` (outputs that don't wake from DPMS-off),
-  the deploy strips all DPMS-off listeners and the screensaver runs
-  **indefinitely**.
+- **How long it animates, and what it costs**: the screensaver window is
+  `KOOL_IDLE_SCREENSAVER_AC` / `_BAT` in `UserConfigs/IdleSettings.conf`
+  (20 minutes on AC, 2 minutes on battery by default), after which the screens
+  power off. With `KOOL_IDLE_DPMS_OFF=0` (outputs that don't wake from
+  DPMS-off) there is no blank at all and the screensaver runs **indefinitely**.
+  Whenever the panel *is* dark the hack is SIGSTOPped rather than left
+  rendering — swaylock-plugin does not throttle it, so without that it would
+  keep burning CPU/GPU into a screen that is off
+  (`KOOL_IDLE_SCREENSAVER_PAUSE`).
 - **Fallback background**: if the hack dies or never starts, the lockscreen
   shows the chosen hack's generated screenshot instead of swaylock's default
   gray (`SWAYLOCK_SCREENSAVER_FALLBACK_BG`: `auto`/`none`/image path). All
@@ -195,6 +199,26 @@ Hosts without it fall back to hyprlock automatically — no config change needed
 - **Recovery** if the locker misbehaves: `Ctrl+Alt+F2` → log in →
   `killall swaylock-plugin` → `Ctrl+Alt+F1`. You will land in **hyprlock**
   (fail-secure fallback), not an unlocked session — unlock there normally.
+
+#### ⏱️ Idle timeouts
+
+`~/.config/hypr/hypridle.conf` is **generated** — edit
+`UserConfigs/IdleSettings.conf` instead, then:
+
+    ~/.config/hypr/scripts/GenerateHypridle.sh --restart
+
+Every knob there is relative and named (lock timeout, warning lead, blank
+delay, screensaver window); the generator does the arithmetic and writes the
+derived schedule into the generated file's header. Timeouts come in `_AC` and
+`_BAT` pairs — hypridle cannot switch a timeout at runtime, so
+`IdlePowerWatch.sh` re-renders and reloads hypridle when the charger is
+plugged or unplugged (holding the reload until unlock, since a restart resets
+idle timers).
+
+Set `KOOL_IDLE_MANAGED=0` to take `hypridle.conf` back into your own hands:
+the generator stops running, the file is restored from backup on upgrade as
+before, and the older `KOOL_IDLE_DPMS_OFF` / `KOOL_IDLE_NAG` /
+`KOOL_IDLE_LOCK_TIMEOUT` rewrite path applies instead.
 
 ### ✍️ Contributing
 
