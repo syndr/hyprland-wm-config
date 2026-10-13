@@ -43,7 +43,17 @@ run_post_upgrade_audit() {
 
   local base_startup="$hypr_dir/configs/Startup_Apps.conf"
   local user_startup="$hypr_dir/UserConfigs/Startup_Apps.conf"
-  if [ -f "$base_startup" ] && [ -f "$user_startup" ]; then
+  # Only meaningful while the vendor file is actually sourced. Startup is now
+  # owned by systemd user units, so hyprland.conf deliberately does not source
+  # $configs/Startup_Apps.conf -- the file stays on disk untouched to keep
+  # upstream merges clean, and lines shared with the overlay are not duplicates
+  # because only one copy is ever read.
+  local base_startup_sourced=0
+  if grep -Eq '^[[:space:]]*source[[:space:]]*=[[:space:]]*\$configs/Startup_Apps\.conf' \
+      "$hypr_dir/hyprland.conf" 2>/dev/null; then
+    base_startup_sourced=1
+  fi
+  if [ "$base_startup_sourced" -eq 1 ] && [ -f "$base_startup" ] && [ -f "$user_startup" ]; then
     local duplicate_exec
     duplicate_exec=$(
       awk '
