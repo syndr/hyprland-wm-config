@@ -600,6 +600,19 @@ apply_window_rule({
   center = true,
 })
 
+-- xscreensaver hack preview from ScreenHackSelect.sh (Alt+P). The X class is
+-- per-hack (XRaySwarm, GLMatrix, ...), so the stable handle is the
+-- distribution phrase in the title. Mirrors the rule in configs/WindowRules.conf.
+apply_window_rule({
+  name = "float-center-xscreensaver-preview",
+  match = {
+    title = "(.*from the XScreenSaver.*)",
+  },
+  float = true,
+  center = true,
+  size = "(monitor_w*0.5) (monitor_h*0.5)",
+})
+
 apply_window_rule({
   name = "center-rog-control",
   match = {

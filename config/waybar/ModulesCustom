@@ -106,7 +106,10 @@
 	"interval": 60,
 	"exec": "$HOME/.config/hypr/scripts/Hypridle.sh status",
 	"on-click": "$HOME/.config/hypr/scripts/Hypridle.sh toggle",
-	"on-click-right": "hyprlock"
+	// Lock through LockScreen.sh (loginctl lock-session -> hypridle's
+	// lock_cmd) so this uses whatever locker is configured. Calling hyprlock
+	// directly bypassed the swaylock-plugin screensaver.
+	"on-click-right": "$HOME/.config/hypr/scripts/LockScreen.sh"
 },
 
 "custom/keyboard": {

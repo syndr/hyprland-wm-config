@@ -114,6 +114,25 @@ run_post_upgrade_audit() {
     audit_warn "ENVariables.conf defines QT_QPA_PLATFORMTHEME more than once"
   fi
 
+  # hypridle.conf is generated from UserConfigs/IdleSettings.conf. A deployed
+  # file without the generator's banner means the generation step was skipped
+  # or a stale hand-edited file was restored over the top -- either way the
+  # knobs in IdleSettings.conf are silently doing nothing.
+  local hypridle_conf="$hypr_dir/hypridle.conf"
+  local idle_settings="$hypr_dir/UserConfigs/IdleSettings.conf"
+  if [ -f "$hypridle_conf" ] && [ -f "$idle_settings" ]; then
+    local idle_managed
+    idle_managed=$(read_idle_knob "$idle_settings" KOOL_IDLE_MANAGED 1)
+    case "$idle_managed" in
+      0|false|no|off|FALSE|No|Off|NO|OFF) ;;
+      *)
+        if ! grep -q '^# Written by scripts/GenerateHypridle.sh' "$hypridle_conf"; then
+          audit_warn "hypridle.conf is not the generated file; IdleSettings.conf knobs are inert (run scripts/GenerateHypridle.sh --restart)"
+        fi
+        ;;
+    esac
+  fi
+
   if [ "$issues" -eq 0 ]; then
     audit_note "no high-signal upgrade regressions detected"
   else
