@@ -1015,3 +1015,58 @@ restore_hypr_files() {
   fi
   return 0
 }
+
+# The SUPER ALT + scroll desktop-zoom binds moved from UserKeybinds.conf to the
+# vendor configs/Keybinds.conf (which now owns binds:scroll_event_delay and the
+# scripts/Zoom.sh helper). restore_user_configs puts the user's previous
+# UserKeybinds.conf back on upgrade, so the legacy inline
+# `hyprctl keyword cursor:zoom_factor "$(... awk ...)"` pair would fire on every
+# notch alongside the vendor pair. Drop that pair and point any other legacy
+# zoom line (the zoom submap) at Zoom.sh. Idempotent: a file that is already
+# migrated is left untouched and no backup is written.
+migrate_legacy_zoom_binds() {
+  local log="$1"
+  local user_keybinds="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/UserKeybinds.conf"
+
+  [ -f "$user_keybinds" ] || return 0
+  grep -Eq '^[[:space:]]*bind[a-z]*[[:space:]]*=.*hyprctl[[:space:]]+keyword[[:space:]]+(cursor|misc):(cursor_)?zoom_factor' "$user_keybinds" || return 0
+
+  local tmp
+  tmp=$(mktemp)
+  awk '
+    function is_bind(l) { return l ~ /^[ \t]*bind[a-z]*[ \t]*=/ }
+    function is_legacy(l) { return l ~ /hyprctl[ \t]+keyword[ \t]+(cursor|misc):(cursor_)?zoom_factor/ }
+    function is_super_alt_wheel(l) { return l ~ /=[ \t]*\$mainMod[ \t]+ALT[ \t]*,[ \t]*mouse_(down|up)[ \t]*,/ }
+    function flush() { if (pending != "") { print pending; pending = "" } }
+    {
+      line = $0
+      # Hold the section comment: if the only binds under it get dropped, it goes too.
+      if (line ~ /^[ \t]*#[ \t]*Desktop zooming or magnifier[ \t]*$/) {
+        flush(); pending = line; dropped_under = 0; next
+      }
+      if (is_bind(line) && is_legacy(line)) {
+        if (is_super_alt_wheel(line)) { dropped_under++; next }
+        dir = (line ~ /factor[ \t]*\*[ \t]*[0-9.]+/) ? "in" : "out"
+        sub(/exec,.*$/, "exec, $scriptsDir/Zoom.sh " dir, line)
+      }
+      if (pending != "" && dropped_under > 0 && line ~ /^[ \t]*$/) {
+        # Comment + dropped pair + trailing blank: remove the whole stanza.
+        pending = ""; dropped_under = 0; next
+      }
+      flush()
+      print line
+    }
+    END { flush() }
+  ' "$user_keybinds" >"$tmp"
+
+  if cmp -s "$user_keybinds" "$tmp"; then
+    rm -f "$tmp"
+    return 0
+  fi
+
+  local backup
+  backup="$user_keybinds.backup-zoomfix-$(date +%Y%m%d-%H%M%S)"
+  cp "$user_keybinds" "$backup"
+  mv "$tmp" "$user_keybinds"
+  echo "${NOTE:-[NOTE]} - Migrated legacy desktop-zoom binds in UserKeybinds.conf: the SUPER ALT wheel pair now lives in configs/Keybinds.conf and zoom-submap lines use scripts/Zoom.sh (backup: $(basename "$backup"))." 2>&1 | tee -a "$log"
+}

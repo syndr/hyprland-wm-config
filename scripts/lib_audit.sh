@@ -41,6 +41,43 @@ run_post_upgrade_audit() {
     fi
   fi
 
+  if [ -f "$base_keybinds" ] && [ -f "$user_keybinds" ]; then
+    # Same key chord bound in both files, even with different actions: both
+    # binds fire on every press (the desktop-zoom double bind went unnoticed
+    # for this reason). Submap bodies are skipped and a chord the user
+    # explicitly `unbind`s before rebinding is not reported.
+    local duplicate_chords
+    duplicate_chords=$(
+      awk '
+        function trim(s){ gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+        function chord(rest,   n, parts, mods) {
+          n = split(rest, parts, ",")
+          if (n < 2) return ""
+          mods = toupper(trim(parts[1]))
+          gsub(/\$MAINMOD/, "SUPER", mods)
+          gsub(/[ \t]+/, " ", mods)
+          return mods " " tolower(trim(parts[2]))
+        }
+        FNR == 1 { insub = 0 }
+        /^[ \t]*submap[ \t]*=/ { insub = (trim($0) !~ /=[ \t]*reset$/); next }
+        insub { next }
+        FNR == NR {
+          if ($0 ~ /^[ \t]*bind[a-z]*[ \t]*=/) { l = $0; sub(/^[ \t]*bind[a-z]*[ \t]*=[ \t]*/, "", l); base[chord(l)] = 1 }
+          next
+        }
+        /^[ \t]*unbind[ \t]*=/ { l = $0; sub(/^[ \t]*unbind[ \t]*=[ \t]*/, "", l); unbound[chord(l)] = 1; next }
+        /^[ \t]*bind[a-z]*[ \t]*=/ {
+          l = $0; sub(/^[ \t]*bind[a-z]*[ \t]*=[ \t]*/, "", l); c = chord(l)
+          if (c != "" && (c in base) && !(c in unbound)) print c
+        }
+      ' "$base_keybinds" "$user_keybinds" | sort -u
+    )
+    if [ -n "$duplicate_chords" ]; then
+      audit_warn "the same key chord is bound in both Keybinds.conf and UserKeybinds.conf (both fire on every press)"
+      printf '%s\n' "$duplicate_chords" | sed 's/^/  - /' | tee -a "$log"
+    fi
+  fi
+
   local base_startup="$hypr_dir/configs/Startup_Apps.conf"
   local user_startup="$hypr_dir/UserConfigs/Startup_Apps.conf"
   # Only meaningful while the vendor file is actually sourced. Startup is now

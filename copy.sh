@@ -657,6 +657,9 @@ printf "\\n%.0s" {1..1}
 restore_user_configs "$LOG" "$EXPRESS_MODE" "$INSTALLED_VERSION_AT_START"
 printf "\\n%.0s" {1..1}
 
+migrate_legacy_zoom_binds "$LOG"
+printf "\\n%.0s" {1..1}
+
 restore_user_scripts "$LOG" "$EXPRESS_MODE"
 printf "\n%.0s" {1..1}
 restore_terminal_configs "$LOG" "$EXPRESS_MODE"
