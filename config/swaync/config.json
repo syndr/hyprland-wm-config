@@ -1,4 +1,11 @@
 {
+  "notification-visibility": {
+    "claude-code-waiting": {
+      "state": "transient",
+      "app-name": "kitty",
+      "summary": "^Claude Code$"
+    }
+  },
   "$schema": "/etc/xdg/swaync/configSchema.json",
   "scripts": {
     "critical-sound": {

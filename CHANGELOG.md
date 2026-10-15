@@ -37,6 +37,14 @@
     `hyprland-session.target` is not enabled, waybar/hypridle are masked, or
     waybar/the wallpaper daemon are not wanted by the target.
 
+- **Claude Code "waiting for your input" notifications are toast-only.**
+  kitty forwards them with summary `Claude Code` and no transient hint, so
+  swaync kept every one in the control center. A `notification-visibility`
+  rule in `swaync/config.json` marks them `transient`: the popup still shows,
+  nothing is left to clear. Express upgrades preserve an existing swaync
+  config, so add the rule by hand on already-deployed hosts (or reload after
+  copying it).
+
 - **Idle/lock timeouts are now generated from
   `UserConfigs/IdleSettings.conf`.** `hypridle.conf` used to be six listeners
   of bare absolute seconds (15/570/600/605/1200/1800) that only made sense
