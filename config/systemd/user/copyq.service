@@ -1,0 +1,26 @@
+[Unit]
+Description=CopyQ clipboard manager server
+Documentation=https://github.com/syndr/hyprland-wm-config/blob/main/docs/adr/run-session-daemons-as-systemd-user-units.md
+PartOf=graphical-session.target
+After=graphical-session.target
+BindsTo=graphical-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+# A program that cannot start (missing config, wrong library version) must end
+# up "failed" where the installer and audit can see it, not restart forever.
+# With RestartSec=5s the systemd default (5 in 10s) never trips.
+StartLimitIntervalSec=120
+StartLimitBurst=4
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/copyq
+Restart=on-failure
+RestartSec=5s
+# Migrated from an exec-once 2026-08-21. exec-once children inherit Hyprland's
+# pre-raise soft RLIMIT_NOFILE of 1024, the value too_many_unix_fds() checks the
+# per-user in-flight SCM_RIGHTS count against -- so they die first when fds run
+# short. Raising it here is the whole point of the migration.
+LimitNOFILE=524288:524288
+
+[Install]
+WantedBy=hyprland-session.target

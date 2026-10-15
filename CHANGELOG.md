@@ -2,7 +2,49 @@
 
 ## Unreleased
 
+## Fixed
+
+- **Grey screen after upgrading past #19 (`feat(startup)`).** That change
+  stopped sourcing the vendor `configs/Startup_Apps.conf` in favour of systemd
+  user units that were assumed to exist in `~/.config/systemd/user/` -- they
+  had only ever been hand-written on one host. Every other host came up with
+  Hyprland running and nothing painting: no wallpaper daemon, no waybar, no
+  hypridle. The units now ship in the repo and the installer wires them. See
+  [`docs/adr/run-session-daemons-as-systemd-user-units.md`](docs/adr/run-session-daemons-as-systemd-user-units.md).
+
 ## Changed
+
+- **Session daemons are systemd user units shipped by the repo.**
+  `config/systemd/user/` carries `hyprland-session.target` and units for the
+  wallpaper daemon (awww preferred, swww fallback), nm-applet, cliphist,
+  quickshell overview, copyq, ags and IdlePowerWatch, plus `LimitNOFILE`
+  drop-ins for the distro waybar, hypridle and plasma-polkit-agent units.
+  `install_session_units` (`scripts/lib_units.sh`) copies them, unmasks
+  waybar/hypridle where a host had masked them, enables each unit whose
+  program exists, wants the distro waybar/hypridle/blueman-applet and exactly
+  one polkit agent, and starts the target in a running session.
+  - Session bring-up (`uwsm finalize` / `systemctl --user start
+    hyprland-session.target`, environment export, `hyprpm reload`, keybind and
+    dropdown-terminal init) moved to the vendor-owned
+    `configs/Startup_Session.conf`, which is deployed on every upgrade.
+    `UserConfigs/Startup_Apps.conf` is for the user's own apps only;
+    `migrate_startup_overlay` strips lines the new file or a unit now owns
+    (timestamped backup).
+  - `Hypridle.sh`, `Refresh.sh`, `WaybarLayout.sh` and `WallpaperSelect.sh`
+    drive the unit when one is loaded instead of pkill/relaunching a daemon
+    outside systemd.
+  - The post-upgrade audit warns when `Startup_Session.conf` is not sourced,
+    `hyprland-session.target` is not enabled, waybar/hypridle are masked, or
+    waybar/the wallpaper daemon are not wanted by the target.
+
+- **Claude Code "waiting for your input" notifications are toast-only.**
+  kitty forwards them with summary `Claude Code` and no transient hint, so
+  swaync kept every one in the control center. A `notification-visibility`
+  rule in `swaync/config.json` marks them `transient` and re-files them as
+  critical: the popup stays until dismissed (swaync has no per-rule timeout),
+  nothing is left in the center. Express upgrades preserve an existing swaync
+  config, so add the rule by hand on already-deployed hosts (or reload after
+  copying it).
 
 - **Idle/lock timeouts are now generated from
   `UserConfigs/IdleSettings.conf`.** `hypridle.conf` used to be six listeners

@@ -20,6 +20,7 @@
 #   - Workflow selection effects (express vs standard).
 #   - Backup/restore helpers (in scripts/lib_backup.sh).
 #   - App enablement/editor selection (lib_apps.sh).
+#   - Session daemon units: ship/enable/start hyprland-session.target (lib_units.sh).
 #   - Copy phases (lib_copy.sh):
 #       * Part 1: fastfetch/kitty/rofi/swaync (prompted replace).
 #       * Waybar special handling (symlinks, configs/styles restore).
@@ -93,6 +94,7 @@ DETECT_HELPER="$SCRIPT_DIR/scripts/lib_detect.sh"
 PROMPTS_HELPER="$SCRIPT_DIR/scripts/lib_prompts.sh"
 APPS_HELPER="$SCRIPT_DIR/scripts/lib_apps.sh"
 COPY_HELPER="$SCRIPT_DIR/scripts/lib_copy.sh"
+UNITS_HELPER="$SCRIPT_DIR/scripts/lib_units.sh"
 UPDATE_HELPER="$SCRIPT_DIR/scripts/lib_update.sh"
 AUDIT_HELPER="$SCRIPT_DIR/scripts/lib_audit.sh"
 REPO_CONFIG_DIR="$SCRIPT_DIR/config"
@@ -137,6 +139,13 @@ if [ -f "$COPY_HELPER" ]; then
   . "$COPY_HELPER"
 else
   echo "${ERROR} Copy helper not found at $COPY_HELPER. Exiting."
+  exit 1
+fi
+if [ -f "$UNITS_HELPER" ]; then
+  # shellcheck source=./scripts/lib_units.sh
+  . "$UNITS_HELPER"
+else
+  echo "${ERROR} Units helper not found at $UNITS_HELPER. Exiting."
   exit 1
 fi
 if [ -f "$UPDATE_HELPER" ]; then
@@ -717,26 +726,13 @@ chmod +x "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserScripts/"* 2>&1 | tee -a "$
 # Set executable for initial-boot.sh
 chmod +x "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/initial-boot.sh" 2>&1 | tee -a "$LOG"
 
-# Copy systemd user overrides (e.g., hyprpolkitagent)
-SYSTEMD_SRC="$DOTFILES_DIR/config/systemd"
-SYSTEMD_DEST="${XDG_CONFIG_HOME:-$HOME/.config}/systemd"
-if [ -d "$SYSTEMD_SRC" ]; then
-  mkdir -p "$SYSTEMD_DEST"
-  cp -r "$SYSTEMD_SRC/." "$SYSTEMD_DEST/" 2>&1 | tee -a "$LOG"
-fi
-
-# Reload user systemd and ensure hyprpolkitagent is enabled/running
-if command -v systemctl >/dev/null 2>&1; then
-  if systemctl --user list-unit-files 2>/dev/null | grep -q '^hyprpolkitagent\.service'; then
-    if ! pgrep -u "$UID" -f 'xfce-polkit|polkit-gnome-authentication-agent-1|polkit-kde-authentication-agent-1|hyprpolkitagent' >/dev/null 2>&1; then
-      systemctl --user daemon-reload 2>&1 | tee -a "$LOG" || true
-      systemctl --user enable hyprpolkitagent 2>&1 | tee -a "$LOG" || true
-      systemctl --user start hyprpolkitagent 2>&1 | tee -a "$LOG" || true
-    else
-      echo "${NOTE} Polkit agent already running. Skipping hyprpolkitagent enable/start." | tee -a "$LOG"
-    fi
-  fi
-fi
+# Session daemons are systemd user units under hyprland-session.target. Ship
+# them, unmask/enable/want what this host has, and start the target in a live
+# session (scripts/lib_units.sh). Then strip the exec-once lines the units and
+# configs/Startup_Session.conf now own from the user's Startup_Apps overlay so
+# nothing starts twice. See docs/adr/run-session-daemons-as-systemd-user-units.md.
+install_session_units "$LOG"
+migrate_startup_overlay "$LOG" "$SESSION_UNITS_ENABLED"
 
 chassis_type=$(resolve_chassis_type "$LOG")
 if [ "$chassis_type" = "desktop" ]; then

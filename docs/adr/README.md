@@ -31,5 +31,6 @@ decision, add a **new** ADR that supersedes the old one rather than editing it.
 
 - [Adopt the swaylock-plugin xscreensaver screensaver lockscreen](adopt-swaylock-plugin-screensaver-lockscreen.md)
 - [Generate hypridle.conf from IdleSettings.conf](generate-hypridle-config-from-idle-settings.md)
+- [Run session daemons as systemd user units](run-session-daemons-as-systemd-user-units.md)
 
 [nygard]: https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions

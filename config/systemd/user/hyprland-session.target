@@ -1,0 +1,14 @@
+[Unit]
+Description=Hyprland session
+Documentation=https://github.com/syndr/hyprland-wm-config/blob/main/docs/adr/run-session-daemons-as-systemd-user-units.md
+# Owning our own target rather than hanging units off graphical-session.target
+# directly is what keeps the plain hyprland.desktop session working. uwsm brings
+# graphical-session.target up on its own and this target follows via the
+# [Install] below; without uwsm nothing starts it, so configs/Startup_Session.conf
+# runs `systemctl --user start hyprland-session.target` and BindsTo (which implies
+# Requires) drags graphical-session.target up with it.
+BindsTo=graphical-session.target
+After=graphical-session.target
+
+[Install]
+WantedBy=graphical-session.target

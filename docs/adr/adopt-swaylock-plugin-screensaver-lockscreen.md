@@ -3,7 +3,7 @@
 ## Status
 
 Accepted — 2026-07-05. Implemented and live-verified on a 4-output Hyprland
-workstation (alastor) through 2026-07-07 on branch
+workstation through 2026-07-07 on branch
 `feat/swaylock-screensaver-lockscreen`; the tooling was subsequently upstreamed
 (see Decision 7), leaving this repo with thin wrappers.
 
@@ -17,7 +17,7 @@ The lock screen was hyprlock: functional, static. xscreensaver ships ~300
 animated "hacks", and the `syndr/swaylock-plugin` fork of swaylock can run an
 arbitrary wallpaper command per output as the lock background
 (`--command-each`), adapting X11 hacks via `windowtolayer` + a packaged
-Xwayland wrapper. An ad-hoc deployment on haures proved the stack works; this
+Xwayland wrapper. An ad-hoc deployment on a laptop proved the stack works; this
 repo needed a first-class, deployable integration.
 
 Constraints that shaped the design:
@@ -119,7 +119,7 @@ Constraints that shaped the design:
 - Thumbnails need Xvfb + ImageMagick (in the phalanx image; auto-kicked
   generation notifies and skips elsewhere).
 
-### Verified (task-10 record, alastor)
+### Verified (task-10 record, 4-output workstation)
 
 Lock/unlock end-to-end on 4 outputs (one windowtolayer + hack per output);
 preview float rule; `Alt+p`/`Alt+c` conflict-free in rofi; RPM wrapper ships

@@ -81,10 +81,10 @@ run_post_upgrade_audit() {
   local base_startup="$hypr_dir/configs/Startup_Apps.conf"
   local user_startup="$hypr_dir/UserConfigs/Startup_Apps.conf"
   # Only meaningful while the vendor file is actually sourced. Startup is now
-  # owned by systemd user units, so hyprland.conf deliberately does not source
-  # $configs/Startup_Apps.conf -- the file stays on disk untouched to keep
-  # upstream merges clean, and lines shared with the overlay are not duplicates
-  # because only one copy is ever read.
+  # owned by systemd user units plus the vendor configs/Startup_Session.conf,
+  # so hyprland.conf deliberately does not source $configs/Startup_Apps.conf --
+  # the file stays on disk untouched to keep upstream merges clean, and lines
+  # shared with the overlay are not duplicates because only one copy is ever read.
   local base_startup_sourced=0
   if grep -Eq '^[[:space:]]*source[[:space:]]*=[[:space:]]*\$configs/Startup_Apps\.conf' \
       "$hypr_dir/hyprland.conf" 2>/dev/null; then
@@ -132,6 +132,44 @@ run_post_upgrade_audit() {
         audit_warn "desktop host has active laptop-only config in Laptops.conf or LaptopDisplay.conf"
       fi
     fi
+  fi
+
+  # Session daemons (wallpaper, waybar, hypridle, ...) are systemd user units
+  # pulled in by hyprland-session.target, and the target itself is started by
+  # the exec-once in configs/Startup_Session.conf (or by uwsm). Any link in
+  # that chain missing is the "Hyprland boots to a grey screen" failure.
+  if [ -f "$hyprland_conf" ] &&
+     ! grep -Eq '^[[:space:]]*source[[:space:]]*=[[:space:]]*\$configs/Startup_Session\.conf' "$hyprland_conf"; then
+    audit_warn "configs/Startup_Session.conf is not sourced in hyprland.conf; hyprland-session.target and compositor-state startup never run"
+  fi
+  if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
+    local unit_state
+    unit_state=$(systemctl --user is-enabled hyprland-session.target 2>/dev/null || true)
+    if [ "$unit_state" != "enabled" ]; then
+      audit_warn "hyprland-session.target is not enabled (state: ${unit_state:-missing}); waybar, hypridle and the wallpaper daemon will not start at login"
+    fi
+    local daemon_unit
+    for daemon_unit in waybar.service hypridle.service; do
+      unit_state=$(systemctl --user is-enabled "$daemon_unit" 2>/dev/null || true)
+      if [ "$unit_state" = "masked" ]; then
+        audit_warn "$daemon_unit is masked; hyprland-session.target cannot start it (systemctl --user unmask $daemon_unit)"
+      fi
+    done
+    local session_wants
+    session_wants=" $(systemctl --user show -p Wants --value hyprland-session.target 2>/dev/null || true) "
+    for daemon_unit in waybar.service swww-daemon.service; do
+      case "$session_wants" in
+        *" $daemon_unit "*) ;;
+        *) audit_warn "$daemon_unit is not wanted by hyprland-session.target (expected from install_session_units)" ;;
+      esac
+    done
+    local failed_units
+    failed_units=$(systemctl --user list-units --state=failed --plain --no-legend 2>/dev/null | awk '{print $1}')
+    for daemon_unit in $session_wants; do
+      case " $failed_units " in
+        *" $daemon_unit "*) audit_warn "$daemon_unit (wanted by hyprland-session.target) is in failed state: systemctl --user status $daemon_unit" ;;
+      esac
+    done
   fi
 
   local modules_workspaces="$waybar_dir/ModulesWorkspaces"
