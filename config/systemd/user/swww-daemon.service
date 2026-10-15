@@ -5,6 +5,11 @@ PartOf=graphical-session.target
 After=graphical-session.target
 BindsTo=graphical-session.target
 ConditionEnvironment=WAYLAND_DISPLAY
+# A program that cannot start (missing config, wrong library version) must end
+# up "failed" where the installer and audit can see it, not restart forever.
+# With RestartSec=5s the systemd default (5 in 10s) never trips.
+StartLimitIntervalSec=120
+StartLimitBurst=4
 
 [Service]
 Type=simple

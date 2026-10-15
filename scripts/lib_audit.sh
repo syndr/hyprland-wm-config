@@ -163,6 +163,13 @@ run_post_upgrade_audit() {
         *) audit_warn "$daemon_unit is not wanted by hyprland-session.target (expected from install_session_units)" ;;
       esac
     done
+    local failed_units
+    failed_units=$(systemctl --user list-units --state=failed --plain --no-legend 2>/dev/null | awk '{print $1}')
+    for daemon_unit in $session_wants; do
+      case " $failed_units " in
+        *" $daemon_unit "*) audit_warn "$daemon_unit (wanted by hyprland-session.target) is in failed state: systemctl --user status $daemon_unit" ;;
+      esac
+    done
   fi
 
   local modules_workspaces="$waybar_dir/ModulesWorkspaces"

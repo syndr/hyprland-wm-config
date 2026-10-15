@@ -11,13 +11,14 @@
 # "unit:gate". The gate is a command name for `command -v`, or one of the
 # markers __always__, __wallpaper__ (awww or swww via WallpaperCmd.sh) or
 # __ags__ (an ags binary that can actually find its entry script; a half-
-# installed ags exits 1 on every start and would sit in a restart loop).
+# installed ags exits 1 on every start and would sit in a restart loop), or
+# __quickshell__ (qs present and the overview config actually loads).
 SESSION_UNIT_GATES=(
   "swww-daemon.service:__wallpaper__"
   "nm-applet.service:nm-applet"
   "cliphist-text.service:cliphist"
   "cliphist-image.service:cliphist"
-  "quickshell-overview.service:qs"
+  "quickshell-overview.service:__quickshell__"
   "copyq.service:copyq"
   "ags.service:__ags__"
   "idle-power-watch.service:__always__"
@@ -47,6 +48,19 @@ session_wallpaper_daemon_available() {
     return
   fi
   command -v awww-daemon >/dev/null 2>&1 || command -v swww-daemon >/dev/null 2>&1
+}
+
+# 0 when `qs -c overview` stays up for a few seconds. quickshell exits 255
+# at once when the config fails to load -- e.g. Debian's 0.3.0 on Qt 6.8 lacks
+# the RectangularShadow type the overview uses -- and a unit for it would only
+# loop. Without a Wayland display (TTY install) the probe cannot run; fall back
+# to the binary check and let the audit report the unit if it fails later.
+session_quickshell_loads() {
+  command -v qs >/dev/null 2>&1 || return 1
+  [ -n "${WAYLAND_DISPLAY:-}" ] || return 0
+  command -v timeout >/dev/null 2>&1 || return 0
+  timeout 4 qs -c overview >/dev/null 2>&1
+  [ $? -eq 124 ]
 }
 
 install_session_units() {
@@ -110,6 +124,12 @@ install_session_units() {
       __ags__)
         if ! command -v ags >/dev/null 2>&1 || ! ags --version >/dev/null 2>&1; then
           echo "${NOTE:-[NOTE]} - $unit: ags not installed or not runnable; not enabled" 2>&1 | tee -a "$log"
+          continue
+        fi
+        ;;
+      __quickshell__)
+        if ! session_quickshell_loads; then
+          echo "${NOTE:-[NOTE]} - $unit: qs not installed or the overview config does not load with this quickshell/Qt; not enabled" 2>&1 | tee -a "$log"
           continue
         fi
         ;;
