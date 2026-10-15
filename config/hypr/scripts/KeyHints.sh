@@ -37,7 +37,7 @@ GDK_BACKEND=$BACKEND yad \
 " T" "Global theme switcher" "(rofi)" \
 " Q" "close active window" "(not kill)" \
 " Shift Q " "kills an active window" "(kill)" \
-" ALT mouse scroll up/down   " "Desktop Zoom" "Desktop Magnifier" \
+" ALT mouse scroll up/down   " "Desktop Zoom" "Desktop Magnifier (ALT 0 resets)" \
 " Alt V" "Clipboard Manager" "(cliphist)" \
 " W" "Choose wallpaper" "(Wallpaper Menu)" \
 " Shift W" "Choose wallpaper effects" "(imagemagick + swww)" \

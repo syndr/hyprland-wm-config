@@ -80,6 +80,26 @@
   `KOOL_IDLE_LOG=0` disables the former; the log is trimmed to 500 lines.
 
 ## Fixed
+- **Desktop zoom (SUPER ALT + scroll) stepped about ×2.5 per notch and
+  scrolled the window underneath.** The bind was defined twice
+  (`configs/Keybinds.conf` at ×2.0, `UserConfigs/UserKeybinds.conf` at ×1.25),
+  both firing on every notch and racing on the same `hyprctl getoption` /
+  `keyword` pair. Hyprland's `binds:scroll_event_delay` (default 300 ms) then
+  passed every wheel event inside that window through to the focused app, so a
+  hi-res wheel or the trackball-scroll daemon scrolled the page while zooming;
+  horizontal wheel drift was unbound and leaked the same way; and the awk clamp
+  ran before the divide, so zooming out went below 1.0. The vendor
+  `Keybinds.conf` now owns the binds: `scripts/Zoom.sh` steps ×1.05 per wheel
+  event (`KOOL_ZOOM_STEP`) and clamps to exactly 1.0, `scroll_event_delay` is
+  0, horizontal wheel is bound to the no-op `event` dispatcher while the chord
+  is held, and SUPER ALT 0 resets. SUPER + scroll workspace switching keeps its
+  300 ms cadence through the new `scripts/WheelThrottle.sh`, which consumes
+  the event instead of passing it on. Because upgrades restore `UserConfigs/`
+  from backup, `copy.sh` now migrates the legacy inline zoom binds out of a
+  restored `UserKeybinds.conf` (`migrate_legacy_zoom_binds`, backup
+  `*.backup-zoomfix-*`), and the post-upgrade audit warns when the same key
+  chord is bound in both `Keybinds.conf` and `UserKeybinds.conf`, not only on
+  identical lines.
 - One wake produced three `dpms on` and three `resumed` log entries.
   hypridle fires `on-resume` for every rule that had elapsed, and each
   blanking rule needs its own (a rule that never elapsed cannot un-blank), so
