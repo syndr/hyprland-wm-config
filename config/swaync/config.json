@@ -2,6 +2,7 @@
   "notification-visibility": {
     "claude-code-waiting": {
       "state": "transient",
+      "override-urgency": "critical",
       "app-name": "kitty",
       "summary": "^Claude Code$"
     }

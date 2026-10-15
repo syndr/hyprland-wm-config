@@ -40,8 +40,9 @@
 - **Claude Code "waiting for your input" notifications are toast-only.**
   kitty forwards them with summary `Claude Code` and no transient hint, so
   swaync kept every one in the control center. A `notification-visibility`
-  rule in `swaync/config.json` marks them `transient`: the popup still shows,
-  nothing is left to clear. Express upgrades preserve an existing swaync
+  rule in `swaync/config.json` marks them `transient` and re-files them as
+  critical: the popup stays until dismissed (swaync has no per-rule timeout),
+  nothing is left in the center. Express upgrades preserve an existing swaync
   config, so add the rule by hand on already-deployed hosts (or reload after
   copying it).
 
