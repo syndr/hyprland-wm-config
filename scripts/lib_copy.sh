@@ -1070,3 +1070,110 @@ migrate_legacy_zoom_binds() {
   mv "$tmp" "$user_keybinds"
   echo "${NOTE:-[NOTE]} - Migrated legacy desktop-zoom binds in UserKeybinds.conf: the SUPER ALT wheel pair now lives in configs/Keybinds.conf and zoom-submap lines use scripts/Zoom.sh (backup: $(basename "$backup"))." 2>&1 | tee -a "$log"
 }
+
+# Startup lines that moved out of the user overlay. Session bring-up and
+# compositor-state lines now live in the vendor-owned configs/Startup_Session.conf,
+# and long-lived daemons are systemd user units under hyprland-session.target
+# (docs/adr/run-session-daemons-as-systemd-user-units.md). Strip the user's
+# copies so nothing runs twice. A daemon line is only stripped when its unit was
+# actually enabled on this host (the list install_session_units built), so a
+# host without the program keeps its exec-once.
+migrate_startup_overlay() {
+  local log="$1"
+  local enabled=" ${2:-} "
+  local user_startup="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/Startup_Apps.conf"
+
+  [ -f "$user_startup" ] || return 0
+  grep -Eq '^[[:space:]]*exec-once[[:space:]]*=' "$user_startup" || return 0
+
+  # Fixed substrings that identify a Startup_Session.conf line regardless of
+  # how it was spelled (the uwsm finalize wrapper is a `sh -c`).
+  local -a owned_substrings=(
+    'uwsm finalize'
+    'start hyprland-session.target'
+    'dbus-update-activation-environment'
+    'import-environment'
+  )
+  # "command-basename|required substring" pairs for Startup_Session.conf lines.
+  local -a owned_commands=(
+    'hyprpm|reload'
+    'KeybindsLayoutInit.sh|'
+    'HideXwaylandBridge.sh|'
+    'Dropterminal.sh|--preload'
+    'Hyprsunset.sh|init'
+  )
+  # "unit|command-basename|required substring" for lines a unit took over.
+  local -a daemon_commands=(
+    'swww-daemon.service|swww-daemon|'
+    'swww-daemon.service|awww-daemon|'
+    'swww-daemon.service|WallpaperDaemon.sh|'
+    'waybar.service|waybar|'
+    'waybar.service|WaybarStartup.sh|'
+    'hypridle.service|hypridle|'
+    'nm-applet.service|nm-applet|'
+    'cliphist-text.service|wl-paste|--type text'
+    'cliphist-image.service|wl-paste|--type image'
+    'quickshell-overview.service|qs|'
+    'copyq.service|copyq|'
+    'ags.service|ags|'
+    'idle-power-watch.service|IdlePowerWatch.sh|'
+    'blueman-applet.service|blueman-applet|'
+    'hyprpolkitagent.service|Polkit.sh|'
+    'hyprpolkitagent.service|hyprpolkitagent|'
+    'plasma-polkit-agent.service|Polkit.sh|'
+    'plasma-polkit-agent.service|polkit-kde-authentication-agent-1|'
+  )
+
+  local tmp
+  tmp=$(mktemp)
+  local -a removed=()
+  local line cmd base needle entry unit want hit
+  while IFS= read -r line || [ -n "$line" ]; do
+    if [[ "$line" =~ ^[[:space:]]*exec-once[[:space:]]*= ]]; then
+      hit=0
+      cmd="${line#*=}"
+      cmd="${cmd#"${cmd%%[![:space:]]*}"}"
+      base="${cmd%%[[:space:]]*}"
+      base="${base##*/}"
+      for needle in "${owned_substrings[@]}"; do
+        [[ "$cmd" == *"$needle"* ]] && { hit=1; break; }
+      done
+      if [ "$hit" -eq 0 ]; then
+        for entry in "${owned_commands[@]}"; do
+          want="${entry#*|}"
+          if [ "$base" = "${entry%%|*}" ] && { [ -z "$want" ] || [[ "$cmd" == *"$want"* ]]; }; then
+            hit=1; break
+          fi
+        done
+      fi
+      if [ "$hit" -eq 0 ]; then
+        for entry in "${daemon_commands[@]}"; do
+          unit="${entry%%|*}"
+          [[ "$enabled" == *" $unit "* ]] || continue
+          entry="${entry#*|}"
+          want="${entry#*|}"
+          if [ "$base" = "${entry%%|*}" ] && { [ -z "$want" ] || [[ "$cmd" == *"$want"* ]]; }; then
+            hit=1; break
+          fi
+        done
+      fi
+      if [ "$hit" -eq 1 ]; then
+        removed+=("$line")
+        continue
+      fi
+    fi
+    printf '%s\n' "$line"
+  done <"$user_startup" >"$tmp"
+
+  if [ "${#removed[@]}" -eq 0 ]; then
+    rm -f "$tmp"
+    return 0
+  fi
+
+  local backup
+  backup="$user_startup.backup-sessionfix-$(date +%Y%m%d-%H%M%S)"
+  cp "$user_startup" "$backup"
+  mv "$tmp" "$user_startup"
+  echo "${NOTE:-[NOTE]} - Removed ${#removed[@]} exec-once line(s) from UserConfigs/Startup_Apps.conf that configs/Startup_Session.conf or a systemd unit now owns (backup: $(basename "$backup")):" 2>&1 | tee -a "$log"
+  printf '%s\n' "${removed[@]}" | sed 's/^/  - /' | tee -a "$log"
+}

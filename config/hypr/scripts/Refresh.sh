@@ -53,7 +53,9 @@ if command -v waybar-msg >/dev/null 2>&1; then
 elif pidof waybar >/dev/null; then
   killall -SIGUSR2 waybar 2>/dev/null || true
 else
-  waybar >/dev/null 2>&1 &
+  # Not running at all: WaybarStartup.sh starts waybar.service when the unit
+  # exists and only falls back to a bare launch without one.
+  "${SCRIPTSDIR}/WaybarStartup.sh" >/dev/null 2>&1 &
 fi
 
 # relaunch swaync

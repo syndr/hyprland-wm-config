@@ -6,6 +6,11 @@
 #  SPDX-License-Identifier: GPL-3.0-or-later
 # ==================================================
 # App enablement and editor selection helpers.
+#
+# The enable_* helpers below append exec-once lines to the vendor
+# configs/Startup_Apps.conf. hyprland.conf no longer sources that file -- long-
+# lived daemons are systemd user units wired by scripts/lib_units.sh -- so they
+# are harmless no-ops kept only so upstream merges stay clean.
 
 enable_asusctl() {
   local log="$1"

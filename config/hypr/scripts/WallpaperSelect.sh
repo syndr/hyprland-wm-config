@@ -138,6 +138,9 @@ modify_startup_config() {
     sed -i '/^\s*exec-once\s*=\s*\$scriptsDir\/WallpaperDaemon\.sh\s*$/s/^/\#/' "$startup_config"
     sed -i '/^\s*exec-once\s*=\s*swww-daemon\s*--format\s*xrgb\s*$/s/^/\#/' "$startup_config"
     sed -i '/^\s*#\s*exec-once\s*=\s*mpvpaper\s*.*$/s/^#\s*//;' "$startup_config"
+    # The wallpaper daemon is a systemd unit now; a video wallpaper needs it
+    # out of the way. install_session_units re-enables it on the next upgrade.
+    systemctl --user disable --now swww-daemon.service >/dev/null 2>&1 || true
 
     # Update the livewallpaper variable with the selected video path (using $HOME)
     selected_file="${selected_file/#$HOME/\$HOME}" # Replace /home/user with $HOME
@@ -150,6 +153,9 @@ modify_startup_config() {
     sed -i '/^\s*#\s*exec-once\s*=\s*swww-daemon\s*--format\s*xrgb\s*$/s/^\s*#\s*//;' "$startup_config"
 
     sed -i '/^\s*exec-once\s*=\s*mpvpaper\s*.*$/s/^/\#/' "$startup_config"
+    if systemctl --user cat swww-daemon.service >/dev/null 2>&1; then
+      systemctl --user enable --now swww-daemon.service >/dev/null 2>&1 || true
+    fi
 
     echo "Configured for static wallpaper (image)."
   fi

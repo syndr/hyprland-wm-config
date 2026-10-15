@@ -21,6 +21,20 @@ start_hypridle() {
     disown
 }
 
+# hypridle normally runs as the hypridle.service user unit (pulled in by
+# hyprland-session.target; see docs/adr/run-session-daemons-as-systemd-user-units.md).
+# Drive the unit when it exists so a toggle or reload never leaves a second
+# copy running outside systemd; fall back to the bare process otherwise.
+UNIT="hypridle.service"
+unit_loaded() {
+    local state
+    state=$(systemctl --user show "$UNIT" --property=LoadState --value 2>/dev/null) || return 1
+    [ -n "$state" ] && [ "$state" != "not-found" ] && [ "$state" != "masked" ]
+}
+unit_active() {
+    systemctl --user is-active --quiet "$UNIT" 2>/dev/null
+}
+
 if [[ "$1" == "status" ]]; then
     sleep 1
     if pgrep -x "$PROCESS" >/dev/null; then
@@ -29,8 +43,13 @@ if [[ "$1" == "status" ]]; then
         echo '{"text": "NOT RUNNING", "class": "notactive", "tooltip": "idle_inhibitor is ACTIVE\nLeft Click: Deactivate\nRight Click: Lock Screen"}'
     fi
 elif [[ "$1" == "toggle" ]]; then
-    if pgrep -x "$PROCESS" >/dev/null; then
+    if unit_active; then
+        systemctl --user stop "$UNIT"
+    elif pgrep -x "$PROCESS" >/dev/null; then
+        # A stray instance outside the unit: stop it the old way.
         pkill "$PROCESS"
+    elif unit_loaded; then
+        systemctl --user start "$UNIT"
     else
         start_hypridle
     fi
@@ -42,7 +61,9 @@ elif [[ "$1" == "reload" ]]; then
     #
     # Deliberately a no-op when hypridle is not running: the waybar toggle
     # above is the user's idle-inhibit switch, and a reload must not undo it.
-    if pgrep -x "$PROCESS" >/dev/null; then
+    if unit_active; then
+        systemctl --user restart "$UNIT"
+    elif pgrep -x "$PROCESS" >/dev/null; then
         pkill -x "$PROCESS"
         # Wait for the old instance to release its idle-notify objects before
         # starting the new one, so both are never registered at once.

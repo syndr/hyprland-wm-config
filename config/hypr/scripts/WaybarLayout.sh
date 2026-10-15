@@ -67,7 +67,13 @@ main() {
 
     case "$choice" in
         "no panel")
-            pgrep -x "waybar" && pkill waybar || true
+            # waybar normally runs as waybar.service; stopping the unit keeps
+            # Restart= from bringing it straight back.
+            if systemctl --user is-active --quiet waybar.service 2>/dev/null; then
+                systemctl --user stop waybar.service
+            else
+                pgrep -x "waybar" && pkill waybar || true
+            fi
             ;;
         *)
             apply_config "$choice"

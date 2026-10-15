@@ -1,0 +1,24 @@
+[Unit]
+Description=Wallpaper daemon for wlroots compositors (awww preferred, swww fallback)
+Documentation=https://github.com/syndr/hyprland-wm-config/blob/main/docs/adr/run-session-daemons-as-systemd-user-units.md
+PartOf=graphical-session.target
+After=graphical-session.target
+BindsTo=graphical-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+Type=simple
+# A script, not `bash -c`: systemd substitutes ${VAR} in ExecStart= itself.
+ExecStart=%h/.config/hypr/scripts/WallpaperDaemonExec.sh
+# Re-apply the cached wallpaper per monitor once the daemon answers queries.
+ExecStartPost=-%h/.config/hypr/scripts/WallpaperDaemon.sh
+Restart=on-failure
+RestartSec=5s
+# Migrated from an exec-once 2026-08-21. exec-once children inherit Hyprland's
+# pre-raise soft RLIMIT_NOFILE of 1024, the value too_many_unix_fds() checks the
+# per-user in-flight SCM_RIGHTS count against -- so they die first when fds run
+# short. Raising it here is the whole point of the migration.
+LimitNOFILE=524288:524288
+
+[Install]
+WantedBy=hyprland-session.target
