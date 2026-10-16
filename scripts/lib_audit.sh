@@ -170,6 +170,15 @@ run_post_upgrade_audit() {
         *" $daemon_unit "*) audit_warn "$daemon_unit (wanted by hyprland-session.target) is in failed state: systemctl --user status $daemon_unit" ;;
       esac
     done
+    # CopyQ's socket lives in ~/.config/copyq. A server that survived that
+    # directory being replaced stays "active" but nothing can connect to it,
+    # not even its own clipboard monitor, so the failed-state check above
+    # never sees it. Ask the server a trivial question instead.
+    if systemctl --user is-active --quiet copyq.service 2>/dev/null \
+       && command -v copyq >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1 \
+       && ! timeout 5 copyq eval 1 >/dev/null 2>&1; then
+      audit_warn "copyq.service is active but its socket is unreachable (config dir replaced under the running server?): systemctl --user restart copyq.service"
+    fi
   fi
 
   local modules_workspaces="$waybar_dir/ModulesWorkspaces"
