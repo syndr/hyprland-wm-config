@@ -303,6 +303,7 @@ copy_phase2() {
   local theme_state_dir="${HOME}/.config/.theme-state-pre-copy"
 
   snapshot_theme_state "$theme_state_dir"
+  stop_copyq_for_copy "$log"
   for DIR_NAME in $DIR; do
     local DIRPATH="${XDG_CONFIG_HOME:-$HOME/.config}/$DIR_NAME"
     if [ -d "$DIRPATH" ]; then
@@ -319,7 +320,54 @@ copy_phase2() {
   done
   restore_theme_state "$theme_state_dir" "$log"
   restore_copyq_state "$log"
+  start_copyq_after_copy "$log"
   install_terminal_configs "$log"
+}
+
+# CopyQ keeps its server socket (.copyq_s) and lock file inside ~/.config/copyq.
+# copy_phase2 renames that directory to a backup and copies a fresh one in; a
+# server still running through that keeps the old socket inode and nobody can
+# reach it any more -- every client, the keybind and the server's own clipboard
+# monitor fail with "Cannot connect to server" while the unit looks healthy.
+# So the server is stopped before the rename (it flushes its tabs and geometry
+# into the old dir, which restore_copyq_state carries over) and started again
+# once the new directory is in place.
+COPYQ_WAS_ACTIVE=0
+COPYQ_WAS_LEGACY=0
+
+copyq_user_manager_reachable() {
+  command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1
+}
+
+stop_copyq_for_copy() {
+  local log="$1"
+  COPYQ_WAS_ACTIVE=0
+  COPYQ_WAS_LEGACY=0
+  if copyq_user_manager_reachable && systemctl --user is-active --quiet copyq.service 2>/dev/null; then
+    echo "${NOTE:-[NOTE]} - stopping copyq.service while its config directory is replaced." 2>&1 | tee -a "$log"
+    if systemctl --user stop copyq.service >>"$log" 2>&1; then
+      COPYQ_WAS_ACTIVE=1
+    else
+      echo "${WARN:-[WARN]} - could not stop copyq.service; restart it by hand after the upgrade." 2>&1 | tee -a "$log"
+    fi
+  elif command -v copyq >/dev/null 2>&1 && pgrep -u "$UID" -x copyq >/dev/null 2>&1; then
+    echo "${NOTE:-[NOTE]} - asking the running copyq server to exit while its config directory is replaced." 2>&1 | tee -a "$log"
+    timeout 5 copyq exit >>"$log" 2>&1 || true
+    COPYQ_WAS_LEGACY=1
+  fi
+}
+
+start_copyq_after_copy() {
+  local log="$1"
+  if [ "$COPYQ_WAS_ACTIVE" -eq 1 ]; then
+    if systemctl --user start copyq.service >>"$log" 2>&1; then
+      echo "${OK:-[OK]} - copyq.service started again on the new config directory." 2>&1 | tee -a "$log"
+    else
+      echo "${WARN:-[WARN]} - copyq.service failed to start; see systemctl --user status copyq.service" 2>&1 | tee -a "$log"
+    fi
+  elif [ "$COPYQ_WAS_LEGACY" -eq 1 ]; then
+    echo "${NOTE:-[NOTE]} - copyq will come back with hyprland-session.target (install_session_units) or at next login." 2>&1 | tee -a "$log"
+  fi
 }
 
 restore_copyq_state() {

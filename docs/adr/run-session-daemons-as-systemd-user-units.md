@@ -53,7 +53,13 @@ cliphist watchers, quickshell overview, copyq, the polkit agent) used to be an
    `blueman-applet`, and exactly one polkit agent (hyprpolkitagent preferred,
    plasma-polkit-agent fallback, otherwise the vendor `Polkit.sh` path is left
    alone). If a Hyprland session is live it starts the target so the deploy
-   takes effect without re-login.
+   takes effect without re-login. CopyQ keeps its server socket and lock
+   file inside `~/.config/copyq`, which `copy_phase2` renames to a backup
+   and replaces; a server left running through that stays "active" but
+   unreachable (its own clipboard monitor fails once a second, the keybind
+   does nothing). The installer therefore stops `copyq.service` before the
+   rename and starts it after `restore_copyq_state`, and the post-upgrade
+   audit probes the socket with `copyq eval 1`.
 
 4. **Session bring-up is vendor-owned.** `configs/Startup_Session.conf`
    (deployed every upgrade, never restored) carries the `uwsm finalize` /
