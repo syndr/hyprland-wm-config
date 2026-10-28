@@ -193,12 +193,31 @@ local function load_monitor_configs()
   local system_configs = capture_monitor_configs(hyprDir .. "/lua/monitors.lua")
   local user_configs = capture_monitor_configs(user_monitors_path())
 
+  local function lookup(key)
+    return user_configs[key] or system_configs[key]
+  end
+
   return {
     user = user_configs,
-    get = function(name)
-      return user_configs[name] or system_configs[name]
+    -- Rules may be keyed by connector name or by "desc:<description>"; connector
+    -- names move between docks and replugs, so desc: rules are the stable form.
+    get = function(name, description)
+      return lookup(name) or (description and lookup("desc:" .. description)) or nil
     end,
   }
+end
+
+-- Connector name -> monitor description, for outputs Hyprland already knows.
+local function monitor_descriptions()
+  local descriptions = {}
+  if hl and hl.get_monitors then
+    for _, mon in ipairs(hl.get_monitors() or {}) do
+      if mon.name and mon.description then
+        descriptions[mon.name] = mon.description
+      end
+    end
+  end
+  return descriptions
 end
 
 local function post_layout_refresh()
@@ -234,8 +253,13 @@ local function apply_laptop_monitor_layout(trigger_refresh)
   local lid_closed = is_lid_closed()
 
   local externals = {}
+  local internal_connected = false
   for _, name in ipairs(connected) do
-    if not is_internal(name) then
+    if is_internal(name) then
+      if name == internal then
+        internal_connected = true
+      end
+    else
       table.insert(externals, name)
     end
   end
@@ -244,13 +268,20 @@ local function apply_laptop_monitor_layout(trigger_refresh)
   -- Wildcards are intentionally taken from the user file only: the system file's
   -- wildcard rules are Hyprland's own fallback chain, not per-output defaults.
   local user_configs = monitor_configs.user
-  local get_monitor_config = monitor_configs.get
+  local descriptions = monitor_descriptions()
+  local function get_monitor_config(name)
+    return monitor_configs.get(name, descriptions[name])
+  end
   local default_fallback = user_configs[""] or user_configs["*"] or { mode = "preferred", position = "auto", scale = "auto" }
 
   if #externals > 0 then
     -- External display(s) connected
-    if lid_closed then
-      -- Clamshell / Docked mode: lid is closed, disable internal panel
+    if lid_closed or not internal_connected then
+      -- Clamshell / Docked mode: lid is closed, disable internal panel.
+      -- A panel the kernel reports disconnected stays off too: something outside
+      -- Hyprland (e.g. a display-pipe guard forcing the connector off when the
+      -- externals use every pipe) owns that decision, and a forced-on rule would
+      -- light the panel the moment it reappears in a hotplug race.
       hl.monitor({ output = internal, disabled = true })
     else
       -- Lid is open: the internal panel has to come back ON, so `disabled = false`
@@ -278,8 +309,10 @@ local function apply_laptop_monitor_layout(trigger_refresh)
       local cfg = get_monitor_config(ext_name)
       if cfg then
         hl.monitor(cfg)
-      else
-        -- Fallback if not explicitly defined in monitors.lua
+      elseif descriptions[ext_name] then
+        -- Fallback if not explicitly defined in monitors.lua. Only for outputs
+        -- whose description is known: otherwise a desc: rule may still match,
+        -- and a name-keyed rule here would override it.
         hl.monitor({
           output = ext_name,
           disabled = false,
