@@ -87,11 +87,11 @@ try_config({ dwindle = { split_width_multiplier = 1.5 } })
 -- Scrolling: new columns open at a third of the monitor, so three fit side by
 -- side; SUPER SHIFT R / SUPER ALT SHIFT R step the width up / down through
 -- explicit_column_widths. Hover-focus scrolls a column
--- into view once a quarter of it is on screen.
+-- into view once 15% of it is on screen.
 try_config({
   scrolling = {
     column_width = 0.333,
-    follow_min_visible = 0.25,
+    follow_min_visible = 0.15,
     explicit_column_widths = "0.2, 0.25, 0.3, 0.333, 0.4, 0.45, 0.5, 0.55, 0.6, 0.667, 0.75, 0.8, 0.9, 1.0",
   },
 })
