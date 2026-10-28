@@ -145,8 +145,26 @@ bind(
 local scriptsDir = "$HOME/.config/hypr/scripts"
 local userScripts = "$HOME/.config/hypr/UserScripts"
 
+-- Vendor binds Alt+Shift (either order, either side) to keyboard-layout
+-- switching, which fires on ordinary Alt+Shift chords. Set true if you use
+-- more than one keyboard layout.
+local KB_LAYOUT_SWITCH_KEYS = false
+if not KB_LAYOUT_SWITCH_KEYS then
+  unbind("ALT", "Shift_L")
+  unbind("ALT", "Shift_R")
+  unbind("SHIFT", "Alt_L")
+  unbind("SHIFT", "Alt_R")
+end
+
 unbind("SUPER", "R")
 bind("SUPER", "R", exec_cmd(scriptsDir .. "/RofiLauncherMenu.sh"), { description = "launcher menu" })
+-- Vendor's SUPER R width cycle, moved off the launcher key.
+bind("SUPER SHIFT", "R", function()
+  local actions = rawget(_G, "KOOLDOTS_WINDOW_ACTIONS")
+  if actions and actions.cycle_column_width then
+    actions.cycle_column_width()
+  end
+end, { description = "Cycle column width preset (scrolling)" })
 bind("SUPER", "BackSpace", exec_cmd("pkill rofi || true && rofi -show drun -modi drun,filebrowser,run,window"), { description = "app launcher" })
 bind("SUPER", "grave", exec_cmd(scriptsDir .. "/LockScreen.sh"), { description = "lock screen" })
 bind("SUPER SHIFT", "L", exec_cmd(userScripts .. "/ScreenHackSelect.sh"), { description = "screensaver hack picker" })

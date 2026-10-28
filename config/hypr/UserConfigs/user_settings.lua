@@ -84,6 +84,9 @@ end
 
 try_config({ debug = { disable_logs = true } })
 try_config({ dwindle = { split_width_multiplier = 1.5 } })
+-- Scrolling: new columns open at a third of the monitor, so three fit side by
+-- side; SUPER SHIFT R cycles the width per column.
+try_config({ scrolling = { column_width = 0.333 } })
 -- 2 = auto (software cursor only where the hardware cursor is known broken).
 try_config({ cursor = { no_hardware_cursors = 2 } })
 -- The zoom binds need every wheel event; see user_keybinds.lua.
