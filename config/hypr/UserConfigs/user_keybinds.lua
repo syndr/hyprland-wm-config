@@ -158,13 +158,11 @@ end
 
 unbind("SUPER", "R")
 bind("SUPER", "R", exec_cmd(scriptsDir .. "/RofiLauncherMenu.sh"), { description = "launcher menu" })
--- Vendor's SUPER R width cycle, moved off the launcher key.
-bind("SUPER SHIFT", "R", function()
-  local actions = rawget(_G, "KOOLDOTS_WINDOW_ACTIONS")
-  if actions and actions.cycle_column_width then
-    actions.cycle_column_width()
-  end
-end, { description = "Cycle column width preset (scrolling)" })
+-- Scrolling column width, stepped through scrolling:explicit_column_widths
+-- (user_settings.lua). Replaces vendor's SUPER R cycle, which only goes one
+-- way through a coarse list. Hold to repeat.
+bind("SUPER SHIFT", "R", hl.dsp.layout("colresize +conf"), { description = "Column width up (scrolling)", repeating = true })
+bind("SUPER ALT SHIFT", "R", hl.dsp.layout("colresize -conf"), { description = "Column width down (scrolling)", repeating = true })
 bind("SUPER", "BackSpace", exec_cmd("pkill rofi || true && rofi -show drun -modi drun,filebrowser,run,window"), { description = "app launcher" })
 bind("SUPER", "grave", exec_cmd(scriptsDir .. "/LockScreen.sh"), { description = "lock screen" })
 bind("SUPER SHIFT", "L", exec_cmd(userScripts .. "/ScreenHackSelect.sh"), { description = "screensaver hack picker" })

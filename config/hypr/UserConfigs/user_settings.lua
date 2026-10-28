@@ -85,9 +85,16 @@ end
 try_config({ debug = { disable_logs = true } })
 try_config({ dwindle = { split_width_multiplier = 1.5 } })
 -- Scrolling: new columns open at a third of the monitor, so three fit side by
--- side; SUPER SHIFT R cycles the width per column. Hover-focus scrolls a column
+-- side; SUPER SHIFT R / SUPER ALT SHIFT R step the width up / down through
+-- explicit_column_widths. Hover-focus scrolls a column
 -- into view once a quarter of it is on screen.
-try_config({ scrolling = { column_width = 0.333, follow_min_visible = 0.25 } })
+try_config({
+  scrolling = {
+    column_width = 0.333,
+    follow_min_visible = 0.25,
+    explicit_column_widths = "0.2, 0.25, 0.3, 0.333, 0.4, 0.45, 0.5, 0.55, 0.6, 0.667, 0.75, 0.8, 0.9, 1.0",
+  },
+})
 -- 2 = auto (software cursor only where the hardware cursor is known broken).
 try_config({ cursor = { no_hardware_cursors = 2 } })
 -- The zoom binds need every wheel event; see user_keybinds.lua.
