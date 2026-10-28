@@ -530,6 +530,9 @@ copy_phase2() {
 
   snapshot_theme_state "$theme_state_dir"
   stop_copyq_for_copy "$log"
+  # After the stop, so the server has flushed its state into the dir first.
+  local copyq_state_dir="${XDG_CONFIG_HOME:-$HOME/.config}/.copyq-state-pre-copy"
+  snapshot_copyq_state "$copyq_state_dir"
   for DIR_NAME in $DIR; do
     local DIRPATH="${XDG_CONFIG_HOME:-$HOME/.config}/$DIR_NAME"
     if [ -d "$DIRPATH" ]; then
@@ -548,7 +551,7 @@ copy_phase2() {
     fi
   done
   restore_theme_state "$theme_state_dir" "$log"
-  restore_copyq_state "$log"
+  restore_copyq_state "$log" "$copyq_state_dir"
   start_copyq_after_copy "$log"
 
   if [ -n "$hypr_waybar_stash" ] && [ -d "$hypr_waybar_stash/waybar" ]; then
@@ -636,42 +639,66 @@ start_copyq_after_copy() {
   fi
 }
 
+# Snapshot this run's CopyQ state (encryption keypair, commands, settings,
+# themes) before copy_phase2 replaces the directory. Restoring from a snapshot
+# taken here, rather than from whichever copyq-backup-* is newest by mtime,
+# guarantees the keys that come back are the ones that were just in use.
+snapshot_copyq_state() {
+  local state_dir="$1"
+  local copyq_dir="$HOME/.config/copyq"
+  rm -rf "$state_dir"
+  [ -d "$copyq_dir" ] || return 0
+  mkdir -p "$state_dir"
+
+  local source_path
+  for source_path in "$copyq_dir"/* "$copyq_dir"/.[!.]*; do
+    [ -e "$source_path" ] || continue
+    case "$(basename "$source_path")" in
+    copyq.lock | .copyq_s) continue ;;
+    esac
+    cp -a "$source_path" "$state_dir/" || true
+  done
+}
+
 restore_copyq_state() {
   local log="$1"
+  local state_dir="$2"
   local copyq_dir="$HOME/.config/copyq"
-  local backup_dir
-  backup_dir=$(find "$HOME/.config" -maxdepth 1 -type d -name 'copyq-backup-*' -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2-)
 
-  [ -n "$backup_dir" ] || return 0
-  [ -d "$backup_dir" ] || return 0
+  [ -n "$state_dir" ] && [ -d "$state_dir" ] || return 0
   [ -d "$copyq_dir" ] || return 0
 
+  # copyq.conf included: settings changed in the app win over the repo default,
+  # which only applies when there was no previous config.
   local restored_any=0
   local source_path
-  for source_path in "$backup_dir"/*; do
+  for source_path in "$state_dir"/* "$state_dir"/.[!.]*; do
     [ -e "$source_path" ] || continue
-
     local file_name
     file_name=$(basename "$source_path")
-    case "$file_name" in
-    copyq.conf | copyq.lock | .copyq_s)
-      continue
-      ;;
-    esac
-
-    if [ -d "$source_path" ]; then
-      rm -rf "$copyq_dir/$file_name"
-      cp -r "$source_path" "$copyq_dir/$file_name" 2>&1 | tee -a "$log"
-    else
-      cp -f "$source_path" "$copyq_dir/$file_name" 2>&1 | tee -a "$log"
-    fi
+    rm -rf "${copyq_dir:?}/$file_name"
+    cp -a "$source_path" "$copyq_dir/$file_name" 2>&1 | tee -a "$log"
     restored_any=1
   done
 
+  chmod 600 "$copyq_dir/copyq.sec" "$copyq_dir/copyq.pub" 2>/dev/null || true
+
+  # Report, don't fail: copy.sh runs under set -e, and aborting here would
+  # leave the rest of the install half-done. The snapshot is kept on mismatch.
+  local key keys_ok=1
+  for key in copyq.sec copyq.pub; do
+    [ -f "$state_dir/$key" ] || continue
+    if ! cmp -s "$state_dir/$key" "$copyq_dir/$key"; then
+      echo "${ERROR:-[ERROR]} - CopyQ encryption key $key was not restored intact; encrypted tabs will not open. A copy is kept at $state_dir/$key." 2>&1 | tee -a "$log"
+      keys_ok=0
+    fi
+  done
+
   if [ "$restored_any" -eq 1 ]; then
-    chmod 600 "$copyq_dir/copyq.pub" 2>/dev/null || true
-    echo "${OK:-[OK]} - Restored CopyQ stateful files from backup." 2>&1 | tee -a "$log"
+    echo "${OK:-[OK]} - Restored CopyQ state (keys, commands, settings) from pre-copy snapshot." 2>&1 | tee -a "$log"
   fi
+  [ "$keys_ok" -eq 1 ] && rm -rf "$state_dir"
+  return 0
 }
 
 # Sync repo-managed quickshell files into an already-installed quickshell

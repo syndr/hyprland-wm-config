@@ -182,6 +182,17 @@ install_session_units() {
     # Static units have no [Install]; that is fine, the wants link above is enough.
     systemctl --user enable "$agent" >>"$log" 2>&1 || true
     SESSION_UNITS_ENABLED="$SESSION_UNITS_ENABLED $agent"
+    # Unwire the agent not chosen; an earlier deploy may have picked it.
+    local other
+    for other in hyprpolkitagent.service plasma-polkit-agent.service; do
+      [ "$other" = "$agent" ] && continue
+      local link="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/hyprland-session.target.wants/$other"
+      if [ -L "$link" ]; then
+        rm -f "$link"
+        systemctl --user disable "$other" >>"$log" 2>&1 || true
+        echo "${NOTE:-[NOTE]} - removed $other from hyprland-session.target; $agent is the polkit agent." 2>&1 | tee -a "$log"
+      fi
+    done
   else
     echo "${NOTE:-[NOTE]} - no hyprpolkitagent or plasma-polkit-agent unit; leaving the Polkit.sh exec-once path alone." 2>&1 | tee -a "$log"
   fi
