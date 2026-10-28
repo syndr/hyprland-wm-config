@@ -137,15 +137,24 @@ if [[ -z "$workspace_selector" || -z "$monitor_name" || -z "$layout_name" ]]; th
   exit 1
 fi
 
+# Rules are written against the monitor description: connector names move when
+# a dock re-enumerates its outputs, so a DP-9 rule can land on the wrong screen.
+monitor_rule="$monitor_name"
+if [[ "$monitor_name" != desc:* ]]; then
+  monitor_desc="$(hyprctl -j monitors all 2>/dev/null | jq -r --arg n "$monitor_name" '.[] | select(.name == $n) | .description // empty' 2>/dev/null | head -n1 || true)"
+  [[ -n "$monitor_desc" ]] && monitor_rule="desc:$monitor_desc"
+fi
+
 update_lua_workspaces() {
   local target_ws="$1"
   local target_mon="$2"
   local target_layout="$3"
   local lua_file="$4"
+  local target_mon_alt="${5:-}"
 
   mkdir -p "$(dirname "$lua_file")"
 
-  python3 - "$lua_file" "$target_ws" "$target_mon" "$target_layout" <<'PY'
+  python3 - "$lua_file" "$target_ws" "$target_mon" "$target_layout" "$target_mon_alt" <<'PY'
 import sys
 import re
 from pathlib import Path
@@ -154,6 +163,9 @@ lua_path = Path(sys.argv[1])
 target_ws = sys.argv[2].strip()
 target_mon = sys.argv[3].strip()
 target_layout = sys.argv[4].strip()
+# Connector name for the same monitor: older rules keyed by it are matched and
+# rewritten to the desc: form instead of being duplicated.
+target_mon_alt = sys.argv[5].strip() if len(sys.argv) > 5 else ""
 
 header = """-- ==================================================
 --  KoolDots (2026)
@@ -179,7 +191,7 @@ if not content.strip():
     content = header
 
 pattern = re.compile(
-    r'hl\.workspace_rule\(\s*\{([^}]+)\}\s*\)',
+    r'hl\.workspace_rule\(\s*\{((?:[^{}]|\{[^{}]*\})+)\}\s*\)',
     re.MULTILINE | re.DOTALL
 )
 
@@ -193,22 +205,35 @@ def parse_rule_table(table_body):
 
 updated = False
 
+# When a desc: rule for this workspace exists, it is the one updated and any
+# connector-keyed duplicate is dropped; otherwise the connector rule is rewritten.
+has_exact = any(
+    parse_rule_table(m.group(1)).get("workspace", "") == target_ws
+    and parse_rule_table(m.group(1)).get("monitor", "") == target_mon
+    for m in pattern.finditer(content)
+)
+
 def replace_rule(match):
     global updated
     body = match.group(1)
     params = parse_rule_table(body)
     ws = params.get("workspace", "")
     mon = params.get("monitor", "")
-    if ws == target_ws and mon == target_mon:
+    if ws == target_ws and target_mon_alt and mon == target_mon_alt and mon != target_mon and has_exact:
+        return ""
+    if ws == target_ws and mon in (target_mon, target_mon_alt) and mon:
         updated = True
+        if mon != target_mon:
+            body = re.sub(r'(\bmonitor\s*=\s*)(["\'][^"\']*["\']|[^\s,]+)', lambda m: m.group(1) + '"' + target_mon + '"', body, count=1)
         if re.search(r'\blayout\s*=', body):
             new_body = re.sub(r'(\blayout\s*=\s*)(["\'][^"\']*["\']|[^\s,]+)', r'\1"' + target_layout + '"', body)
         else:
-            new_body = body.rstrip() + f', layout = "{target_layout}"'
+            new_body = body.rstrip() + f', layout = "{target_layout}" '
         return f"hl.workspace_rule({{{new_body}}})"
     return match.group(0)
 
 new_content = pattern.sub(replace_rule, content)
+new_content = re.sub(r'\n[ \t]*\n(?=[ \t]*\n)', '\n', new_content)
 
 if not updated:
     new_rule = f'hl.workspace_rule({{ workspace = "{target_ws}", monitor = "{target_mon}", layout = "{target_layout}" }})\n'
@@ -222,7 +247,7 @@ PY
 
 # Always update Lua workspace rules in UserConfigs/workspaces.lua
 if command -v python3 >/dev/null 2>&1; then
-  update_lua_workspaces "$workspace_selector" "$monitor_name" "$layout_name" "$lua_workspaces_file"
+  update_lua_workspaces "$workspace_selector" "$monitor_rule" "$layout_name" "$lua_workspaces_file" "$monitor_name"
 fi
 
 # Optionally update workspaces.conf only if it already exists
@@ -235,7 +260,7 @@ if [[ -f "$workspaces_file" ]]; then
 
   awk \
     -v target_ws="$workspace_selector" \
-    -v target_mon="$monitor_name" \
+    -v target_mon="$monitor_rule" \
     -v target_layout="$layout_name" '
 function trim(v) {
   gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
