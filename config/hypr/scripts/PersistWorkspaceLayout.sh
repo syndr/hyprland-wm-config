@@ -142,7 +142,11 @@ fi
 monitor_rule="$monitor_name"
 if [[ "$monitor_name" != desc:* ]]; then
   monitor_desc="$(hyprctl -j monitors all 2>/dev/null | jq -r --arg n "$monitor_name" '.[] | select(.name == $n) | .description // empty' 2>/dev/null | head -n1 || true)"
-  [[ -n "$monitor_desc" ]] && monitor_rule="desc:$monitor_desc"
+  # EDID text is written into a Lua file Hyprland executes: only a plain
+  # character set is accepted, anything else keeps the connector name.
+  if [[ -n "$monitor_desc" && "$monitor_desc" =~ ^[A-Za-z0-9\ ._()-]+$ ]]; then
+    monitor_rule="desc:$monitor_desc"
+  fi
 fi
 
 update_lua_workspaces() {
