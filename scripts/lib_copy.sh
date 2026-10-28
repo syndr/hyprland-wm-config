@@ -253,6 +253,14 @@ copy_phase1() {
 
   # Handle ~/.config/rofi: backup existing and ensure an empty directory exists
   local rofi_dir="${XDG_CONFIG_HOME:-$HOME/.config}/rofi"
+  # Bare `rofi` calls (no -config) read ~/.config/rofi/config.rasi; a stub that
+  # imports the hypr/rofi config keeps them on the installed theme. A directory
+  # holding only that stub is already in the target state and is left alone.
+  local rofi_stub_line='@import "~/.config/hypr/rofi/config.rasi"'
+  if [ -d "$rofi_dir" ] && [ "$(ls -A "$rofi_dir" 2>/dev/null)" = "config.rasi" ] \
+    && grep -qxF "$rofi_stub_line" "$rofi_dir/config.rasi" 2>/dev/null; then
+    return 0
+  fi
   if [ -d "$rofi_dir" ]; then
     if [ -n "$(ls -A "$rofi_dir" 2>/dev/null)" ]; then
       BACKUP_DIR=$(get_backup_dirname)
@@ -274,6 +282,7 @@ copy_phase1() {
   else
     mkdir -p "$rofi_dir"
   fi
+  printf '/* Bare rofi calls load the hypr/rofi config (theme selector target). */\n%s\n' "$rofi_stub_line" >"$rofi_dir/config.rasi"
 }
 
 # Restore symlink targets and custom user-added configs/styles from a waybar
