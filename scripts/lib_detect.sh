@@ -19,27 +19,32 @@ detect_nvidia_adjust() {
   if echo "$pci_info" | grep -iq nvidia; then
     has_nvidia=1
   fi
-  if echo "$pci_info" | grep -iq intel; then
+  # Word boundaries matter here: lspci calls VGA devices "VGA compatible
+  # controller", and a bare `ati` alternative matches the "ati" inside
+  # "compatible", which made has_amd=1 on every machine with a VGA device. It no
+  # longer changes the value written below - every NVIDIA path writes 1 - but it
+  # still picks the wrong log line, so the bounds stay.
+  if echo "$pci_info" | grep -Eiq '\bintel\b'; then
     has_intel=1
   fi
-  if echo "$pci_info" | grep -Eiq 'amd|advanced micro devices|ati'; then
+  if echo "$pci_info" | grep -Eiq '\b(amd|ati)\b|advanced micro devices'; then
     has_amd=1
   fi
   if [ "$has_nvidia" -eq 1 ]; then
     echo "${INFO:-[INFO]} Nvidia GPU detected. Setting up proper env's and configs" 2>&1 | tee -a "$log" || true
-    sed -i '/env = LIBVA_DRIVER_NAME,nvidia/s/^#//' "$config_root/hypr/configs/ENVariables.conf"
-    sed -i '/env = __GLX_VENDOR_LIBRARY_NAME,nvidia/s/^#//' "$config_root/hypr/configs/ENVariables.conf"
-    sed -i '/env = NVD_BACKEND,direct/s/^#//' "$config_root/hypr/configs/ENVariables.conf"
-    sed -i '/env = GSK_RENDERER,ngl/s/^#//' "$config_root/hypr/configs/ENVariables.conf"
+    if [ -f "$config_root/hypr/lua/env.lua" ]; then
+      sed -i 's/^--[[:space:]]*hl\.env("LIBVA_DRIVER_NAME"/hl.env("LIBVA_DRIVER_NAME"/' "$config_root/hypr/lua/env.lua"
+      sed -i 's/^--[[:space:]]*hl\.env("__GLX_VENDOR_LIBRARY_NAME"/hl.env("__GLX_VENDOR_LIBRARY_NAME"/' "$config_root/hypr/lua/env.lua"
+      sed -i 's/^--[[:space:]]*hl\.env("NVD_BACKEND"/hl.env("NVD_BACKEND"/' "$config_root/hypr/lua/env.lua"
+      sed -i 's/^--[[:space:]]*hl\.env("GSK_RENDERER"/hl.env("GSK_RENDERER"/' "$config_root/hypr/lua/env.lua"
+    fi
     if [ "$has_intel" -eq 1 ] || [ "$has_amd" -eq 1 ]; then
       echo "${INFO:-[INFO]} Hybrid GPU detected (Intel/NVIDIA or AMD/NVIDIA). Applying cursor handoff fixes." 2>&1 | tee -a "$log" || true
-      sed -i -E 's/^([[:space:]]*no_hardware_cursors[[:space:]]*=[[:space:]]*)[0-9]+/\1 0/' "$config_root/hypr/configs/SystemSettings.conf"
-      sed -i -E 's/^([[:space:]]*no_hardware_cursors[[:space:]]*=[[:space:]]*)[0-9]+/\1 0/' "$config_root/hypr/lua/settings.lua"
-      sed -i '/hyprctl setcursor/s/^#//' "$config_root/hypr/configs/Startup_Apps.conf"
-    else
-      sed -i -E 's/^([[:space:]]*no_hardware_cursors[[:space:]]*=[[:space:]]*)[0-9]+/\1 1/' "$config_root/hypr/configs/SystemSettings.conf"
-      sed -i -E 's/^([[:space:]]*no_hardware_cursors[[:space:]]*=[[:space:]]*)[0-9]+/\1 1/' "$config_root/hypr/lua/settings.lua"
     fi
+    # 1 = don't use hardware cursors. NVIDIA needs software cursors, hybrids
+    # included: the cursor plane has to be handed between the iGPU and the dGPU,
+    # and that handoff is what users see as a stuck or corrupt cursor.
+    [ -f "$config_root/hypr/lua/settings.lua" ] && sed -i -E 's/^([[:space:]]*no_hardware_cursors[[:space:]]*=[[:space:]]*)[0-9]+/\1 1/' "$config_root/hypr/lua/settings.lua"
   fi
 }
 
@@ -49,76 +54,199 @@ detect_vm_adjust() {
   local config_root="${WORK_CONFIG_DIR:-config}"
   if hostnamectl | grep -q 'Chassis: vm'; then
     echo "${INFO:-[INFO]} System is running in a virtual machine. Setting up proper env's and configs" 2>&1 | tee -a "$log" || true
-    sed -i 's/^\([[:space:]]*no_hardware_cursors[[:space:]]*=[[:space:]]*\)2/\1 1/' "$config_root/hypr/configs/SystemSettings.conf"
-    sed -i '/env = WLR_RENDERER_ALLOW_SOFTWARE,1/s/^#//' "$config_root/hypr/configs/ENVariables.conf"
-    sed -i '/monitor = Virtual-1, 1920x1080@60,auto,1/s/^#//' "$config_root/hypr/monitors.conf"
+    [ -f "$config_root/hypr/lua/env.lua" ] && sed -i 's/^--[[:space:]]*hl\.env("WLR_RENDERER_ALLOW_SOFTWARE"/hl.env("WLR_RENDERER_ALLOW_SOFTWARE"/' "$config_root/hypr/lua/env.lua"
+    # Software cursors, like the NVIDIA path: virtual GPUs (virtio, VMware,
+    # VirtualBox) mis-render hardware cursors, so enable no_hardware_cursors.
+    # Runs after detect_nvidia_adjust, so a passed-through NVIDIA GPU in a VM
+    # ends up enabled here too.
+    [ -f "$config_root/hypr/lua/settings.lua" ] && sed -i -E 's/^([[:space:]]*no_hardware_cursors[[:space:]]*=[[:space:]]*)[0-9]+/\1 1/' "$config_root/hypr/lua/settings.lua"
   fi
 }
 
-# NixOS tweaks: ensure polkit overlay is enabled and default disabled.
+# NixOS tweaks: log detection; polkit handling is delegated inside Polkit.sh
 detect_nixos_adjust() {
   local log="$1"
-  local config_root="${WORK_CONFIG_DIR:-config}"
   if hostnamectl | grep -q 'Operating System: NixOS'; then
-    echo "${INFO:-[INFO]} NixOS Distro Detected. Setting up proper env's and configs." 2>&1 | tee -a "$log" || true
-    local OVERLAY_SA="$config_root/hypr/configs/Startup_Apps.conf"
-    local DISABLE_SA="$config_root/hypr/configs/Startup_Apps.disable"
-    mkdir -p "$(dirname "$OVERLAY_SA")"
-    touch "$OVERLAY_SA" "$DISABLE_SA"
-    grep -qx 'exec-once = $scriptsDir/Polkit-NixOS.sh' "$OVERLAY_SA" || echo 'exec-once = $scriptsDir/Polkit-NixOS.sh' >>"$OVERLAY_SA"
-    grep -qx '\$scriptsDir/Polkit.sh' "$DISABLE_SA" || echo '$scriptsDir/Polkit.sh' >>"$DISABLE_SA"
+    echo "${INFO:-[INFO]} NixOS Distro Detected." 2>&1 | tee -a "$log" || true
   fi
 }
 # Qt Quick Controls style safety: enable Hyprland style only when module exists.
 adjust_qt_quick_controls_style() {
   local log="$1"
   local config_root="${WORK_CONFIG_DIR:-config}"
-  local env_conf="$config_root/hypr/configs/ENVariables.conf"
-  local env_lua="$config_root/hypr/lua/env.lua"
+  local source_hypr_dir="$config_root/hypr"
+  local target_hypr_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hypr"
   local style="Basic"
   local qt_style_override="Fusion"
-  local has_kvantum=0
+  local has_kvantum_qml=0
+  local set_env_lua_vars
+  local _restore_nullglob=0
 
-  if find /usr/lib /usr/lib64 /usr/share -type d -path '*/qml/*/org/hyprland/style' -print -quit 2>/dev/null | grep -q .; then
+  # The Qt QML probe patterns below are all optional paths, so an unmatched
+  # glob must expand to nothing instead of aborting the script. zsh aborts by
+  # default (`nomatch`); bash can be configured to as well (`failglob`).
+  if [ -n "${ZSH_VERSION:-}" ]; then
+    setopt local_options null_glob 2>/dev/null || true
+  elif [ -n "${BASH_VERSION:-}" ] && ! shopt -q nullglob 2>/dev/null; then
+    shopt -s nullglob 2>/dev/null || true
+    _restore_nullglob=1
+  fi
+
+  set_env_lua_vars() {
+    local file="$1"
+    [ -f "$file" ] || return 0
+
+    if grep -q '^hl\.env("QT_QUICK_CONTROLS_STYLE",' "$file"; then
+      sed -i -E "s|^hl\\.env\\(\"QT_QUICK_CONTROLS_STYLE\", \".*\"\\)$|hl.env(\"QT_QUICK_CONTROLS_STYLE\", \"${style}\")|" "$file"
+    else
+      printf '\nhl.env("QT_QUICK_CONTROLS_STYLE", "%s")\n' "$style" >>"$file"
+    fi
+
+    if grep -q '^hl\.env("QT_STYLE_OVERRIDE",' "$file"; then
+      sed -i -E "s|^hl\\.env\\(\"QT_STYLE_OVERRIDE\", \".*\"\\)$|hl.env(\"QT_STYLE_OVERRIDE\", \"${qt_style_override}\")|" "$file"
+    else
+      printf 'hl.env("QT_STYLE_OVERRIDE", "%s")\n' "$qt_style_override" >>"$file"
+    fi
+  }
+
+  local has_hyprland_style=0
+  for d in \
+    /usr/lib*/qt*/qml \
+    /usr/lib*/*-linux-gnu/qt*/qml \
+    /usr/lib*/qml \
+    /usr/share/qt*/qml \
+    /usr/share/qml; do
+    [ -d "$d" ] || continue
+    if [ -d "$d/org/hyprland/style" ]; then
+      has_hyprland_style=1
+      break
+    fi
+  done
+  if [ "$has_hyprland_style" -eq 1 ]; then
     style="org.hyprland.style"
   elif command -v dpkg >/dev/null 2>&1 && dpkg -s qml6-module-org-hyprland-style >/dev/null 2>&1; then
     style="org.hyprland.style"
   fi
 
-  # Kvantum is a Qt *widget* style plugin (libkvantum.so under qt5/qt6
-  # plugins/styles), not a QML module. Detect the plugin so QT_STYLE_OVERRIDE
-  # stays kvantum when the engine is present (also accept a QML kvantum dir).
-  if find /usr/lib /usr/lib64 -type f -path '*/plugins/styles/libkvantum.so' -print -quit 2>/dev/null | grep -q . \
-     || find /usr/lib /usr/lib64 /usr/share -type d -path '*/qml/*/kvantum' -print -quit 2>/dev/null | grep -q .; then
-    has_kvantum=1
+  for d in \
+    /usr/lib*/qt*/qml \
+    /usr/lib*/*-linux-gnu/qt*/qml \
+    /usr/lib*/qml \
+    /usr/share/qt*/qml \
+    /usr/share/qml; do
+    [ -d "$d" ] || continue
+    if [ -d "$d/kvantum" ] || [ -d "$d/org/kde/kvantum" ]; then
+      has_kvantum_qml=1
+      qt_style_override="kvantum"
+      break
+    fi
+  done
+  # Fork: Kvantum is a Qt *widget* style plugin (libkvantum.so under
+  # qt5/qt6 plugins/styles), not only a QML module; detect the plugin too.
+  if [ "$has_kvantum_qml" -eq 0 ] && find /usr/lib /usr/lib64 -type f -path '*/plugins/styles/libkvantum.so' -print -quit 2>/dev/null | grep -q .; then
+    has_kvantum_qml=1
     qt_style_override="kvantum"
   fi
 
-  if [ -f "$env_conf" ]; then
-    sed -i -E "s|^env = QT_QUICK_CONTROLS_STYLE,.*$|env = QT_QUICK_CONTROLS_STYLE,${style}|" "$env_conf"
-    sed -i -E "s|^env = QT_STYLE_OVERRIDE,.*$|env = QT_STYLE_OVERRIDE,${qt_style_override}|" "$env_conf"
-  fi
-  if [ -f "$env_lua" ]; then
-    sed -i -E "s|^hl\\.env\\(\"QT_QUICK_CONTROLS_STYLE\", \".*\"\\)$|hl.env(\"QT_QUICK_CONTROLS_STYLE\", \"${style}\")|" "$env_lua"
-    sed -i -E "s|^hl\\.env\\(\"QT_STYLE_OVERRIDE\", \".*\"\\)$|hl.env(\"QT_STYLE_OVERRIDE\", \"${qt_style_override}\")|" "$env_lua"
-  fi
+  set_env_lua_vars "$source_hypr_dir/lua/env.lua"
+  set_env_lua_vars "$source_hypr_dir/configs/system_env.lua"
+
+  set_env_lua_vars "$target_hypr_dir/lua/env.lua"
+  set_env_lua_vars "$target_hypr_dir/configs/system_env.lua"
 
   if [ "$style" = "org.hyprland.style" ]; then
     echo "${INFO:-[INFO]} hyprland Qt style module detected. Using QT_QUICK_CONTROLS_STYLE=$style" 2>&1 | tee -a "$log" || true
   else
     echo "${WARN:-[WARN]} hyprland Qt style module not found. Using QT_QUICK_CONTROLS_STYLE=Basic to avoid Qt app crashes." 2>&1 | tee -a "$log" || true
   fi
-  if [ "$has_kvantum" -eq 1 ]; then
-    echo "${INFO:-[INFO]} Kvantum style plugin detected. Using QT_STYLE_OVERRIDE=kvantum" 2>&1 | tee -a "$log" || true
+  if [ "$has_kvantum_qml" -eq 1 ]; then
+    echo "${INFO:-[INFO]} Kvantum QML module detected. Using QT_STYLE_OVERRIDE=kvantum" 2>&1 | tee -a "$log" || true
   else
-    echo "${WARN:-[WARN]} Kvantum style plugin not found. Using QT_STYLE_OVERRIDE=Fusion as fallback." 2>&1 | tee -a "$log" || true
+    echo "${WARN:-[WARN]} Kvantum QML module not found. Using QT_STYLE_OVERRIDE=Fusion as fallback." 2>&1 | tee -a "$log" || true
+  fi
+
+  if [ "$_restore_nullglob" -eq 1 ]; then
+    shopt -u nullglob 2>/dev/null || true
+  fi
+}
+
+# Ensure ~/.zprofile (zsh) and ~/.profile (bash) source /etc/profile.
+# On Debian with zsh, /etc/profile sets up flatpak XDG data dirs so flatpak
+# apps appear in the rofi menu. Without this entry the rofi app menu is often
+# missing all flatpak-installed applications.
+ensure_shell_profile_sources_etc_profile() {
+  local log="${1:-/dev/null}"
+  local user_shell
+  local entry_marker='source /etc/profile'
+  local entry
+  entry="$(printf 'if [ -f /etc/profile ]; then\n    source /etc/profile\nfi')"
+
+  user_shell="$(basename "${SHELL:-bash}")"
+
+  _add_etc_profile_entry() {
+    local profile_file="$1"
+    local plog="$2"
+    local profile_dir
+    profile_dir="$(dirname "$profile_file")"
+
+    # NixOS/Home Manager can manage shell profiles as read-only symlinks.
+    # Skip safely so copy.sh continues instead of exiting on redirection errors.
+    if [ -e "$profile_file" ] && [ ! -w "$profile_file" ]; then
+      if [ -L "$profile_file" ]; then
+        echo "${WARN:-[WARN]} $profile_file is a read-only symlink (likely Home Manager managed). Skipping /etc/profile entry update." 2>&1 | tee -a "$plog"
+      else
+        echo "${WARN:-[WARN]} $profile_file is not writable. Skipping /etc/profile entry update." 2>&1 | tee -a "$plog"
+      fi
+      return 0
+    fi
+
+    if [ ! -e "$profile_file" ] && [ ! -w "$profile_dir" ]; then
+      echo "${WARN:-[WARN]} Cannot create $profile_file (directory not writable). Skipping /etc/profile entry update." 2>&1 | tee -a "$plog"
+      return 0
+    fi
+    if [ ! -f "$profile_file" ]; then
+      echo "${NOTE:-[NOTE]} Creating $profile_file and adding /etc/profile source entry (fixes flatpak in rofi on Debian)" 2>&1 | tee -a "$plog"
+      printf '\n# Source /etc/profile to ensure system paths (e.g. flatpak) are available\n%s\n' "$entry" > "$profile_file" || {
+        echo "${WARN:-[WARN]} Failed to write $profile_file. Skipping and continuing." 2>&1 | tee -a "$plog"
+        return 0
+      }
+    elif ! grep -qF "$entry_marker" "$profile_file"; then
+      echo "${NOTE:-[NOTE]} Adding /etc/profile source entry to $profile_file (fixes flatpak in rofi on Debian)" 2>&1 | tee -a "$plog"
+      printf '\n# Source /etc/profile to ensure system paths (e.g. flatpak) are available\n%s\n' "$entry" >> "$profile_file" || {
+        echo "${WARN:-[WARN]} Failed to append to $profile_file. Skipping and continuing." 2>&1 | tee -a "$plog"
+        return 0
+      }
+    else
+      echo "${INFO:-[INFO]} $profile_file already sources /etc/profile; no changes needed." 2>&1 | tee -a "$plog"
+    fi
+  }
+
+  # zsh: check ~/.zprofile when the user's shell is zsh
+  if [ "$user_shell" = "zsh" ]; then
+    echo "${INFO:-[INFO]} zsh detected - checking ~/.zprofile for /etc/profile source entry..." 2>&1 | tee -a "$log"
+    _add_etc_profile_entry "$HOME/.zprofile" "$log"
+  fi
+
+  # bash: check ~/.profile when bash is the default shell and the file already exists
+  if [ "$user_shell" = "bash" ] && [ -f "$HOME/.profile" ]; then
+    echo "${INFO:-[INFO]} bash detected - checking ~/.profile for /etc/profile source entry..." 2>&1 | tee -a "$log"
+    _add_etc_profile_entry "$HOME/.profile" "$log"
+  fi
+}
+
+# Decide waybar config/style based on chassis type. Echoes chosen config path.
+detect_waybar_config() {
+  if hostnamectl | grep -q 'Chassis: desktop'; then
+    echo "desktop"
+  else
+    echo "laptop"
   fi
 }
 
 # Resolve chassis type, preferring a saved explicit choice over hostnamectl.
 resolve_chassis_type() {
   local log="$1"
-  local chassis_type_file="$HOME/.config/hypr/.chassis_type"
+  local chassis_type_file="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/.chassis_type"
   local detected="desktop"
 
   if hostnamectl | grep -q 'Chassis: laptop'; then

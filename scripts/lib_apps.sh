@@ -6,80 +6,81 @@
 #  SPDX-License-Identifier: GPL-3.0-or-later
 # ==================================================
 # App enablement and editor selection helpers.
-#
-# The enable_* helpers below append exec-once lines to the vendor
-# configs/Startup_Apps.conf. hyprland.conf no longer sources that file -- long-
-# lived daemons are systemd user units wired by scripts/lib_units.sh -- so they
-# are harmless no-ops kept only so upstream merges stay clean.
 
 enable_asusctl() {
   local log="$1"
-  local config_root="${WORK_CONFIG_DIR:-config}"
+  local cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}"
   if command -v asusctl >/dev/null 2>&1; then
-    local OVERLAY_SA="$config_root/hypr/configs/Startup_Apps.conf"
-    mkdir -p "$(dirname "$OVERLAY_SA")"
-    touch "$OVERLAY_SA"
-    grep -qx 'exec-once = rog-control-center' "$OVERLAY_SA" || echo 'exec-once = rog-control-center' >>"$OVERLAY_SA"
+    local target="$cfg_home/hypr/UserConfigs/user_startup.lua"
+    if [ -f "$target" ]; then
+      if ! grep -q '"rog-control-center"' "$target"; then
+        sed -i '/local startup_commands = {/a \  "rog-control-center",' "$target"
+        echo "${INFO:-[INFO]} Added rog-control-center to user_startup.lua" 2>&1 | tee -a "$log"
+      fi
+    fi
   fi
 }
 
 enable_blueman() {
   local log="$1"
-  local config_root="${WORK_CONFIG_DIR:-config}"
+  local cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}"
   if command -v blueman-applet >/dev/null 2>&1; then
-    local OVERLAY_SA="$config_root/hypr/configs/Startup_Apps.conf"
-    mkdir -p "$(dirname "$OVERLAY_SA")"
-    touch "$OVERLAY_SA"
-    grep -qx 'exec-once = blueman-applet' "$OVERLAY_SA" || echo 'exec-once = blueman-applet' >>"$OVERLAY_SA"
+    local target="$cfg_home/hypr/UserConfigs/user_startup.lua"
+    if [ -f "$target" ]; then
+      if sed -n '/local startup_commands = {/,/}/p' "$target" | grep -q '^[[:space:]]*--[[:space:]]*"blueman-applet"'; then
+        sed -i '/local startup_commands = {/,/}/s/^[[:space:]]*--[[:space:]]*\("blueman-applet"\)/\1/' "$target"
+        echo "${INFO:-[INFO]} Enabled blueman-applet in user_startup.lua" 2>&1 | tee -a "$log"
+      elif ! grep -q '"blueman-applet"' "$target"; then
+        sed -i '/local startup_commands = {/a \  "blueman-applet",' "$target"
+        echo "${INFO:-[INFO]} Added blueman-applet to user_startup.lua" 2>&1 | tee -a "$log"
+      fi
+    fi
   fi
 }
 
 enable_ags() {
   local log="$1"
-  local config_root="${WORK_CONFIG_DIR:-config}"
+  local base="${DOTFILES_DIR:-.}"
+  local config_root="${WORK_CONFIG_DIR:-$base/config}"
+  local cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}"
   if command -v ags >/dev/null 2>&1; then
     echo "${INFO:-[INFO]} AGS detected - enabling in startup and refresh scripts" 2>&1 | tee -a "$log"
-    local OVERLAY_SA="$config_root/hypr/configs/Startup_Apps.conf"
-    mkdir -p "$(dirname "$OVERLAY_SA")"
-    touch "$OVERLAY_SA"
-    grep -qx 'exec-once = ags' "$OVERLAY_SA" || echo 'exec-once = ags' >>"$OVERLAY_SA"
-    sed -i '/#ags -q && ags &/s/^#//' "$config_root/hypr/scripts/RefreshNoWaybar.sh"
-    sed -i '/#ags -q && ags &/s/^#//' "$config_root/hypr/scripts/Refresh.sh"
+    local target="$cfg_home/hypr/UserConfigs/user_startup.lua"
+    if [ -f "$target" ]; then
+      if ! grep -q '"ags"' "$target"; then
+        sed -i '/local startup_commands = {/a \  "ags",' "$target"
+      fi
+    fi
+    sed -i '/#ags -q && ags &/s/^#//' "$config_root/hypr/scripts/RefreshNoWaybar.sh" 2>/dev/null || true
+    sed -i '/#ags -q && ags &/s/^#//' "$config_root/hypr/scripts/Refresh.sh" 2>/dev/null || true
   fi
 }
 
 enable_quickshell() {
   local log="$1"
-  local config_root="${WORK_CONFIG_DIR:-config}"
+  local base="${DOTFILES_DIR:-.}"
+  local config_root="${WORK_CONFIG_DIR:-$base/config}"
   if command -v qs >/dev/null 2>&1; then
-    echo "${INFO:-[INFO]} Quickshell detected - enabling in startup and refresh scripts" 2>&1 | tee -a "$log"
-    local OVERLAY_SA="$config_root/hypr/configs/Startup_Apps.conf"
-    mkdir -p "$(dirname "$OVERLAY_SA")"
-    touch "$OVERLAY_SA"
-    grep -qx 'exec-once = qs' "$OVERLAY_SA" || echo 'exec-once = qs' >>"$OVERLAY_SA"
-    sed -i '/#pkill qs && qs &/s/^#//' "$config_root/hypr/scripts/RefreshNoWaybar.sh"
-    sed -i '/#pkill qs && qs &/s/^#//' "$config_root/hypr/scripts/Refresh.sh"
+    echo "${INFO:-[INFO]} Quickshell detected - enabling in refresh scripts" 2>&1 | tee -a "$log"
+    sed -i '/#pkill qs && qs &/s/^#//' "$config_root/hypr/scripts/RefreshNoWaybar.sh" 2>/dev/null || true
+    sed -i '/#pkill qs && qs &/s/^#//' "$config_root/hypr/scripts/Refresh.sh" 2>/dev/null || true
   fi
 }
 
 ensure_keybinds_init() {
-  local log="$1"
-  local config_root="${WORK_CONFIG_DIR:-config}"
-  local OVERLAY_SA="$config_root/hypr/configs/Startup_Apps.conf"
-  mkdir -p "$(dirname "$OVERLAY_SA")"
-  if ! grep -qx 'exec-once = \$scriptsDir/KeybindsLayoutInit.sh' "$OVERLAY_SA"; then
-    echo 'exec-once = $scriptsDir/KeybindsLayoutInit.sh' >>"$OVERLAY_SA"
-    echo "${INFO:-[INFO]} Added KeybindsLayoutInit.sh to user Startup_Apps overlay" 2>&1 | tee -a "$log"
-  fi
+  # In Lua mode, keybindings are evaluated dynamically via system_keybinds.lua.
+  # KeybindsLayoutInit.sh is obsolete.
+  return 0
 }
 
 install_terminal_configs() {
   local log="$1"
-  local config_root="${WORK_CONFIG_DIR:-config}"
+  local base="${DOTFILES_DIR:-.}"
+  local config_root="${WORK_CONFIG_DIR:-$base/config}"
 
   # Ghostty
   local GHOSTTY_SRC="$config_root/ghostty/config"
-  local GHOSTTY_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/ghostty"
+  local GHOSTTY_DIR="${XDG_CONFIG_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}}/ghostty"
   local GHOSTTY_DEST="$GHOSTTY_DIR/config"
   if [ -f "$GHOSTTY_SRC" ]; then
     if [ -d "$GHOSTTY_DIR" ]; then
@@ -95,13 +96,32 @@ install_terminal_configs() {
     if [ -f "$GHOSTTY_DIR/wallust.conf" ]; then
       sed -i -E 's/^(\\s*palette\\s*=\\s*)([0-9]{1,2}):/\\1\\2=/' "$GHOSTTY_DIR/wallust.conf" 2>&1 | tee -a "$log" || true
     fi
+
+    # Bundled themes: some distros ship Ghostty without its built-in theme
+    # collection (share/ghostty/themes), which makes `theme = <name>` fail at
+    # launch. Install ours into the user themes dir so the shipped default
+    # resolves everywhere. Existing user themes are never overwritten.
+    local GHOSTTY_THEMES_SRC="$config_root/ghostty/themes"
+    if [ -d "$GHOSTTY_THEMES_SRC" ]; then
+      mkdir -p "$GHOSTTY_DIR/themes"
+      local theme_file theme_name
+      for theme_file in "$GHOSTTY_THEMES_SRC"/*; do
+        [ -f "$theme_file" ] || continue
+        theme_name="$(basename "$theme_file")"
+        if [ -e "$GHOSTTY_DIR/themes/$theme_name" ]; then
+          continue
+        fi
+        cp -f "$theme_file" "$GHOSTTY_DIR/themes/$theme_name" 2>&1 | tee -a "$log" || true
+        echo "${OK:-[OK]} - Installed Ghostty theme: ${MAGENTA:-}$theme_name${RESET:-}" 2>&1 | tee -a "$log"
+      done
+    fi
   else
     echo "${ERROR:-[ERROR]} - $GHOSTTY_SRC not found; skipping Ghostty config install." 2>&1 | tee -a "$log"
   fi
 
   # WezTerm
   local WEZTERM_SRC="$config_root/wezterm/wezterm.lua"
-  local WEZTERM_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/wezterm"
+  local WEZTERM_DIR="${XDG_CONFIG_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}}/wezterm"
   local WEZTERM_DEST="$WEZTERM_DIR/wezterm.lua"
   if [ -f "$WEZTERM_SRC" ]; then
     mkdir -p "$WEZTERM_DIR"
@@ -111,39 +131,63 @@ install_terminal_configs() {
   fi
 }
 
+apply_editor_selection_to_userconfigs() {
+  local log="${1:-/dev/null}"
+  local base="${DOTFILES_DIR:-.}"
+  local config_root="${WORK_CONFIG_DIR:-$base/config}"
+  local cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+  local editor="${KOOLDOTS_SELECTED_EDITOR:-}"
+  local visual="${KOOLDOTS_SELECTED_VISUAL:-}"
+
+  [ -z "$editor" ] && [ -z "$visual" ] && return 0
+
+  # The Hyprlang 01-UserDefaults.conf no longer ships (removed with the other
+  # .conf files), so the editor/visual default is written to the Lua file only.
+  local lua_defaults_files=()
+  [ -f "$config_root/hypr/UserConfigs/user_defaults.lua" ] && lua_defaults_files+=("$config_root/hypr/UserConfigs/user_defaults.lua")
+  [ -f "$cfg_home/hypr/UserConfigs/user_defaults.lua" ] && lua_defaults_files+=("$cfg_home/hypr/UserConfigs/user_defaults.lua")
+
+  for lf in "${lua_defaults_files[@]}"; do
+    if [ -n "$editor" ]; then
+      if grep -q 'KOOLDOTS_DEFAULTS\.edit' "$lf"; then
+        sed -i "s/^[[:space:]]*KOOLDOTS_DEFAULTS\.edit[[:space:]]*=.*/KOOLDOTS_DEFAULTS.edit = \"$editor\"/" "$lf"
+      fi
+    fi
+    if [ -n "$visual" ]; then
+      if grep -q 'KOOLDOTS_DEFAULTS\.visual' "$lf"; then
+        sed -i "s/^[[:space:]]*KOOLDOTS_DEFAULTS\.visual[[:space:]]*=.*/KOOLDOTS_DEFAULTS.visual = \"$visual\"/" "$lf"
+      fi
+    fi
+  done
+}
+
 choose_default_editor() {
   local log="$1"
-  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
-    echo "${NOTE:-[NOTE]} Express mode: preserving existing default editor." 2>&1 | tee -a "$log"
-    return
-  fi
+  local base="${DOTFILES_DIR:-.}"
+  local config_root="${WORK_CONFIG_DIR:-$base/config}"
   local editor_set=0
-  local config_root="${WORK_CONFIG_DIR:-config}"
-  local defaults_file="$config_root/hypr/UserConfigs/01-UserDefaults.conf"
+
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ] || [ "${RUN_MODE:-}" = "express" ]; then
+    echo "${NOTE:-[NOTE]} Express mode: keeping existing editor settings (manage anytime via Rofi Quick Settings: SUPER+SHIFT+E)." 2>&1 | tee -a "$log"
+    return 0
+  fi
+
+  local cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+  local user_def_lua="$cfg_home/hypr/UserConfigs/user_defaults.lua"
+  if [ "${RUN_MODE:-}" = "upgrade" ] && [ -f "$user_def_lua" ]; then
+    local current_edit
+    current_edit=$(sed -nE 's/^[[:space:]]*KOOLDOTS_DEFAULTS\.edit[[:space:]]*=[[:space:]]*["'"'"']([^"'"'"']*)["'"'"'].*/\1/p' "$user_def_lua" | tail -n1)
+    if [ -n "$current_edit" ]; then
+      echo "${NOTE:-[NOTE]} Existing editor '$current_edit' preserved from user_defaults.lua (manage anytime via Rofi Quick Settings: SUPER+SHIFT+E)." 2>&1 | tee -a "$log"
+      return 0
+    fi
+  fi
+
   update_editor() {
     local editor=$1
-    sed -i "s/#env = EDITOR,.*/env = EDITOR,$editor #default editor/" "$defaults_file"
+    export KOOLDOTS_SELECTED_EDITOR="$editor"
+    apply_editor_selection_to_userconfigs "$log"
     echo "${OK:-[OK]} Default editor set to ${MAGENTA:-}$editor${RESET:-}." 2>&1 | tee -a "$log"
-  }
-  # Set (or, with empty value, comment out) an `env = VAR,value note` line in the
-  # defaults file; appends the line if absent. Used for the optional VISUAL editor.
-  set_env_default() {
-    local var_name="$1" value="$2" note="$3" tmp_file
-    tmp_file=$(mktemp)
-    awk -v var_name="$var_name" -v value="$value" -v note="$note" '
-      BEGIN { updated = 0 }
-      {
-        if ($0 ~ "^[[:space:]#]*env[[:space:]]*=[[:space:]]*" var_name ",") {
-          if (value != "") { print "env = " var_name "," value note } else { print "#env = " var_name "," note }
-          updated = 1
-        } else { print $0 }
-      }
-      END {
-        if (!updated) {
-          if (value != "") { print "env = " var_name "," value note } else { print "#env = " var_name "," note }
-        }
-      }
-    ' "$defaults_file" > "$tmp_file" && mv "$tmp_file" "$defaults_file"
   }
   if command -v nvim &>/dev/null; then
     printf "${INFO:-[INFO]} ${MAGENTA:-}neovim${RESET:-} is detected as installed\n"
@@ -189,10 +233,12 @@ choose_default_editor() {
   fi
 
   if [[ -n "$visual_value" ]]; then
-    set_env_default "VISUAL" "$visual_value" " #default visual editor for quick settings (optional)"
+    export KOOLDOTS_SELECTED_VISUAL="$visual_value"
+    apply_editor_selection_to_userconfigs "$log"
     echo "${OK:-[OK]} VISUAL editor set to ${MAGENTA:-}$visual_value${RESET:-}." 2>&1 | tee -a "$log"
   else
-    set_env_default "VISUAL" "" " #default visual editor for quick settings (optional)"
+    export KOOLDOTS_SELECTED_VISUAL=""
+    apply_editor_selection_to_userconfigs "$log"
     echo "${NOTE:-[NOTE]} VISUAL editor not set (optional)." 2>&1 | tee -a "$log"
   fi
 }
@@ -356,6 +402,64 @@ install_waybar_weather() {
     install_waybar_weather_nixos "$log"
   else
     install_waybar_weather_binary "$log"
+  fi
+}
+
+# Install Oh My Zsh (and bundled theme templates) when zsh is used and OMZ is missing.
+# Uses --unattended --keep-zshrc so it never blocks the script, doesn't hijack the user's
+# shell immediately, and preserves the existing .zshrc.
+ensure_oh_my_zsh() {
+  local log="${1:-/dev/null}"
+  local user_shell
+  user_shell="$(basename "${SHELL:-}")"
+
+  # Only trigger if the user's shell is zsh or zsh is installed
+  if [ "$user_shell" != "zsh" ] && ! command -v zsh >/dev/null 2>&1; then
+    return 0
+  fi
+
+  # Skip if Oh My Zsh is already installed in any standard location
+  local candidate
+  for candidate in \
+    "${ZSH:-}" \
+    "$HOME/.oh-my-zsh" \
+    "${ZDOTDIR:-$HOME}/.oh-my-zsh" \
+    "${XDG_DATA_HOME:-$HOME/.local/share}/oh-my-zsh" \
+    "/usr/share/oh-my-zsh" \
+    "/usr/share/ohmyzsh" \
+    "/opt/oh-my-zsh"; do
+    if [ -n "$candidate" ] && [ -d "$candidate/themes" ]; then
+      echo "${INFO:-[INFO]} Oh My Zsh themes already present at $candidate" 2>&1 | tee -a "$log"
+      return 0
+    fi
+  done
+
+  # Verify network / download tools before attempting install
+  if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+    echo "${WARN:-[WARN]} curl/wget not found; cannot install Oh My Zsh theme templates." 2>&1 | tee -a "$log"
+    return 1
+  fi
+  if ! command -v git >/dev/null 2>&1; then
+    echo "${WARN:-[WARN]} git not found; cannot install Oh My Zsh theme templates." 2>&1 | tee -a "$log"
+    return 1
+  fi
+
+  echo "${INFO:-[INFO]} Oh My Zsh not found - installing theme templates to ~/.oh-my-zsh..." 2>&1 | tee -a "$log"
+
+  local install_cmd
+  if command -v curl >/dev/null 2>&1; then
+    install_cmd='curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh'
+  else
+    install_cmd='wget -qO- https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh'
+  fi
+
+  # Run unattended without changing the default shell or overwriting .zshrc
+  if sh -c "$($install_cmd)" "" --unattended --keep-zshrc 2>&1 | tee -a "$log"; then
+    echo "${OK:-[OK]} Oh My Zsh theme templates installed successfully." 2>&1 | tee -a "$log"
+    return 0
+  else
+    echo "${WARN:-[WARN]} Oh My Zsh installation failed; theme switcher may only show 'Random'." 2>&1 | tee -a "$log"
+    return 1
   fi
 }
 

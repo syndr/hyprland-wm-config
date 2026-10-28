@@ -8,12 +8,26 @@
 # Kitty Themes Source https://github.com/dexpota/kitty-themes #
 
 # Define directories and variables
-kitty_themes_DiR="${XDG_CONFIG_HOME:-$HOME/.config}/kitty/kitty-themes" # Kitty Themes Directory
-kitty_config="${XDG_CONFIG_HOME:-$HOME/.config}/kitty/kitty.conf"
+kitty_themes_DiR="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/kitty-themes" # Kitty Themes Directory
+user_kitty_config="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/kitty.conf"
+kitty_config="$user_kitty_config"
 iDIR="${XDG_CONFIG_HOME:-$HOME/.config}/swaync/images" # For notifications
-rofi_theme_for_this_script="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config-kitty-theme.rasi"
+rofi_theme_for_this_script="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/config-kitty-theme.rasi"
 wallust_refresh_script="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/WallustSwww.sh"
 debug_log="${XDG_CACHE_HOME:-$HOME/.cache}/kooldots-kitty-themes.log"
+# Same indicator the other selection menus use. Never part of a theme name.
+MARKER="👉"
+
+ensure_managed_kitty_config() {
+  if [ -f "$user_kitty_config" ] && [ -r "$user_kitty_config" ]; then
+    kitty_config="$user_kitty_config"
+    return 0
+  fi
+}
+
+sync_runtime_kitty_config() {
+  :
+}
 
 # --- Helper Functions ---
 notify_user() {
@@ -31,6 +45,9 @@ resolve_theme_selection() {
 
   rofi_output="${rofi_output//$'\r'/}"
   rofi_output="${rofi_output//$'\n'/}"
+  # The menu is asked for an index, but a marker that reaches a name lookup
+  # would silently match nothing.
+  rofi_output="${rofi_output#"$MARKER "}"
 
   if [[ "$rofi_output" =~ ^[0-9]+$ ]] && [ "$rofi_output" -lt "${#available_theme_names[@]}" ]; then
     current_selection_index="$rofi_output"
@@ -78,19 +95,17 @@ apply_kitty_theme_to_config() {
   cp "$kitty_config" "$temp_kitty_config_file"
 
   local include_target
-  include_target="include ./kitty-themes/$(basename "$theme_file_path_to_apply")"
+  include_target="include ${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/kitty-themes/$(basename "$theme_file_path_to_apply")"
 
-  if grep -q -E '^[#[:space:]]*include\s+\./kitty-themes/.*\.conf' "$temp_kitty_config_file"; then
-    sed -i -E "s|^([#[:space:]]*include\s+\./kitty-themes/).*\.conf|$include_target|g" "$temp_kitty_config_file"
-  else
-    if [ -s "$temp_kitty_config_file" ] && [ "$(tail -c1 "$temp_kitty_config_file")" != "" ]; then
-      echo >>"$temp_kitty_config_file"
-    fi
-    echo "$include_target" >>"$temp_kitty_config_file"
+  sed -i -E '/^[[:space:]]*include[[:space:]]+.*kitty-themes\/.*\.conf[[:space:]]*$/d' "$temp_kitty_config_file"
+  if [ -s "$temp_kitty_config_file" ] && [ "$(tail -c1 "$temp_kitty_config_file")" != "" ]; then
+    echo >>"$temp_kitty_config_file"
   fi
+  echo "$include_target" >>"$temp_kitty_config_file"
 
   cp "$temp_kitty_config_file" "$kitty_config"
   rm "$temp_kitty_config_file"
+  sync_runtime_kitty_config
   local trigger_wallust_refresh=0
   if [ "$theme_name_to_apply" = "Set by wallpaper" ] && [ -x "$wallust_refresh_script" ]; then
     trigger_wallust_refresh=1
@@ -100,9 +115,11 @@ apply_kitty_theme_to_config() {
     log_debug "wallust_refresh_background_started"
   fi
   if pidof kitty >/dev/null 2>&1; then
+    if command -v kitty >/dev/null 2>&1; then
+      (kitty @ load-config >/dev/null 2>&1 || true) &
+    fi
     if [ "$apply_mode" = "apply" ] && [ "$is_wallpaper_mode" -eq 0 ] && command -v kitty >/dev/null 2>&1; then
       (
-        kitty @ load-config >/dev/null 2>&1 || true
         kitty @ set-colors --all --configured "$theme_file_path_to_apply" >/dev/null 2>&1 || true
       ) &
     fi
@@ -126,6 +143,12 @@ if [ ! -f "$rofi_theme_for_this_script" ]; then
   notify_user "$iDIR/error.png" "Rofi Config Missing" "Rofi theme for Kitty selector not found at: $rofi_theme_for_this_script."
   exit 1
 fi
+ensure_managed_kitty_config
+if [ ! -f "$kitty_config" ] || [ ! -r "$kitty_config" ]; then
+  notify_user "$iDIR/error.png" "E-R-R-O-R" "Kitty config not found: $kitty_config"
+  exit 1
+fi
+sync_runtime_kitty_config
 
 original_kitty_config_content_backup=$(cat "$kitty_config")
 
@@ -138,7 +161,19 @@ if [ ${#available_theme_names[@]} -eq 0 ]; then
 fi
 
 current_selection_index=0
-current_active_theme_name=$(awk -F'include ./kitty-themes/|\\.conf' '/^[[:space:]]*include \\.\/kitty-themes\/.*\\.conf/{print $2; exit}' "$kitty_config")
+current_active_theme_name=$(
+  awk '
+    /^[[:space:]]*include[[:space:]]+.*kitty-themes\/.*\.conf/ {
+      line=$0
+      sub(/^[[:space:]]*include[[:space:]]+/, "", line)
+      gsub(/^"|"$/, "", line)
+      gsub(/^.*\//, "", line)
+      sub(/\.conf$/, "", line)
+      print line
+      exit
+    }
+  ' "$kitty_config"
+)
 if [ "$current_active_theme_name" = "01-Wallust" ]; then
   current_active_theme_name="Set by wallpaper"
 elif [ "$current_active_theme_name" = "00-Default" ]; then
@@ -157,18 +192,26 @@ theme_to_preview_now="${available_theme_names[$current_selection_index]}"
 
 while true; do
 
+  # One row per theme, with the marker on the theme that is live. A preview
+  # writes the config straight away, so the marked row is the theme in effect
+  # right now and it moves with the preview.
   rofi_input_list=""
-  for theme_name_in_list in "${available_theme_names[@]}"; do
-    rofi_input_list+="$theme_name_in_list\n"
+  for i in "${!available_theme_names[@]}"; do
+    if [[ "$i" -eq "$current_selection_index" ]]; then
+      rofi_input_list+="$MARKER ${available_theme_names[$i]}"$'\n'
+    else
+      rofi_input_list+="${available_theme_names[$i]}"$'\n'
+    fi
   done
-  rofi_input_list_trimmed="${rofi_input_list%\\n}"
+  rofi_input_list_trimmed="${rofi_input_list%$'\n'}"
 
-  chosen_selection_from_rofi=$(echo -e "$rofi_input_list_trimmed" |
+  "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/RofiFocusedWallpaperLink.sh" >/dev/null 2>&1 || true
+  chosen_selection_from_rofi=$(printf '%s\n' "$rofi_input_list_trimmed" |
     rofi -dmenu -i \
       -no-custom \
       -format 'i' \
       -p "Kitty Theme" \
-      -mesg "Enter: Preview | Ctrl+S (or Alt+1): Apply & Exit | Esc: Cancel" \
+      -mesg "Current: ${available_theme_names[$current_selection_index]} | Enter: Preview | Ctrl+S (or Alt+1): Apply & Exit | Esc: Cancel" \
       -config "$rofi_theme_for_this_script" \
       -selected-row "$current_selection_index" \
       -kb-custom-1 "Control+s,Control+S,Alt+1")
@@ -181,6 +224,10 @@ while true; do
       log_debug "resolved_enter index=$current_selection_index theme='${theme_to_preview_now}'"
       if ! apply_kitty_theme_to_config "$theme_to_preview_now" "preview"; then
         echo "$original_kitty_config_content_backup" >"$kitty_config"
+        sync_runtime_kitty_config
+        if command -v kitty >/dev/null 2>&1; then
+          (kitty @ load-config >/dev/null 2>&1 || true) &
+        fi
         for pid_kitty in $(pidof kitty); do if [ -n "$pid_kitty" ]; then kill -SIGUSR1 "$pid_kitty"; fi; done
         notify_user "$iDIR/error.png" "Preview Error" "Failed to apply $theme_to_preview_now. Reverted."
         exit 1
@@ -192,6 +239,10 @@ while true; do
   elif [ $rofi_exit_code -eq 1 ]; then
     notify_user "$iDIR/note.png" "Kitty Theme" "Selection cancelled. Reverting to original theme."
     echo "$original_kitty_config_content_backup" >"$kitty_config"
+    sync_runtime_kitty_config
+    if command -v kitty >/dev/null 2>&1; then
+      (kitty @ load-config >/dev/null 2>&1 || true) &
+    fi
     for pid_kitty in $(pidof kitty); do if [ -n "$pid_kitty" ]; then kill -SIGUSR1 "$pid_kitty"; fi; done
     break
   elif [ $rofi_exit_code -ge 10 ] && [ $rofi_exit_code -le 28 ]; then # custom keybindings
@@ -203,6 +254,10 @@ while true; do
   else
     notify_user "$iDIR/error.png" "Rofi Error" "Unexpected Rofi exit ($rofi_exit_code). Reverting."
     echo "$original_kitty_config_content_backup" >"$kitty_config"
+    sync_runtime_kitty_config
+    if command -v kitty >/dev/null 2>&1; then
+      kitty @ load-config >/dev/null 2>&1 || true
+    fi
     for pid_kitty in $(pidof kitty); do if [ -n "$pid_kitty" ]; then kill -SIGUSR1 "$pid_kitty"; fi; done
     break
   fi

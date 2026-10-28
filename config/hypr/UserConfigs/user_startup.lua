@@ -6,6 +6,51 @@
 -- ==================================================
 -- User startup overrides template.
 -- Add personal exec-once commands here.
+--
+-- =============================================================================
+-- USER STARTUP RULES & SYNTAX
+-- =============================================================================
+-- In KoolDots Lua configuration, user autostart commands are defined in this file.
+--
+-- How it works:
+-- 1. Add command strings to the `startup_commands` table below (or call `exec_once("command")`).
+-- 2. `exec_once` ensures commands run once per Hyprland session and prevents re-execution on config reload.
+-- 3. Startup logs for each command are written to /tmp/hypr-lua-user-startup-<cmd>.log for easy debugging.
+--
+-- =============================================================================
+-- EXAMPLES OF COMMON STARTUP APPS & DAEMONS
+-- =============================================================================
+--
+-- 1. TRAY APPLET & SYSTEM UTILITIES:
+--    "blueman-applet",                -- Bluetooth manager tray applet
+--    "nm-applet --indicator",         -- NetworkManager tray icon
+--    "pasystray",                     -- PulseAudio / PipeWire volume tray applet
+--    "udiskie --tray",                -- Auto-mount removable media with tray icon
+--    "cbatticon",                     -- Battery icon for laptops
+--
+-- 2. BACKGROUND APPS / MESSENGERS / DAEMONS:
+--    "kdeconnect-app",                -- KDE Connect (or "kdeconnect-indicator")
+--    "flatpak run com.discordapp.Discord --start-minimized",
+--    "flatpak run org.telegram.desktop -startintray",
+--    "spotify --minimized",
+--    "1password --silent",
+--    "copyq --start-server",
+--
+-- 3. CLOUD SYNC & BACKUP:
+--    "nextcloud --background",
+--    "insync start",
+--    "megasync",
+--
+-- 4. CUSTOM SCRIPTS & WALLPAPER ENHANCEMENTS:
+--    "$HOME/.config/hypr/UserScripts/RainbowBorders.sh",
+--    "$HOME/.config/hypr/UserScripts/WallpaperAutoChange.sh $HOME/Pictures/wallpapers",
+--    "sleep 3; notify-send 'Welcome' 'Hyprland session started successfully!'",
+--
+-- 5. IDLE / NIGHT LIGHT / RGB:
+--    "wlsunset -l 37.77 -l -122.41 -t 4000 -T 6500", -- Custom color temperature
+--    "openrgb --startminimized --profile 'MyProfile'",
+--
+-- =============================================================================
 
 local user_startup_helper = nil
 do
@@ -42,6 +87,36 @@ end
 
 local exec_once = user_startup_helper.exec_once
 
--- Examples:
--- exec_once("blueman-applet")
--- exec_once("$HOME/.config/hypr/UserScripts/RainbowBorders.sh")
+-- Add custom startup commands:
+local startup_commands = {
+  -- "kdeconnect-app",
+  -- "blueman-applet",
+  -- "$HOME/.config/hypr/UserScripts/RainbowBorders.sh",
+
+  -- Monitor management: one watcher per session. It reconciles the saved layout
+  -- on startup and after every monitor event, and it is the only thing that
+  -- calls DisplayProfile.sh - so do NOT add DisplayProfile.sh here as well, or
+  -- two controllers would apply layouts at the same time.
+  "$HOME/.config/hypr/scripts/MonitorWatcher.sh",
+}
+
+local function run_startup_commands()
+  for _, cmd in ipairs(startup_commands) do
+    exec_once(cmd)
+  end
+end
+
+if hl and hl.on then
+  hl.on("hyprland.start", run_startup_commands)
+else
+  run_startup_commands()
+end
+
+-- Laptop lid: user_laptops.lua owns clamshell behaviour and binds the lid
+-- switch itself, from the same UserConfigs/monitors.lua this system writes. So
+-- nothing is bound here: a second handler for one switch means whichever runs
+-- last wins, and which that is is not defined.
+--
+-- DisplayProfile.sh still honours the lid when it applies a layout (it switches
+-- the internal panel off only while an external monitor is on), so a layout
+-- applied with the lid shut does not light the panel back up.

@@ -65,7 +65,7 @@ screen_power() {
     if [[ -x "$SCREEN_POWER" ]]; then
         "$SCREEN_POWER" "$1" >/dev/null 2>&1
     else
-        hyprctl dispatch dpms "$1" >/dev/null 2>&1
+        hyprctl dispatch "hl.dsp.dpms({ action = '$1' })" >/dev/null 2>&1
     fi
 }
 

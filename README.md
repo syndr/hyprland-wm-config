@@ -220,6 +220,19 @@ the generator stops running, the file is restored from backup on upgrade as
 before, and the older `KOOL_IDLE_DPMS_OFF` / `KOOL_IDLE_NAG` /
 `KOOL_IDLE_LOCK_TIMEOUT` rewrite path applies instead.
 
+### 🖥️ Multi-Monitor Display Layouts
+
+- Remembers how you arrange your monitors (by device, not by port) and restores
+  it automatically for any set of connected screens — laptop or desktop, any
+  number of monitors, with lid/clamshell handling and an `nwg-displays`
+  drag-and-drop bridge.
+- Press `SUPER` + `ALT` + `D` to open the menu. Quick Settings
+  (`SUPER` + `SHIFT` + `E`) → **Choose Monitor Profiles** lists the same layouts
+  alongside the legacy `Monitor_Profiles/` files, which it can import one-way.
+- The layout is written to `UserConfigs/monitors.lua`, which the Lua config
+  already loads, so it survives a reload and a restart.
+- Full description, usage and architecture: [`README-display-layouts.md`](./README-display-layouts.md)
+
 ### ✍️ Contributing
 
 - If you have improvements on the dotfiles or configuration, feel free to submit a PR for improvement.

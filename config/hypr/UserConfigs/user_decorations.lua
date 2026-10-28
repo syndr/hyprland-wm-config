@@ -4,61 +4,72 @@
 --  License: GNU GPLv3
 --  SPDX-License-Identifier: GPL-3.0-or-later
 -- ==================================================
--- User decorations overrides template.
--- Keep this repo copy as comments only; put active custom values in:
---   ~/.config/hypr/UserConfigs/user_decorations.lua
---
--- Uncomment and edit examples below if you want defaults in the repo template.
+-- User decorations overrides.
 
--- Example general overrides:
--- hl.config({
---   general = {
---     border_size = 1,
---     gaps_in = 4,
---     gaps_out = 6,
---   },
--- })
+-- Greenscreen palette. Fixed colours rather than wallust-derived ones, so the
+-- theme stays green whatever the wallpaper.
+hl.config({
+  general = {
+    border_size = 2,
+    gaps_in = 3,
+    gaps_out = 5,
+    col = {
+      active_border = "rgb(4cff00)",
+      inactive_border = "rgb(21ad42)",
+    },
+  },
+})
 
--- Example decoration overrides:
--- hl.config({
---   decoration = {
---     rounding = 10,
---     active_opacity = 1.0,
---     inactive_opacity = 0.95,
---     fullscreen_opacity = 1.0,
---     dim_inactive = true,
---     dim_strength = 0.1,
---     dim_special = 0.8,
---     shadow = {
---       enabled = true,
---       range = 3,
---       render_power = 1,
---       color = "rgba(8db4ffff)",
---       color_inactive = "rgba(5f6578ff)",
---     },
---     blur = {
---       enabled = true,
---       size = 6,
---       passes = 3,
---       new_optimizations = true,
---       xray = true,
---       ignore_opacity = true,
---       special = true,
---       popups = true,
---     },
---   },
--- })
+hl.config({
+  decoration = {
+    rounding = 0,
+    active_opacity = 1.0,
+    inactive_opacity = 1.0,
+    fullscreen_opacity = 1.0,
+    dim_inactive = false,
+    dim_strength = 0.05,
+    dim_special = 0.8,
+    shadow = {
+      enabled = true,
+      range = 10,
+      render_power = 4,
+      color = "rgb(21ad42)",
+      color_inactive = "rgb(133100)",
+    },
+    blur = {
+      enabled = true,
+      size = 4,
+      passes = 1,
+      new_optimizations = true,
+      xray = true,
+      ignore_opacity = true,
+      special = true,
+      popups = true,
+    },
+  },
+})
 
--- Example group styling:
--- hl.config({
---   group = {
---     col = {
---       border_active = "rgba(ffffffff)",
---     },
---     groupbar = {
---       col = {
---         active = "rgba(0f111aff)",
---       },
---     },
---   },
--- })
+hl.config({
+  group = {
+    col = {
+      border_active = "rgba(4cff00ee)",
+      border_inactive = "rgba(21ad4280)",
+      border_locked_active = "rgba(996600ee)",
+      border_locked_inactive = "rgba(99660080)",
+    },
+    groupbar = {
+      enabled = true,
+      height = 18,
+      render_titles = true,
+      font_size = 12,
+      gradients = true,
+      text_color = "rgba(4cff00ff)",
+      col = {
+        active = "rgb(0d3b00)",
+        inactive = "rgb(0a0a0a)",
+        locked_active = "rgb(332200)",
+        locked_inactive = "rgb(1a1000)",
+      },
+    },
+  },
+})

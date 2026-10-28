@@ -12,122 +12,222 @@
 prompt_detect_layout() {
   if command -v localectl >/dev/null 2>&1; then
     local layout
-    layout=$(localectl status --no-pager | awk '/X11 Layout/ {print $3}')
-    [ -n "$layout" ] && { echo "$layout"; return; }
+    layout=$(localectl status --no-pager 2>/dev/null | awk -F': ' '/X11 Layout/ {print $2}' | xargs)
+    [ -n "$layout" ] && [ "$layout" != "(unset)" ] && { echo "$layout"; return; }
   fi
   if command -v setxkbmap >/dev/null 2>&1; then
     local layout
-    layout=$(setxkbmap -query | awk '/layout/ {print $2}')
+    layout=$(setxkbmap -query 2>/dev/null | awk '/layout/ {print $2}')
     [ -n "$layout" ] && { echo "$layout"; return; }
   fi
-  echo "(unset)"
+  echo "us"
 }
 
-# Confirm or set keyboard layout; writes to SystemSettings.conf.
-prompt_keyboard_layout() {
-  local layout="$1"
-  local log="$2"
-  local config_root="${WORK_CONFIG_DIR:-config}"
-  local temp_conf
+# Detect keyboard variant via localectl or setxkbmap.
+prompt_detect_variant() {
+  if command -v localectl >/dev/null 2>&1; then
+    local variant
+    variant=$(localectl status --no-pager 2>/dev/null | awk -F': ' '/X11 Variant/ {print $2}' | xargs)
+    [ -n "$variant" ] && [ "$variant" != "(unset)" ] && { echo "$variant"; return; }
+  fi
+  if command -v setxkbmap >/dev/null 2>&1; then
+    local variant
+    variant=$(setxkbmap -query 2>/dev/null | awk '/variant/ {print $2}')
+    [ -n "$variant" ] && { echo "$variant"; return; }
+  fi
+  echo ""
+}
 
-  write_system_settings_with_layout() {
-    local new_layout="$1"
-    temp_conf=$(mktemp)
-    awk -v layout="$new_layout" '/kb_layout/ {$0 = "  kb_layout = " layout} 1' "$config_root/hypr/configs/SystemSettings.conf" >"$temp_conf"
-    mv "$temp_conf" "$config_root/hypr/configs/SystemSettings.conf"
-  }
+# Detect keyboard model via localectl or setxkbmap.
+prompt_detect_model() {
+  if command -v localectl >/dev/null 2>&1; then
+    local model
+    model=$(localectl status --no-pager 2>/dev/null | awk -F': ' '/X11 Model/ {print $2}' | xargs)
+    [ -n "$model" ] && [ "$model" != "(unset)" ] && { echo "$model"; return; }
+  fi
+  if command -v setxkbmap >/dev/null 2>&1; then
+    local model
+    model=$(setxkbmap -query 2>/dev/null | awk '/model/ {print $2}')
+    [ -n "$model" ] && { echo "$model"; return; }
+  fi
+  echo ""
+}
 
-  if [ "${EXPRESS_MODE:-0}" -eq 1 ] && [ "$layout" = "(unset)" ]; then
-    local existing_layout
-    existing_layout=$(awk -F'= ' '/^[[:space:]]*kb_layout[[:space:]]*=/ {print $2; exit}' "$HOME/.config/hypr/UserConfigs/UserSettings.conf" 2>/dev/null)
-    [ -z "$existing_layout" ] && existing_layout=$(awk -F'= ' '/^[[:space:]]*kb_layout[[:space:]]*=/ {print $2; exit}' "$HOME/.config/hypr/configs/SystemSettings.conf" 2>/dev/null)
-    [ -n "$existing_layout" ] && layout="$existing_layout"
+# Set keyboard layout in the Lua user and system config files.
+set_keyboard_layout_configs() {
+  local new_kb="$1"
+  local new_var="${2:-}"
+  local new_mod="${3:-}"
+  local log="${4:-/dev/null}"
+  local base="${DOTFILES_DIR:-.}"
+  local config_root="${WORK_CONFIG_DIR:-$base/config}"
+  local cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+
+  export KOOLDOTS_SELECTED_KB_LAYOUT="$new_kb"
+  export KOOLDOTS_SELECTED_KB_VARIANT="$new_var"
+  export KOOLDOTS_SELECTED_KB_MODEL="$new_mod"
+
+  # 1. Update repo UserConfigs/user_settings.lua & active target user_settings.lua
+  local user_lua_files=("$config_root/hypr/UserConfigs/user_settings.lua")
+  if [ -f "$cfg_home/hypr/UserConfigs/user_settings.lua" ]; then
+    user_lua_files+=("$cfg_home/hypr/UserConfigs/user_settings.lua")
   fi
 
-  if [ "$layout" = "(unset)" ]; then
-    while true; do
-      printf "\n%.0s" {1..1}
-      print_color $WARNING "\n    █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
-            STOP AND READ
-    █▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄█
-
-    !!! IMPORTANT WARNING !!!
-
-The Default Keyboard Layout could not be detected
-You need to set it Manually
-
-    !!! WARNING !!!
-
-Setting a wrong Keyboard Layout will cause Hyprland to crash
-If you are not sure, just type ${YELLOW}us${RESET}
-${SKYBLUE}You can change later in ${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/UserSettings.conf${RESET}
-
-${MAGENTA} NOTE:${RESET}
-•  You can also set more than 2 keyboard layouts
-•  For example: ${YELLOW}us, kr, gb, ru${RESET}
-"
-      printf "\n%.0s" {1..1}
-
-      echo -n "${CAT} - Please enter the correct keyboard layout: "
-      read new_layout
-
-      if [ -n "$new_layout" ]; then
-        layout="$new_layout"
-        break
+  for file in "${user_lua_files[@]}"; do
+    if [ -f "$file" ]; then
+      if grep -q '^[[:space:]]*input[[:space:]]*=' "$file"; then
+        if grep -q '^[[:space:]]*kb_layout[[:space:]]*=' "$file"; then
+          sed -i "s/^[[:space:]]*kb_layout[[:space:]]*=.*/    kb_layout = \"$new_kb\",/" "$file"
+        else
+          sed -i "/^[[:space:]]*input[[:space:]]*=/a\\    kb_layout = \"$new_kb\"," "$file"
+        fi
+        if grep -q '^[[:space:]]*kb_variant[[:space:]]*=' "$file"; then
+          sed -i "s/^[[:space:]]*kb_variant[[:space:]]*=.*/    kb_variant = \"$new_var\",/" "$file"
+        else
+          sed -i "/^[[:space:]]*kb_layout[[:space:]]*=/a\\    kb_variant = \"$new_var\"," "$file"
+        fi
+        if grep -q '^[[:space:]]*kb_model[[:space:]]*=' "$file"; then
+          sed -i "s/^[[:space:]]*kb_model[[:space:]]*=.*/    kb_model = \"$new_mod\",/" "$file"
+        else
+          sed -i "/^[[:space:]]*kb_variant[[:space:]]*=/a\\    kb_model = \"$new_mod\"," "$file"
+        fi
       else
-        echo "${CAT} Please enter a keyboard layout."
+        cat >>"$file" <<EOF
+
+hl.config({
+  input = {
+    kb_layout = "$new_kb",
+    kb_variant = "$new_var",
+    kb_model = "$new_mod",
+    kb_options = "",
+    kb_rules = "",
+    repeat_rate = 50,
+    repeat_delay = 300,
+    sensitivity = 0,
+    numlock_by_default = true,
+    left_handed = false,
+    follow_mouse = 1,
+    float_switch_override_focus = false,
+    touchpad = {
+      disable_while_typing = true,
+      natural_scroll = true,
+      clickfinger_behavior = false,
+      middle_button_emulation = false,
+      tap_to_click = true,
+      drag_lock = false,
+    },
+    touchdevice = {
+      enabled = true,
+    },
+    tablet = {
+      transform = 0,
+      left_handed = 0,
+    },
+  },
+})
+EOF
       fi
+      echo "${NOTE} Configured keyboard settings in $file" 2>&1 | tee -a "$log"
+    fi
+  done
+
+  # 2. Update repo lua/settings.lua default & active target lua/settings.lua
+  local settings_lua_files=("$config_root/hypr/lua/settings.lua")
+  if [ -f "$cfg_home/hypr/lua/settings.lua" ]; then
+    settings_lua_files+=("$cfg_home/hypr/lua/settings.lua")
+  fi
+  for file in "${settings_lua_files[@]}"; do
+    if [ -f "$file" ]; then
+      sed -i "s/^[[:space:]]*kb_layout[[:space:]]*=.*/    kb_layout = \"$new_kb\",/" "$file"
+      sed -i "s/^[[:space:]]*kb_variant[[:space:]]*=.*/    kb_variant = \"$new_var\",/" "$file"
+      sed -i "s/^[[:space:]]*kb_model[[:space:]]*=.*/    kb_model = \"$new_mod\",/" "$file"
+    fi
+  done
+}
+
+# Confirm or set keyboard layout, variant, and model; writes to UserConfigs/user_settings.lua and lua/settings.lua.
+prompt_keyboard_layout() {
+  local layout="${1:-us}"
+  local variant="${2:-}"
+  local model="${3:-}"
+  local log="$4"
+  local base="${DOTFILES_DIR:-.}"
+  local config_root="${WORK_CONFIG_DIR:-$base/config}"
+
+  [ "$layout" = "(unset)" ] && layout="us"
+
+  # Fork: express upgrades are non-interactive; keep the installed keyboard
+  # settings from the Lua user layer (falling back to the detected values).
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
+    local cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}" f existing key val
+    for f in "$cfg_home/hypr/UserConfigs/user_settings.lua" "$cfg_home/hypr/lua/settings.lua"; do
+      [ -f "$f" ] || continue
+      existing=$(sed -nE 's/^[[:space:]]*kb_layout[[:space:]]*=[[:space:]]*"([^"]*)".*/\1/p' "$f" | tail -n1)
+      [ -n "$existing" ] || continue
+      layout="$existing"
+      for key in variant model; do
+        val=$(sed -nE "s/^[[:space:]]*kb_${key}[[:space:]]*=[[:space:]]*\"([^\"]*)\".*/\\1/p" "$f" | tail -n1)
+        case "$key" in variant) variant="$val" ;; model) model="$val" ;; esac
+      done
+      break
     done
+    set_keyboard_layout_configs "$layout" "$variant" "$model" "$log"
+    echo "${NOTE} Express mode: auto-confirmed keyboard layout='$layout', variant='$variant', model='$model'." 2>&1 | tee -a "$log"
+    return 0
   fi
 
-  printf "${NOTE} Detecting keyboard layout to prepare proper Hyprland Settings\n"
-  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
-    printf "${INFO} Current keyboard layout is ${MAGENTA}$layout${RESET}\n"
-    write_system_settings_with_layout "$layout"
-    echo "${NOTE} Express mode: auto-confirmed keyboard layout ${MAGENTA}$layout${RESET}." 2>&1 | tee -a "$log"
-    return
-  fi
+  printf "\n${NOTE} Detected keyboard settings:\n"
+  printf "  ${INFO} Layout  : ${MAGENTA}%s${RESET}\n" "$layout"
+  printf "  ${INFO} Variant : ${MAGENTA}%s${RESET}\n" "${variant:-(none)}"
+  printf "  ${INFO} Model   : ${MAGENTA}%s${RESET}\n" "${model:-(none)}"
+
   while true; do
-    printf "${INFO} Current keyboard layout is ${MAGENTA}$layout${RESET}\n"
-    echo -n "${CAT} Is this correct? [y/n] "
-    read keyboard_layout
-    case $keyboard_layout in
-      [yY])
-        write_system_settings_with_layout "$layout"
-        echo "${NOTE} kb_layout ${MAGENTA}$layout${RESET} configured in settings." 2>&1 | tee -a "$log"
+    echo -n "${CAT} Are these settings correct? [Y/n]: "
+    read -r confirm
+    confirm=$(echo "$confirm" | tr '[:upper:]' '[:lower:]')
+    case "$confirm" in
+      y|yes|"")
+        set_keyboard_layout_configs "$layout" "$variant" "$model" "$log"
+        echo "${NOTE} Keyboard configured: layout='$layout', variant='$variant', model='$model'." 2>&1 | tee -a "$log"
         break
         ;;
-      [nN])
-        printf "\n%.0s" {1..2}
-        print_color $WARNING "
-    █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
-            STOP AND READ
+      n|no)
+        printf "\n%.0s" {1..1}
+        print_color $WARNING "\n    █▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀█
+            CONFIGURE KEYBOARD
     █▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄█
 
     !!! IMPORTANT WARNING !!!
 
-The Default Keyboard Layout could not be detected
-You need to set it Manually
-
-    !!! WARNING !!!
-
-Setting a wrong Keyboard Layout will cause Hyprland to crash
-If you are not sure, just type ${YELLOW}us${RESET}
-${SKYBLUE}You can change later in ${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/UserSettings.conf${RESET}
+Setting an invalid Keyboard Layout can cause Hyprland input issues.
+If unsure, use ${YELLOW}us${RESET}.
+${SKYBLUE}You can change these anytime in ${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/user_settings.lua${RESET}
 
 ${MAGENTA} NOTE:${RESET}
-•  You can also set more than 2 keyboard layouts
-•  For example: ${YELLOW}us, kr, gb, ru${RESET}
+• Multiple layouts can be comma-separated: ${YELLOW}us,gb${RESET} or ${YELLOW}us,de${RESET}
 "
-        printf "\n%.0s" {1..1}
-        echo -n "${CAT} - Please enter the correct keyboard layout: "
-        read new_layout
-        write_system_settings_with_layout "$new_layout"
-        echo "${OK} kb_layout $new_layout configured in settings." 2>&1 | tee -a "$log"
+        echo -n "${CAT} Enter keyboard layout [${layout}]: "
+        read -r new_layout
+        [ -n "$new_layout" ] && layout="$new_layout"
+
+        echo -n "${CAT} Enter keyboard variant (optional, leave blank for none) [${variant}]: "
+        read -r new_variant
+        if [ -n "$new_variant" ]; then
+          variant="$new_variant"
+        fi
+
+        echo -n "${CAT} Enter keyboard model (optional, leave blank for none) [${model}]: "
+        read -r new_model
+        if [ -n "$new_model" ]; then
+          model="$new_model"
+        fi
+
+        set_keyboard_layout_configs "$layout" "$variant" "$model" "$log"
+        echo "${OK} Keyboard configured: layout='$layout', variant='$variant', model='$model'." 2>&1 | tee -a "$log"
         break
         ;;
       *)
-        echo "${ERROR} Please enter either 'y' or 'n'."
+        echo "${ERROR} Please enter 'y' or 'n'."
         ;;
     esac
   done
@@ -136,11 +236,14 @@ ${MAGENTA} NOTE:${RESET}
 # Prompt for resolution choice; echoes "< 1440p" or "≥ 1440p".
 prompt_resolution_choice() {
   if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
-    if grep -Eq '([2-9][0-9]{3}x(14|16|21|28)[0-9]{2}|x1440|x1600|x2160|x2880)' "$HOME/.config/hypr/monitors.conf" 2>/dev/null; then
+    local monitors_lua="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/monitors.lua"
+    local monitor_modes
+    monitor_modes=$(grep -v '^[[:space:]]*--' "$monitors_lua" 2>/dev/null || true)
+    if printf '%s\n' "$monitor_modes" | grep -Eq '([2-9][0-9]{3}x(14|16|21|28)[0-9]{2}|x1440|x1600|x2160|x2880)'; then
       echo "≥ 1440p"
-    elif grep -Eq '([1-9][0-9]{2,3}x(7|8|9|10)[0-9]{2}|x720|x768|x900|x1080)' "$HOME/.config/hypr/monitors.conf" 2>/dev/null; then
+    elif printf '%s\n' "$monitor_modes" | grep -Eq '([1-9][0-9]{2,3}x(7|8|9|10)[0-9]{2}|x720|x768|x900|x1080)'; then
       echo "< 1440p"
-    elif grep -q 'Hyprlock config for < 1080p monitor resolutions' "$HOME/.config/hypr/hyprlock.conf" 2>/dev/null; then
+    elif grep -q 'Hyprlock config for < 1080p monitor resolutions' "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprlock.conf" 2>/dev/null; then
       echo "< 1440p"
     else
       echo "≥ 1440p"
@@ -173,10 +276,17 @@ prompt_resolution_choice() {
 # Prompt for 12H clock; sets waybar/hyprlock/SDDM changes when accepted.
 prompt_clock_12h() {
   local log="$1"
-  local config_root="${WORK_CONFIG_DIR:-config}"
-  if [ "${EXPRESS_MODE:-0}" -eq 1 ]; then
-    echo "${NOTE} Express mode: preserving existing clock format." 2>&1 | tee -a "$log"
-    return
+  local base="${DOTFILES_DIR:-.}"
+  local config_root="${WORK_CONFIG_DIR:-$base/config}"
+
+  if [ "${EXPRESS_MODE:-0}" -eq 1 ] || [ "${RUN_MODE:-}" = "express" ]; then
+    echo "${NOTE:-[NOTE]} Express mode: keeping existing clock format (change anytime via Quick Settings -> Toggle Waybar Clock)." 2>&1 | tee -a "$log"
+    return 0
+  fi
+
+  if [ "${RUN_MODE:-}" = "upgrade" ]; then
+    echo "${NOTE:-[NOTE]} Upgrade mode: keeping existing clock format (change anytime via Quick Settings -> Toggle Waybar Clock)." 2>&1 | tee -a "$log"
+    return 0
   fi
   while true; do
     echo -e "${NOTE} ${SKY_BLUE} By default, KooL's Dots are configured in 24H clock format."
@@ -185,15 +295,15 @@ prompt_clock_12h() {
     answer=$(echo "$answer" | tr '[:upper:]' '[:lower:]')
     if [[ "$answer" == "y" ]]; then
       # waybar clocks
-      sed -i 's#^\(\s*\)//\("format": " {:%I:%M %p}",\) #\1\2 #g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": " {:%H:%M:%S}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": "  {:%H:%M}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)//\("format": "{:%I:%M %p - %d/%b}",\) #\1\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": "{:%H:%M - %d/%b}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)//\("format": "{:%B | %a %d, %Y | %I:%M %p}",\) #\1\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": "{:%B | %a %d, %Y | %H:%M}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)//\("format": "{:%A, %I:%M %P}",\) #\1\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
-      sed -i 's#^\(\s*\)\("format": "{:%a %d | %H:%M}",\) #\1//\2#g' "$config_root/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)//\("format": " {:%I:%M %p}",\) #\1\2 #g' "$config_root/hypr/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": " {:%H:%M:%S}",\) #\1//\2#g' "$config_root/hypr/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": "  {:%H:%M}",\) #\1//\2#g' "$config_root/hypr/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)//\("format": "{:%I:%M %p - %d/%b}",\) #\1\2#g' "$config_root/hypr/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": "{:%H:%M - %d/%b}",\) #\1//\2#g' "$config_root/hypr/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)//\("format": "{:%B | %a %d, %Y | %I:%M %p}",\) #\1\2#g' "$config_root/hypr/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": "{:%B | %a %d, %Y | %H:%M}",\) #\1//\2#g' "$config_root/hypr/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)//\("format": "{:%A, %I:%M %P}",\) #\1\2#g' "$config_root/hypr/waybar/Modules" 2>&1 | tee -a "$log"
+      sed -i 's#^\(\s*\)\("format": "{:%a %d | %H:%M}",\) #\1//\2#g' "$config_root/hypr/waybar/Modules" 2>&1 | tee -a "$log"
 
       # hyprlock
       local HYPRLOCK_FILE="$config_root/hypr/hyprlock.conf"
@@ -230,9 +340,9 @@ prompt_clock_12h() {
 set_focus_transparency_preference() {
   local enabled="$1"
   local config_root="${WORK_CONFIG_DIR:-config}"
-  local rules_file="$config_root/hypr/UserConfigs/WindowRules.conf"
-  local override_comment="# Disable focus-based transparency from vendor per-tag opacity rules."
-  local override_rule="windowrule = match:class ^(.*)$, opacity 1.0 1.0"
+  local rules_file="$config_root/hypr/UserConfigs/user_window_rules.lua"
+  local override_comment="-- Disable focus-based transparency from vendor per-tag opacity rules."
+  local override_rule='apply_window_rule({ name = "user-disable-focus-transparency", match = { class = "^(.*)$" }, opacity = "1.0 1.0" })'
 
   [ -f "$rules_file" ] || return 0
 
@@ -306,6 +416,52 @@ apply_sddm_12h_format_sequoia() {
   fi
 }
 
+
+# Confirm Hyprlang -> Lua migration during upgrade/express workflows.
+# Sets MIGRATE_HYPR_TO_LUA=1 (default yes) or 0 when the user declines.
+prompt_lua_migration() {
+  local log="${1:-/dev/null}"
+  local hypr_dir
+  hypr_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hypr"
+
+  MIGRATE_HYPR_TO_LUA=1
+
+  # Already on Lua entrypoint: still refresh/migrate overlays after upgrade copy.
+  if [ -f "$hypr_dir/hyprland.lua" ]; then
+    echo "${NOTE:-[NOTE]} Existing Hyprland Lua config detected; migration will refresh Lua overlays after upgrade." 2>&1 | tee -a "$log"
+    export MIGRATE_HYPR_TO_LUA
+    return 0
+  fi
+
+  printf "\n%.0s" {1..1}
+  echo "${WARNING:-[WARN]} Hyprland will be LUA-only in the next release.${RESET:-}"
+  echo "${NOTE:-[NOTE]} This upgrade will migrate your Hyprlang (.conf) configuration to LUA."
+  echo "${NOTE:-[NOTE]} A backup is created first; hyprland.conf remains as fallback."
+  while true; do
+    if ! read -r -p "${CAT:-[ACTION]} Configuration will be migrated to LUA. Continue? (Y/n): " lua_migrate_choice </dev/tty; then
+      echo "${WARN:-[WARN]} Unable to read input; defaulting to migrate to LUA." 2>&1 | tee -a "$log"
+      break
+    fi
+    case "$lua_migrate_choice" in
+    [Yy] | [Yy][Ee][Ss] | "")
+      MIGRATE_HYPR_TO_LUA=1
+      echo "${INFO:-[INFO]} LUA migration approved for this upgrade." 2>&1 | tee -a "$log"
+      break
+      ;;
+    [Nn] | [Nn][Oo])
+      MIGRATE_HYPR_TO_LUA=0
+      echo "${WARN:-[WARN]} Skipping LUA migration; remaining on Hyprlang (.conf) for now." 2>&1 | tee -a "$log"
+      echo "${NOTE:-[NOTE]} You can migrate later with: scripts/migrate-hypr-to-lua.sh" 2>&1 | tee -a "$log"
+      break
+      ;;
+    *)
+      echo "${WARN:-[WARN]} Please answer Y or n."
+      ;;
+    esac
+  done
+
+  export MIGRATE_HYPR_TO_LUA
+}
 
 # Express upgrade confirmation; may set EXPRESS_MODE=1.
 prompt_express_upgrade() {

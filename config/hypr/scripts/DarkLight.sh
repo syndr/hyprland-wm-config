@@ -13,9 +13,9 @@ swaync_style="$HOME/.config/swaync/style.css"
 ags_style="$HOME/.config/ags/user/style.css"
 SCRIPTSDIR="$HOME/.config/hypr/scripts"
 notif="$HOME/.config/swaync/images/bell.png"
-wallust_rofi="$HOME/.config/wallust/templates/colors-rofi.rasi"
-kitty_conf="$HOME/.config/kitty/kitty.conf"
-wallust_config="$HOME/.config/wallust/wallust.toml"
+wallust_rofi="$HOME/.config/hypr/wallust/templates/colors-rofi.rasi"
+kitty_conf="$HOME/.config/hypr/UserConfigs/kitty.conf"
+wallust_config="$HOME/.config/hypr/wallust/wallust.toml"
 theme_config="$HOME/.config/hypr/UserConfigs/ThemeConfig.conf"
 theme_dir="$HOME/.config/hypr/themes"
 
@@ -138,8 +138,8 @@ set_icon_theme_direct() {
 set_waybar_style() {
     local explicit_style="$1"
     local theme="$2"
-    local waybar_styles="$HOME/.config/waybar/style"
-    local waybar_style_link="$HOME/.config/waybar/style.css"
+    local waybar_styles="$HOME/.config/hypr/waybar/style"
+    local waybar_style_link="$HOME/.config/hypr/waybar/style.css"
     local style_prefix="\[${theme}\].*\.css$"
     local style_file=""
 

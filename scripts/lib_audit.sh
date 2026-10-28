@@ -4,7 +4,7 @@
 run_post_upgrade_audit() {
   local log="$1"
   local hypr_dir="$HOME/.config/hypr"
-  local waybar_dir="$HOME/.config/waybar"
+  local waybar_dir="$hypr_dir/waybar"
   local issues=0
 
   audit_note() {
