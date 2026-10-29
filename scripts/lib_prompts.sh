@@ -337,10 +337,16 @@ prompt_clock_12h() {
   done
 }
 
+# Answer from prompt_focus_transparency. The install flow restores the user's
+# previous UserConfigs over the staged ones, so copy.sh re-applies this to the
+# deployed file afterwards.
+FOCUS_TRANSPARENCY_PREF=""
+
 set_focus_transparency_preference() {
   local enabled="$1"
   local config_root="${WORK_CONFIG_DIR:-config}"
-  local rules_file="$config_root/hypr/UserConfigs/user_window_rules.lua"
+  local rules_file="${2:-$config_root/hypr/UserConfigs/user_window_rules.lua}"
+  FOCUS_TRANSPARENCY_PREF="$enabled"
   local override_comment="-- Disable focus-based transparency from vendor per-tag opacity rules."
   local override_rule='apply_window_rule({ name = "user-disable-focus-transparency", match = { class = "^(.*)$" }, opacity = "1.0 1.0" })'
 

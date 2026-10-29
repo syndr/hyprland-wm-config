@@ -1134,6 +1134,10 @@ restore_wlogout_selection "$LOG"
 printf "\\n%.0s" {1..1}
 
 restore_user_configs "$LOG" "$EXPRESS_MODE" "$INSTALLED_VERSION_AT_START"
+if [ -n "$FOCUS_TRANSPARENCY_PREF" ]; then
+  set_focus_transparency_preference "$FOCUS_TRANSPARENCY_PREF" \
+    "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/user_window_rules.lua"
+fi
 printf "\\n%.0s" {1..1}
 
 restore_user_scripts "$LOG" "$EXPRESS_MODE"
