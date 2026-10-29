@@ -150,6 +150,14 @@ apply_window_rule({
   size = "(monitor_w*0.5) (monitor_h*0.5)",
 })
 
+-- CopyQ: the main window and its dialogs float. The vendor Lua rules dropped
+-- the hyprlang WindowRules.conf entry for it.
+apply_window_rule({
+  name = "float-copyq",
+  match = { class = "^(com.github.hluk.copyq)$" },
+  float = true,
+})
+
 -- Xwayland Video Bridge: KDE helper autostarted via XDG autostart. KWin hides
 -- its window; on Hyprland it is a big blank window at login. Park it on a
 -- special workspace but keep it running so X11 apps can see screen-shares.
