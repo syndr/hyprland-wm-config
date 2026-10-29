@@ -186,7 +186,7 @@ apply_hypr_border_fallback() {
     local ok = pcall(dofile, home .. "/.config/hypr/UserConfigs/user_decorations.lua")
     if not ok then pcall(dofile, home .. "/.config/hypr/lua/decorations.lua") end
     local hok, helper = pcall(dofile, home .. "/.config/hypr/lua/user_decorations_helper.lua")
-    if hok and helper and helper.load_wallust_colors then
+    if not rawget(_G, "KOOLDOTS_FIXED_BORDER_COLORS") and hok and helper and helper.load_wallust_colors then
       local wallust = helper.load_wallust_colors(home .. "/.config/hypr/wallust/wallust-hyprland.conf")
       if wallust then
         local c12 = wallust.color12 or "rgba(8db4ffff)"

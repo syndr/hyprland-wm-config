@@ -8,6 +8,12 @@
 
 -- Greenscreen palette. Fixed colours rather than wallust-derived ones, so the
 -- theme stays green whatever the wallpaper.
+--
+-- true: WallustSwww.sh and ThemeChanger.sh leave the border, shadow and group
+-- colours below alone on wallpaper/theme changes. false: they follow the
+-- wallpaper palette.
+KOOLDOTS_FIXED_BORDER_COLORS = true
+
 hl.config({
   general = {
     border_size = 2,
