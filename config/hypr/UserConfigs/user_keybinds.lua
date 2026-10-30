@@ -163,6 +163,26 @@ bind("SUPER", "R", exec_cmd(scriptsDir .. "/RofiLauncherMenu.sh"), { description
 -- way through a coarse list. Hold to repeat.
 bind("SUPER SHIFT", "R", hl.dsp.layout("colresize +conf"), { description = "Column width up (scrolling)", repeating = true })
 bind("SUPER ALT SHIFT", "R", hl.dsp.layout("colresize -conf"), { description = "Column width down (scrolling)", repeating = true })
+
+-- Scrolling layout on two macro-pad knobs, set to send F13-F18 (e.g. via VIA).
+-- The us layout maps those keys to XF86Tools and XF86Launch5-9.
+--   pan knob:   F13 / F14 turn, F15 press
+--   width knob: F16 / F17 turn, F18 press
+local KNOB_PAN_PX = 200
+bind("", "XF86Tools", hl.dsp.layout("move -" .. KNOB_PAN_PX), { description = "Knob: pan view back (scrolling)" })
+bind("", "XF86Launch5", hl.dsp.layout("move +" .. KNOB_PAN_PX), { description = "Knob: pan view forward (scrolling)" })
+bind("", "XF86Launch6", hl.dsp.layout("fit active"), { description = "Knob: center active column (scrolling)" })
+bind("", "XF86Launch7", hl.dsp.layout("colresize -conf"), { description = "Knob: column width down (scrolling)" })
+bind("", "XF86Launch8", hl.dsp.layout("colresize +conf"), { description = "Knob: column width up (scrolling)" })
+-- Toggles per workspace: fit every column on screen, then back to 1/3 widths.
+local knob_fit_all = {}
+bind("", "XF86Launch9", function()
+  local ws = hl.get_active_workspace and hl.get_active_workspace()
+  local id = ws and ws.id or 0
+  local msg = knob_fit_all[id] and "colresize all 0.333" or "fit all"
+  pcall(hl.dispatch, hl.dsp.layout(msg))
+  knob_fit_all[id] = not knob_fit_all[id]
+end, { description = "Knob: fit all columns / back to 1/3 (scrolling)" })
 bind("SUPER", "BackSpace", exec_cmd("pkill rofi || true && rofi -show drun -modi drun,filebrowser,run,window"), { description = "app launcher" })
 bind("SUPER", "grave", exec_cmd(scriptsDir .. "/LockScreen.sh"), { description = "lock screen" })
 bind("SUPER SHIFT", "L", exec_cmd(userScripts .. "/ScreenHackSelect.sh"), { description = "screensaver hack picker" })
