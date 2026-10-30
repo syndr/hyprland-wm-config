@@ -223,15 +223,17 @@ end, { description = "Knob: fit all columns / back to 1/3 (scrolling)" })
 -- on the us layout).
 --   F19: hover focus (input:follow_mouse 1 <-> 2; 2 focuses only on click)
 --   F24: scrolling view follows focus (scrolling:follow_focus)
--- Screen zoom on keys, for buttons that cannot scroll. Same x1.5 steps and
--- 1-16 range as the vendor SUPER ALT + wheel binds. Hold to repeat.
+-- Screen zoom on keys, for buttons that cannot scroll. Quarter of the vendor
+-- SUPER ALT + wheel step (four presses = one x1.5 wheel notch), same 1-16
+-- range. Hold to repeat.
+local ZOOM_KEY_STEP = 1.5 ^ 0.25
 local function zoom_by(mult)
   local factor = hl.get_config("cursor.zoom_factor") or 1.0
   factor = math.max(1.0, math.min(16.0, factor * mult))
   hl.config({ cursor = { zoom_factor = factor } })
 end
-bind("SUPER ALT", "equal", function() zoom_by(1.5) end, { description = "zoom in", repeating = true })
-bind("SUPER ALT", "minus", function() zoom_by(1 / 1.5) end, { description = "zoom out", repeating = true })
+bind("SUPER ALT", "equal", function() zoom_by(ZOOM_KEY_STEP) end, { description = "zoom in", repeating = true })
+bind("SUPER ALT", "minus", function() zoom_by(1 / ZOOM_KEY_STEP) end, { description = "zoom out", repeating = true })
 
 local function notify_toggle(label, state)
   hl.exec_cmd(string.format("notify-send -e -u low -t 1500 '%s' '%s'", label, state))
