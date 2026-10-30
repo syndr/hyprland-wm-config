@@ -169,8 +169,43 @@ bind("SUPER ALT SHIFT", "R", hl.dsp.layout("colresize -conf"), { description = "
 --   pan knob:   F13 / F14 turn, F15 press
 --   width knob: F16 / F17 turn, F18 press
 local KNOB_PAN_PX = 200
-bind("", "XF86Tools", hl.dsp.layout("move -" .. KNOB_PAN_PX), { description = "Knob: pan view back (scrolling)" })
-bind("", "XF86Launch5", hl.dsp.layout("move +" .. KNOB_PAN_PX), { description = "Knob: pan view forward (scrolling)" })
+-- Pan by up to KNOB_PAN_PX, stopping once the first/last column is fully on
+-- screen so the view never scrolls into empty space. Portrait monitors (odd
+-- transform) run direction=down workspaces, so pan along y there.
+local function knob_pan(sign)
+  local ws = hl.get_active_workspace and hl.get_active_workspace()
+  local mon = ws and ws.monitor
+  if not mon then
+    return
+  end
+  local scale = (mon.scale and mon.scale > 0) and mon.scale or 1
+  local vertical = (mon.transform or 0) % 2 == 1
+  local axis = vertical and "y" or "x"
+  local view_lo = vertical and mon.y or mon.x
+  -- width is the unrotated mode width: the scroll axis length either way.
+  local view_len = mon.width / scale
+  local lo, hi
+  for _, w in ipairs(hl.get_windows()) do
+    if w.workspace and w.workspace.id == ws.id and not w.floating and w.at and w.size then
+      local a, len = w.at[axis], w.size[axis]
+      lo = (not lo or a < lo) and a or lo
+      hi = (not hi or a + len > hi) and a + len or hi
+    end
+  end
+  if not lo then
+    return
+  end
+  local gaps = hl.get_config("general.gaps_out")
+  local gap = type(gaps) == "table" and (gaps.left or 0) or 0
+  -- "move +N" shifts the columns by +N, so the view moves the other way.
+  local room = sign > 0 and (hi - (view_lo + view_len - gap)) or ((view_lo + gap) - lo)
+  local step = math.min(KNOB_PAN_PX, math.floor(room))
+  if step > 0 then
+    pcall(hl.dispatch, hl.dsp.layout("move " .. (sign > 0 and "-" or "+") .. step))
+  end
+end
+bind("", "XF86Tools", function() knob_pan(-1) end, { description = "Knob: pan view back (scrolling)" })
+bind("", "XF86Launch5", function() knob_pan(1) end, { description = "Knob: pan view forward (scrolling)" })
 bind("", "XF86Launch6", hl.dsp.layout("fit active"), { description = "Knob: center active column (scrolling)" })
 bind("", "XF86Launch7", hl.dsp.layout("colresize -conf"), { description = "Knob: column width down (scrolling)" })
 bind("", "XF86Launch8", hl.dsp.layout("colresize +conf"), { description = "Knob: column width up (scrolling)" })
