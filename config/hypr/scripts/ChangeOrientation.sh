@@ -5,7 +5,7 @@
 DIRECTION=${1:-next}
 
 if [[ "$DIRECTION" == "next" ]]; then
-  hyprctl dispatch layoutmsg orientationnext
+  hyprctl dispatch "hl.dsp.layout('orientationnext')"
 else
-  hyprctl dispatch layoutmsg orientationprev
+  hyprctl dispatch "hl.dsp.layout('orientationprev')"
 fi

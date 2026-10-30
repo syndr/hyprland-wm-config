@@ -59,7 +59,7 @@ hl.config({
   input = {
     kb_layout = "us",
     kb_variant = "",
-    kb_model = "",
+    kb_model = "pc105",
     kb_options = "",
     kb_rules = "",
     repeat_rate = 50,
@@ -102,17 +102,96 @@ hl.config({
   },
 })
 
-hl.gesture({
+local function safe_gesture(spec)
+  if hl and hl.gesture then
+    local ok, err = pcall(hl.gesture, spec)
+    if not ok and err and not tostring(err):find("overshadowed", 1, true) then
+      print("[WARN] Failed to register gesture: " .. tostring(err))
+    end
+  end
+end
+
+-- Cursor zoom helpers.
+--
+-- These gestures used `io.popen("hyprctl getoption cursor:zoom_factor")` and
+-- `hl.dsp.exec_cmd("hyprctl keyword cursor:zoom_factor ...")`. io.popen blocks
+-- the compositor's Lua VM for the whole round trip (hyprctl plus awk), so the
+-- swipe stalled the session, and `hyprctl keyword` is the legacy hyprlang form.
+-- Both are a single in-process hl.* call now, matching the mouse-wheel zoom
+-- binds in configs/system_keybinds.lua.
+local ZOOM_STEP = 1.5
+local ZOOM_MIN = 1.0
+local ZOOM_MAX = 16.0
+
+local function zoom_factor()
+  local factor = hl and hl.get_config
+    and (hl.get_config("cursor.zoom_factor") or hl.get_config("cursor:zoom_factor"))
+
+  if type(factor) ~= "number" then
+    factor = ZOOM_MIN
+  end
+  if factor < ZOOM_MIN then
+    factor = ZOOM_MIN
+  end
+
+  return factor
+end
+
+local function set_zoom(factor)
+  if type(factor) ~= "number" then
+    return
+  end
+  if factor < ZOOM_MIN then
+    factor = ZOOM_MIN
+  elseif factor > ZOOM_MAX then
+    factor = ZOOM_MAX
+  end
+
+  if hl and hl.config then
+    hl.config({ cursor = { zoom_factor = factor } })
+  end
+end
+
+-- 3-finger horizontal swipe -> workspace switch
+safe_gesture({
   fingers = 3,
   direction = "horizontal",
   action = "workspace",
 })
 
--- Complex dispatcher gestures from SystemSettings.conf are pending explicit Lua API parity:
--- gesture = 3, up, dispatcher, exec, hyprctl keyword cursor:zoom_factor ...
--- gesture = 3, down, dispatcher, exec, hyprctl keyword cursor:zoom_factor ...
--- gesture = 4, up, dispatcher, exec, $scriptsDir/OverviewToggle.sh
--- gesture = 4, down, float
+-- 3-finger swipe up -> zoom in
+safe_gesture({
+  fingers = 3,
+  direction = "up",
+  action = function()
+    set_zoom(zoom_factor() * ZOOM_STEP)
+  end,
+})
+
+-- 3-finger swipe down -> zoom out
+safe_gesture({
+  fingers = 3,
+  direction = "down",
+  action = function()
+    set_zoom(zoom_factor() / ZOOM_STEP)
+  end,
+})
+
+-- 4-finger swipe up -> desktop overview
+safe_gesture({
+  fingers = 4,
+  direction = "up",
+  action = function()
+    hl.dispatch(hl.dsp.exec_cmd("$HOME/.config/hypr/scripts/OverviewToggle.sh"))
+  end,
+})
+
+-- 4-finger swipe down -> toggle window floating
+safe_gesture({
+  fingers = 4,
+  direction = "down",
+  action = "float",
+})
 
 hl.config({
   misc = {
@@ -159,7 +238,7 @@ hl.config({
 hl.config({
   cursor = {
     sync_gsettings_theme = true,
-    no_hardware_cursors = 2,
+    no_hardware_cursors =       1,
     enable_hyprcursor = true,
     warp_on_change_workspace = 2,
     no_warps = true,

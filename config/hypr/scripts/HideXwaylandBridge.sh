@@ -32,7 +32,7 @@ sweep() {
     | jq -r --arg ws "$target" \
         '.[] | select(.class=="xwaylandvideobridge") | select(.workspace.name != $ws) | .address' 2>/dev/null \
     | while read -r a; do
-        [ -n "$a" ] && hyprctl dispatch movetoworkspacesilent "$target,address:$a" >/dev/null 2>&1 || true
+        [ -n "$a" ] && hyprctl dispatch "hl.dsp.window.move({ window = 'address:$a', workspace = '$target', follow = false })" >/dev/null 2>&1 || true
       done
 }
 

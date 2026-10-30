@@ -65,9 +65,66 @@ cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}"
 theme_cache="${cache_dir}/wallust_theme_list.txt"
 cache_max_age=86400 # seconds
 
+theme_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/hypr"
+global_theme_file="$theme_state_dir/global_theme"
+legacy_global_theme_file="$HOME/.cache/.global_theme"
+
+read_global_theme() {
+  local theme=""
+  if [ -f "$global_theme_file" ]; then
+    theme="$(tr -d '\r\n' < "$global_theme_file" | awk '{$1=$1};1')"
+  elif [ -f "$legacy_global_theme_file" ]; then
+    theme="$(tr -d '\r\n' < "$legacy_global_theme_file" | awk '{$1=$1};1')"
+  fi
+  printf '%s' "$theme"
+}
+
+save_global_theme() {
+  local theme="$1"
+  mkdir -p "$theme_state_dir" "$HOME/.cache"
+  printf '%s\n' "$theme" > "$global_theme_file"
+  printf '%s\n' "$theme" > "$legacy_global_theme_file"
+}
+
+clear_global_theme() {
+  rm -f "$global_theme_file" "$legacy_global_theme_file"
+}
+
+MARKER="👉"
+WALLPAPER_THEME_OPT="Theme set by wallpaper"
+
 build_theme_list() {
   wallust "${wallust_args[@]}" theme list \
-    | awk '/^- /{sub(/^- /,""); sub(/ \(.*/, ""); print}'
+    | awk '/^- /{sub(/^- /,""); sub(/ \(.*$/, ""); print}'
+}
+
+build_menu_options() {
+  local active="$1"
+  if [ -z "$active" ]; then
+    printf '%s %s\n' "$MARKER" "$WALLPAPER_THEME_OPT"
+  else
+    printf '%s\n' "$WALLPAPER_THEME_OPT"
+  fi
+
+  if [ -s "$theme_cache" ]; then
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if [ "$t" = "$active" ]; then
+        printf '%s %s\n' "$MARKER" "$t"
+      else
+        printf '%s\n' "$t"
+      fi
+    done < "$theme_cache"
+  else
+    while IFS= read -r t; do
+      [ -n "$t" ] || continue
+      if [ "$t" = "$active" ]; then
+        printf '%s %s\n' "$MARKER" "$t"
+      else
+        printf '%s\n' "$t"
+      fi
+    done < <(build_theme_list)
+  fi
 }
 
 update_theme_cache() {
@@ -91,11 +148,11 @@ if [ ! -s "$theme_cache" ] || [ "$cache_age" -gt "$cache_max_age" ]; then
 fi
 
 ensure_wallust_waybar_style() {
-  local waybar_style="${XDG_CONFIG_HOME:-$HOME/.config}/waybar/style.css"
-  local colors_file="${XDG_CONFIG_HOME:-$HOME/.config}/waybar/wallust/colors-waybar.css"
-  local styles_dir="${XDG_CONFIG_HOME:-$HOME/.config}/waybar/style"
+  local waybar_style="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/style.css"
+  local colors_file="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/wallust/colors-waybar.css"
+  local styles_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/style"
   [ -f "$colors_file" ] || return 0
-  if [ -f "$waybar_style" ] && grep -q 'colors-waybar.css' "$waybar_style"; then
+  if [ -f "$waybar_style" ] || [ -L "$waybar_style" ]; then
     return 0
   fi
   local candidates=(
@@ -119,41 +176,56 @@ reload_running_cava_colors() {
   fi
 }
 
-wallust_hypr_colors="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/wallust/wallust-hyprland.conf"
-extract_wallust_hex() {
-  local key="$1"
-  awk -v key="$key" '
-    $1 == "$" key && $2 == "=" {
-      if (match($3, /^rgb\(([0-9A-Fa-f]{6})\)$/, m)) {
-        print toupper(m[1])
-        exit
-      }
-    }
-  ' "$wallust_hypr_colors"
-}
-
+# Native Lua socket evaluation: re-evaluates decorations and applies fresh Wallust colors
+# directly within Hyprland's embedded Lua state via hl.config (~9ms, zero compositor stall).
 apply_hypr_border_fallback() {
-  [ -s "$wallust_hypr_colors" ] || return 0
-  local color12 color10 color15 color0
-  color12="$(extract_wallust_hex color12)"
-  color10="$(extract_wallust_hex color10)"
-  color15="$(extract_wallust_hex color15)"
-  color0="$(extract_wallust_hex color0)"
+  command -v hyprctl >/dev/null 2>&1 || return 0
 
-  [ -n "$color12" ] && hyprctl keyword general:col.active_border "rgb($color12)" >/dev/null 2>&1 || true
-  [ -n "$color10" ] && hyprctl keyword general:col.inactive_border "rgb($color10)" >/dev/null 2>&1 || true
-  [ -n "$color12" ] && hyprctl keyword decoration:shadow:color "rgb($color12)" >/dev/null 2>&1 || true
-  [ -n "$color10" ] && hyprctl keyword decoration:shadow:color_inactive "rgb($color10)" >/dev/null 2>&1 || true
-  [ -n "$color15" ] && hyprctl keyword group:col.border_active "rgb($color15)" >/dev/null 2>&1 || true
-  [ -n "$color0" ] && hyprctl keyword group:groupbar:col.active "rgb($color0)" >/dev/null 2>&1 || true
+  hyprctl eval '
+    local home = os.getenv("HOME") or ""
+    local ok = pcall(dofile, home .. "/.config/hypr/UserConfigs/user_decorations.lua")
+    if not ok then pcall(dofile, home .. "/.config/hypr/lua/decorations.lua") end
+    local hok, helper = pcall(dofile, home .. "/.config/hypr/lua/user_decorations_helper.lua")
+    if not rawget(_G, "KOOLDOTS_FIXED_BORDER_COLORS") and hok and helper and helper.load_wallust_colors then
+      local wallust = helper.load_wallust_colors(home .. "/.config/hypr/wallust/wallust-hyprland.conf")
+      if wallust then
+        local c12 = wallust.color12 or "rgba(8db4ffff)"
+        local c10 = wallust.color10 or "rgba(5f6578ff)"
+        local c15 = wallust.color15 or c12
+        local c0  = wallust.color0  or "rgba(0f111aff)"
+        hl.config({
+          general = { col = { active_border = c12, inactive_border = c10 } },
+          decoration = { shadow = { color = c12, color_inactive = c10 } },
+          group = { col = { border_active = c15 }, groupbar = { col = { active = c0 } } }
+        })
+      end
+    end
+  ' >/dev/null 2>&1 || true
 }
 
 # Prompt for theme; guard -e on cancel
 set +e
-if [ -s "$theme_cache" ]; then
-  choice="$(rofi -dmenu -i -p 'Select Global Theme' < "$theme_cache")"
+"${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/RofiFocusedWallpaperLink.sh" >/dev/null 2>&1 || true
+current_global_theme="$(read_global_theme)"
+menu_options="$(build_menu_options "$current_global_theme")"
+
+# Pre-select the marked row. The marker is the only statement of which theme is
+# active - it is what build_menu_options decided from the cache - so the row is
+# found in the list rather than recomputed here and left to drift.
+default_row=0
+row=0
+while IFS= read -r option_line; do
+  if [[ "$option_line" == "$MARKER "* ]]; then
+    default_row=$row
+    break
+  fi
+  row=$((row + 1))
+done <<<"$menu_options"
+
+if [[ -n "$menu_options" ]]; then
+  choice="$(printf '%s\n' "$menu_options" | rofi -dmenu -i -p 'Select Global Theme' -config "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/config.rasi" -selected-row "$default_row")"
 else
-  choice="$(build_theme_list | rofi -dmenu -i -p 'Select Global Theme')"
+  choice=""
 fi
 prompt_status=$?
 set -e
@@ -162,6 +234,27 @@ set -e
 if (( prompt_status != 0 )) || [[ -z "${choice}" ]]; then
   exit 0
 fi
+
+choice="${choice#"$MARKER "}"
+choice="$(echo "$choice" | awk '{$1=$1};1')"
+
+# Check if reverting to wallpaper-based theme
+if [[ "$choice" == "$WALLPAPER_THEME_OPT" ]]; then
+  clear_global_theme
+  have_notify && notify-send -a ThemeChanger \
+    -h string:x-dunst-stack-tag:themechanger \
+    "Global theme reset" "Theme set by wallpaper"
+  if [ -x "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/WallustSwww.sh" ]; then
+    "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/WallustSwww.sh"
+  fi
+  if [ -x "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/Refresh.sh" ]; then
+    "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/Refresh.sh" &
+  fi
+  exit 0
+fi
+
+# Persist global theme selection
+save_global_theme "$choice"
 
 # Record time before applying so we can wait for fresh template outputs
 start_ts=$(date +%s)
@@ -179,12 +272,12 @@ if wallust "${wallust_args[@]}" theme -- "${choice}" >"$wallust_log" 2>&1; then
     "Global theme changed" "Selected: ${choice}"
 
   # Wait until template targets exist, are newer than start_ts, and are stable (size/mtime stops changing)
-  # Ensure Ghostty directory exists so Wallust can write target even if Ghostty isn't installed
-  mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/ghostty" || true
+  # Ensure Ghostty and GTK-3.0 directories exist so Wallust can write targets even if not yet created
+  mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/ghostty" "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0" || true
 
   targets=(
-    "${XDG_CONFIG_HOME:-$HOME/.config}/waybar/wallust/colors-waybar.css"
-    "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/wallust/colors-rofi.rasi"
+    "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/wallust/colors-waybar.css"
+    "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/wallust/colors-rofi.rasi"
     "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/wallust/wallust-hyprland.conf"
   )
 
@@ -239,7 +332,7 @@ if wallust "${wallust_args[@]}" theme -- "${choice}" >"$wallust_log" 2>&1; then
   # Small cushion before refresh to mirror wallpaper flow
   sleep 0.2
   # Normalize Rofi selection colors to use the palette's accent (color12)
-  rofi_colors="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/wallust/colors-rofi.rasi"
+  rofi_colors="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/wallust/colors-rofi.rasi"
   if [ -f "$rofi_colors" ]; then
     accent_hex=$(sed -n 's/^\s*color12:\s*\(#[0-9A-Fa-f]\{6\}\).*/\1/p' "$rofi_colors" | head -n1)
     [ -z "$accent_hex" ] && accent_hex=$(sed -n 's/^\s*color13:\s*\(#[0-9A-Fa-f]\{6\}\).*/\1/p' "$rofi_colors" | head -n1)
@@ -253,7 +346,10 @@ if wallust "${wallust_args[@]}" theme -- "${choice}" >"$wallust_log" 2>&1; then
     fi
   fi
 
-  reload_hypr_preserve_layout
+  apply_hypr_border_fallback
+  if [ "${HYPR_FULL_RELOAD_ON_THEME:-0}" = "1" ] || [ "${KOOLDOTS_FULL_RELOAD_ON_WALLPAPER:-0}" = "1" ]; then
+    reload_hypr_preserve_layout
+  fi
   ensure_wallust_waybar_style
   reload_running_cava_colors
 

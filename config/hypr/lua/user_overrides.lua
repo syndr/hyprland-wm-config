@@ -11,15 +11,38 @@ local configHome = os.getenv("XDG_CONFIG_HOME") or ((os.getenv("HOME") or "") ..
 local hyprDir = configHome .. "/hypr"
 local systemDir = hyprDir .. "/configs"
 local userDir = configHome .. "/hypr/UserConfigs"
-local function has_kvantum_qml_module()
-  local cmd = "find /usr/lib /usr/lib64 /usr/share -type d -path '*/qml/*/kvantum' -print -quit 2>/dev/null"
-  local pipe = io.popen(cmd, "r")
-  if not pipe then
-    return false
+local function qml_module_exists(subpath)
+  local candidate_roots = {
+    "/usr/lib/qt6/qml",
+    "/usr/lib64/qt6/qml",
+    "/usr/lib/x86_64-linux-gnu/qt6/qml",
+    "/usr/lib/aarch64-linux-gnu/qt6/qml",
+    "/usr/lib/qt5/qml",
+    "/usr/lib64/qt5/qml",
+    "/usr/lib/x86_64-linux-gnu/qt5/qml",
+    "/usr/lib/aarch64-linux-gnu/qt5/qml",
+    "/usr/lib/qt/qml",
+    "/usr/lib64/qt/qml",
+    "/usr/share/qt6/qml",
+    "/usr/share/qt5/qml",
+    "/usr/share/qml",
+  }
+  for _, root in ipairs(candidate_roots) do
+    local f = io.open(root .. "/" .. subpath, "r")
+    if f then
+      f:close()
+      return true
+    end
   end
-  local output = pipe:read("*a") or ""
-  pipe:close()
-  return output:match("%S") ~= nil
+  return false
+end
+
+local function has_kvantum_qml_module()
+  return qml_module_exists("kvantum") or qml_module_exists("org/kde/kvantum")
+end
+
+local function has_hyprland_qml_style_module()
+  return qml_module_exists("org/hyprland/style")
 end
 
 local function apply_qt_style_fallbacks()
@@ -27,18 +50,17 @@ local function apply_qt_style_fallbacks()
     return
   end
 
-  if has_kvantum_qml_module() then
-    return
+  if not has_kvantum_qml_module() then
+    local style_override = (os.getenv("QT_STYLE_OVERRIDE") or ""):lower()
+    if style_override == "kvantum" or style_override == "kvantum-dark" then
+      hl.env("QT_STYLE_OVERRIDE", "Fusion")
+    end
   end
-
-  local style_override = (os.getenv("QT_STYLE_OVERRIDE") or ""):lower()
-  if style_override == "kvantum" or style_override == "kvantum-dark" then
-    hl.env("QT_STYLE_OVERRIDE", "Fusion")
-  end
-
-  local quick_controls = (os.getenv("QT_QUICK_CONTROLS_STYLE") or ""):lower()
-  if quick_controls == "kvantum" then
-    hl.env("QT_QUICK_CONTROLS_STYLE", "Basic")
+  if not has_hyprland_qml_style_module() then
+    local quick_controls = (os.getenv("QT_QUICK_CONTROLS_STYLE") or ""):lower()
+    if quick_controls == "" or quick_controls == "org.hyprland.style" then
+      hl.env("QT_QUICK_CONTROLS_STYLE", "Basic")
+    end
   end
 end
 
@@ -52,6 +74,7 @@ local function load_optional(path)
   end
   return false
 end
+
 local loaded_user_split = false
 
 local system_files = {
@@ -92,96 +115,3 @@ if not loaded_user_split then
   load_optional(userDir .. "/user_overrides.lua") -- legacy single-file support
 end
 apply_qt_style_fallbacks()
-
--- Legacy compatibility: import UserKeybinds.conf when user_keybinds.lua is missing.
-do
-  local userKeybindsLua = userDir .. "/user_keybinds.lua"
-  local legacyUserKeybinds = userDir .. "/UserKeybinds.conf"
-
-  local hasUserLua = io.open(userKeybindsLua, "r")
-  if hasUserLua then
-    hasUserLua:close()
-  else
-    local legacy = io.open(legacyUserKeybinds, "r")
-    if legacy then
-      local function trim(value)
-        return (value or ""):gsub("^%s+", ""):gsub("%s+$", "")
-      end
-      local function strip_inline_comment(value)
-        return trim((value or ""):gsub("%s+#.*$", ""))
-      end
-      local function load_vars_from_file(path, vars)
-        local handle = io.open(path, "r")
-        if not handle then
-          return
-        end
-        for raw in handle:lines() do
-          local line = trim(raw)
-          if line ~= "" and not line:match("^#") then
-            local name, val = line:match("^%$([%w_]+)%s*=%s*(.+)$")
-            if name and val then
-              vars[name] = strip_inline_comment(val)
-            end
-          end
-        end
-        handle:close()
-      end
-      local vars = {}
-      local raw_lines = {}
-      local configDir = configHome .. "/hypr/configs"
-      local defaultsFile = userDir .. "/01-UserDefaults.conf"
-      local keybindsFile = configDir .. "/Keybinds.conf"
-      local systemSettingsFile = configDir .. "/SystemSettings.conf"
-
-      load_vars_from_file(systemSettingsFile, vars)
-      load_vars_from_file(keybindsFile, vars)
-      load_vars_from_file(defaultsFile, vars)
-
-      for line in legacy:lines() do
-        table.insert(raw_lines, line)
-        local trimmed = trim(line)
-        if trimmed ~= "" and not trimmed:match("^#") then
-          local var_name, var_value = trimmed:match("^%$([%w_]+)%s*=%s*(.+)$")
-          if var_name and var_value then
-            vars[var_name] = strip_inline_comment(var_value)
-          end
-        end
-      end
-      legacy:close()
-
-      local function expand_vars(value)
-        value = tostring(value or "")
-        for _ = 1, 8 do
-          local changed = false
-          value = value:gsub("%$([%w_]+)", function(name)
-            local replacement = vars[name]
-            if replacement ~= nil then
-              changed = true
-              return replacement
-            end
-            return "$" .. name
-          end)
-          if not changed then
-            break
-          end
-        end
-        return value
-      end
-
-      for _, line in ipairs(raw_lines) do
-        local trimmed = trim(line)
-        if trimmed ~= "" and not trimmed:match("^#") then
-          local keyword, value = trimmed:match("^([%w_]+)%s*=%s*(.+)$")
-          if keyword and value and (keyword:match("^bind") or keyword == "unbind") then
-            local expanded = expand_vars(value)
-            local cmd = "hyprctl keyword " .. keyword .. " " .. string.format("%q", expanded)
-            local ok = os.execute(cmd)
-            if not ok then
-              print("[WARN] Failed to apply legacy keybind via: " .. cmd)
-            end
-          end
-        end
-      end
-    end
-  end
-end

@@ -7,31 +7,91 @@
 
 local dsp = hl.dsp or hl
 
+local function resolve_cmd(cmd)
+  local defaults = rawget(_G, "KOOLDOTS_DEFAULTS") or {}
+  local resolved_term = defaults.term or os.getenv("TERMINAL") or "kitty"
+  local resolved_files = defaults.files or "thunar"
+  local resolved_edit = defaults.edit or os.getenv("EDITOR") or "nano"
+  local resolved_visual = defaults.visual or os.getenv("VISUAL") or ""
+  cmd = tostring(cmd)
+  cmd = cmd:gsub("%$term", resolved_term)
+  cmd = cmd:gsub("%$files", resolved_files)
+  cmd = cmd:gsub("%$edit", resolved_edit)
+  cmd = cmd:gsub("%$visual", resolved_visual)
+  return cmd
+end
+
 local function exec_cmd(cmd)
+  local resolved = resolve_cmd(cmd)
   if dsp and dsp.exec_cmd then
-    return dsp.exec_cmd(cmd)
+    return dsp.exec_cmd(resolved)
   end
-  return function() hl.exec_cmd(cmd) end
+  return function() hl.exec_cmd(resolved) end
 end
 
-local function shell_quote(value)
-  return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
-end
-
+-- Legacy dispatcher names no longer exist. `hyprctl dispatch` is a shorthand
+-- for `hl.dispatch(...)`, so handing it "workspace 2" makes it evaluate
+-- `hl.dispatch(workspace 2)` - a Lua parse error - and the bind silently does
+-- nothing. There is therefore no generic translation from a legacy dispatcher
+-- string, and this fallback can only report the miss. Add an hl.dsp.* handler
+-- above instead of relying on it. The warning is printed once per name, at
+-- config load, so an unhandled dispatcher is visible rather than silent.
+local warned_dispatchers = {}
 local function raw_dispatch_cmd(command)
-  if dsp and dsp.exec_raw then
-    return dsp.exec_raw(tostring(command))
+  local text = tostring(command)
+  local name = text:match("^(%S+)") or text
+  if not warned_dispatchers[name] then
+    warned_dispatchers[name] = true
+    print("[WARN] keybinds: no Lua dispatcher for '" .. name
+      .. "'; the bind will do nothing. Add an hl.dsp.* handler in user_keybinds_helper.lua.")
   end
-  local expression = "hl.dsp.exec_raw(" .. string.format("%q", tostring(command)) .. ")"
-  return exec_cmd("hyprctl dispatch " .. shell_quote(expression))
+  if dsp and dsp.no_op then
+    return dsp.no_op()
+  end
+  return function() end
 end
 
 local function trim(value)
   return (value or ""):gsub("^%s+", ""):gsub("%s+$", "")
 end
 
+local function normalize_mods(mods)
+  mods = trim(mods)
+  if mods == "" then
+    return ""
+  end
+  local known = {
+    super = "SUPER",
+    super_l = "SUPER",
+    super_r = "SUPER",
+    shift = "SHIFT",
+    shift_l = "SHIFT",
+    shift_r = "SHIFT",
+    ctrl = "CTRL",
+    control = "CTRL",
+    ctrl_l = "CTRL",
+    ctrl_r = "CTRL",
+    control_l = "CTRL",
+    control_r = "CTRL",
+    alt = "ALT",
+    alt_l = "ALT",
+    alt_r = "ALT",
+    meta = "META",
+    meta_l = "META",
+    meta_r = "META",
+    mod2 = "MOD2",
+    mod3 = "MOD3",
+    mod5 = "MOD5",
+  }
+  local parts = {}
+  for token in mods:gmatch("%S+") do
+    parts[#parts + 1] = known[token:lower()] or token
+  end
+  return table.concat(parts, " ")
+end
+
 local function chord(mods, key)
-  mods = trim(mods):gsub("%s+", " + ")
+  mods = normalize_mods(mods):gsub("%s+", " + ")
   key = trim(key)
   if mods == "" then
     return key
@@ -73,7 +133,7 @@ local function key_variants(key, mods)
     ["code:18"] = "9",
     ["code:19"] = "0",
   }
-  if mods and mods:match("SHIFT") and shifted_number_keys[key] then
+  if mods and mods:upper():match("SHIFT") and shifted_number_keys[key] then
     local number_key = number_keys[key]
     if number_key then
       return { shifted_number_keys[key], number_key }
@@ -127,30 +187,50 @@ local function dispatch(name, args)
   end
   if name == "killactive" then
     if window_api.close then
-      return window_api.close()
+      return function()
+        hl.dispatch(window_api.close())
+      end
     end
     if window_api.kill then
-      return window_api.kill()
+      return function()
+        hl.dispatch(window_api.kill())
+      end
     end
     return raw_dispatch_cmd("killactive")
   end
   if name == "fullscreen" then
     if window_api.fullscreen then
       if args == "1" then
-        return window_api.fullscreen({ mode = "maximized" })
+        return function()
+          hl.dispatch(window_api.fullscreen({ mode = "maximized" }))
+        end
       end
-      return window_api.fullscreen({ mode = "fullscreen" })
+      return function()
+        hl.dispatch(window_api.fullscreen({ mode = "fullscreen" }))
+      end
     end
     if args == "1" then
-      return exec_cmd("hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = \"maximized\" })'")
+      return exec_cmd("hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = \\\"maximized\\\" })'")
     end
-    return exec_cmd("hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = \"fullscreen\" })'")
+    return exec_cmd("hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = \\\"fullscreen\\\" })'")
   end
   if name == "movefocus" and dsp and dsp.focus then
     return function()
       dispatch_factory_safely(function()
         return dsp.focus({ direction = direction(args) })
       end)
+    end
+  end
+  if name == "cyclenext" then
+    -- In-process replacement for scripts/LuaCycleWindow.sh, which is gone.
+    -- Previously this fell through to `hyprctl dispatch cyclenext`, a legacy
+    -- dispatcher name that no longer resolves, so the bind did nothing.
+    local previous = args == "prev" or args == "b"
+    return function()
+      local actions = rawget(_G, "KOOLDOTS_WINDOW_ACTIONS")
+      if actions and actions.cycle_window then
+        actions.cycle_window(previous and "previous" or "next")
+      end
     end
   end
   if name == "movewindow" and window_api.move then
@@ -172,11 +252,62 @@ local function dispatch(name, args)
   if name == "togglefloating" and window_api.float then
     return function() hl.dispatch(window_api.float({ action = "toggle" })) end
   end
-  if name == "resizewindow" and window_api.resize then
-    return window_api.resize()
+  if name == "pseudo" and window_api.pseudo then
+    return function()
+      hl.dispatch(window_api.pseudo())
+    end
   end
-  if name == "resizeactive" then
-    return raw_dispatch_cmd("resizeactive " .. args)
+  if (name == "layoutmsg" or name == "layout") and dsp and dsp.layout then
+    return function()
+      dispatch_factory_safely(function()
+        return dsp.layout(args)
+      end)
+    end
+  end
+  if name == "togglesplit" and dsp and dsp.layout then
+    return function()
+      dispatch_factory_safely(function()
+        return dsp.layout("togglesplit")
+      end)
+    end
+  end
+  if name == "resizewindow" and window_api.resize then
+    return function()
+      hl.dispatch(window_api.resize())
+    end
+  end
+  if name == "resizeactive" and window_api.resize then
+    local x, y = args:match("^(%-?%d+)%s+(%-?%d+)$")
+    if x and y then
+      -- relative = true is the supported form for deltas. Do not read the
+      -- window size and compute an absolute value.
+      return window_api.resize({ x = tonumber(x) or 0, y = tonumber(y) or 0, relative = true })
+    end
+  end
+  if name == "swapwindow" and window_api.swap then
+    local swap_direction = trim(args)
+    if swap_direction == "" then
+      return nil
+    end
+    return window_api.swap({ direction = direction(swap_direction) })
+  end
+  if name == "bringactivetotop" and window_api.bring_to_top then
+    return window_api.bring_to_top()
+  end
+  if name == "moveintogroup" and window_api.move then
+    return window_api.move({ into_group = direction(args) })
+  end
+  if name == "moveoutofgroup" and window_api.move then
+    if args == "" then
+      return window_api.move({ out_of_group = true })
+    end
+    return window_api.move({ out_of_group = direction(args) })
+  end
+  if name == "movecurrentworkspacetomonitor" then
+    local workspace_api = (dsp and dsp.workspace) or {}
+    if workspace_api.move then
+      return workspace_api.move({ monitor = direction(args) })
+    end
   end
   if args ~= "" then
     return raw_dispatch_cmd(name .. " " .. args)

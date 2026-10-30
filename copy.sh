@@ -22,7 +22,7 @@
 #   - App enablement/editor selection (lib_apps.sh).
 #   - Session daemon units: ship/enable/start hyprland-session.target (lib_units.sh).
 #   - Copy phases (lib_copy.sh):
-#       * Part 1: fastfetch/kitty/rofi/swaync (prompted replace).
+#       * Part 1: fastfetch/kitty/swaync (prompted replace); rofi backup & empty dir.
 #       * Waybar special handling (symlinks, configs/styles restore).
 #       * Part 2: other configs (btop, cava, hypr, etc.) + ghostty/wezterm installs.
 #   - UserConfigs/UserScripts and hypr file restores.
@@ -35,12 +35,26 @@
 #     consolidation or tests.
 #   - Consider modularizing remaining app-specific tweaks/prompts.
 
+# This script is bash-only (BASH_SOURCE, shopt, [[ ]], arrays).
+# If it is launched with another shell - e.g. `zsh copy.sh --express-upgrade`
+# or `sh copy.sh` - re-exec it under bash. zsh in particular aborts the whole
+# script on an unmatched glob (`nomatch`), which the optional Qt QML probes in
+# scripts/lib_detect.sh can trigger on systems without those paths.
+if [ -z "${BASH_VERSION:-}" ]; then
+  if [ -f "$0" ] && command -v bash >/dev/null 2>&1; then
+    exec bash "$0" "$@"
+  fi
+  printf '%s\n' "[ERROR] copy.sh must be run with bash (e.g. 'bash ./copy.sh --express-upgrade')." >&2
+  exit 1
+fi
+
 clear
-wallpaper=$HOME/.config/hypr/wallpaper_effects/.wallpaper_current
-waybar_style="$HOME/.config/waybar/style/[Dark] Greenscreen.css"
-waybar_config="$HOME/.config/waybar/configs/[TOP] Greenscreen"
-waybar_config_laptop="$HOME/.config/waybar/configs/[TOP] Greenscreen"
-chassis_type_file="$HOME/.config/hypr/.chassis_type"
+wallpaper=${XDG_CONFIG_HOME:-$HOME/.config}/hypr/wallpaper_effects/.wallpaper_current
+# Fork: default to the Greenscreen waybar preset.
+waybar_style="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/style/[Dark] Greenscreen.css"
+waybar_config="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/configs/[TOP] Greenscreen"
+waybar_config_laptop="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/configs/[TOP] Greenscreen"
+chassis_type_file="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/.chassis_type"
 # Standalone Hackerer theme repo, fetched at install time by
 # apply_hackerer_theme() in scripts/lib_copy.sh. Override to pin a tag, e.g.
 # THEME_REPO_REF=v1.0.0 ./copy.sh
@@ -85,6 +99,8 @@ actcheckbox=black,cyan
 '
 fi
 MIN_EXPRESS_VERSION="2.3.18"
+# Hyprland Lua config requires Hyprland 0.55+.
+MIN_LUA_HYPRLAND_VERSION="0.55"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOTFILES_DIR="$SCRIPT_DIR"
 export DOTFILES_DIR
@@ -96,6 +112,7 @@ APPS_HELPER="$SCRIPT_DIR/scripts/lib_apps.sh"
 COPY_HELPER="$SCRIPT_DIR/scripts/lib_copy.sh"
 UNITS_HELPER="$SCRIPT_DIR/scripts/lib_units.sh"
 UPDATE_HELPER="$SCRIPT_DIR/scripts/lib_update.sh"
+PATCHES_HELPER="$SCRIPT_DIR/scripts/lib_patches.sh"
 AUDIT_HELPER="$SCRIPT_DIR/scripts/lib_audit.sh"
 REPO_CONFIG_DIR="$SCRIPT_DIR/config"
 WORK_ROOT=""
@@ -155,6 +172,216 @@ else
   echo "${ERROR} Update helper not found at $UPDATE_HELPER. Exiting."
   exit 1
 fi
+if [ -f "$PATCHES_HELPER" ]; then
+  # shellcheck source=./scripts/lib_patches.sh
+  . "$PATCHES_HELPER"
+fi
+
+# Optional helper fallbacks
+# Some releases may not ship runtime-state helpers yet. Define no-op
+# fallbacks so upgrade/install can continue without crashing.
+if ! declare -f seed_upgrade_userconfigs >/dev/null 2>&1; then
+  seed_upgrade_userconfigs() {
+    local log="${1:-/dev/null}"
+    echo "${NOTE} seed_upgrade_userconfigs helper unavailable; skipping seed step." 2>&1 | tee -a "$log"
+  }
+fi
+if ! declare -f capture_upgrade_runtime_selection_state >/dev/null 2>&1; then
+  capture_upgrade_runtime_selection_state() {
+    local cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+    local waybar_dir="$cfg_home/hypr/waybar"
+    local legacy_waybar_dir="$cfg_home/waybar"
+    KOOLDOTS_SAVED_WAYBAR_CONFIG=""
+    KOOLDOTS_SAVED_WAYBAR_STYLE=""
+
+    if [ -L "$waybar_dir/config" ]; then
+      KOOLDOTS_SAVED_WAYBAR_CONFIG="$(basename "$(readlink "$waybar_dir/config")")"
+    elif [ -L "$legacy_waybar_dir/config" ]; then
+      KOOLDOTS_SAVED_WAYBAR_CONFIG="$(basename "$(readlink "$legacy_waybar_dir/config")")"
+    fi
+    if [ -L "$waybar_dir/style.css" ]; then
+      KOOLDOTS_SAVED_WAYBAR_STYLE="$(basename "$(readlink "$waybar_dir/style.css")")"
+    elif [ -L "$legacy_waybar_dir/style.css" ]; then
+      KOOLDOTS_SAVED_WAYBAR_STYLE="$(basename "$(readlink "$legacy_waybar_dir/style.css")")"
+    fi
+    export KOOLDOTS_SAVED_WAYBAR_CONFIG KOOLDOTS_SAVED_WAYBAR_STYLE
+  }
+fi
+if ! declare -f capture_runtime_personal_state >/dev/null 2>&1; then
+  capture_runtime_personal_state() {
+    local log="${1:-/dev/null}"
+    local cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+    local cache_home="${XDG_CACHE_HOME:-$HOME/.cache}"
+    local rofi_link="$cfg_home/hypr/rofi/.current_wallpaper"
+    local legacy_rofi_link="$cfg_home/rofi/.current_wallpaper"
+    local wallpaper_current="$cfg_home/hypr/wallpaper_effects/.wallpaper_current"
+    local state_dir="$cache_home/kooldots-copy"
+    local state_file="$state_dir/wallpaper-current-$$"
+    local resolved=""
+
+    mkdir -p "$state_dir"
+
+    KOOLDOTS_RUNTIME_WALLPAPER_STATE_FILE="$state_file"
+    KOOLDOTS_RUNTIME_WALLPAPER_SOURCE=""
+    KOOLDOTS_RUNTIME_INITIAL_STARTUP_MARKER=0
+    export KOOLDOTS_RUNTIME_WALLPAPER_STATE_FILE KOOLDOTS_RUNTIME_WALLPAPER_SOURCE KOOLDOTS_RUNTIME_INITIAL_STARTUP_MARKER
+
+    if [ -f "$cfg_home/hypr/.initial_startup_done" ]; then
+      KOOLDOTS_RUNTIME_INITIAL_STARTUP_MARKER=1
+      export KOOLDOTS_RUNTIME_INITIAL_STARTUP_MARKER
+    fi
+
+    if [ -L "$rofi_link" ]; then
+      resolved="$(readlink -f "$rofi_link" 2>/dev/null || true)"
+    elif [ -L "$legacy_rofi_link" ]; then
+      resolved="$(readlink -f "$legacy_rofi_link" 2>/dev/null || true)"
+    fi
+
+    if [ -n "$resolved" ] && [ -f "$resolved" ]; then
+      cp -f "$resolved" "$state_file" 2>/dev/null || true
+      KOOLDOTS_RUNTIME_WALLPAPER_SOURCE="$resolved"
+      export KOOLDOTS_RUNTIME_WALLPAPER_SOURCE
+      echo "${NOTE} Captured current wallpaper from rofi link: $resolved" 2>&1 | tee -a "$log"
+    elif [ -f "$wallpaper_current" ]; then
+      cp -f "$wallpaper_current" "$state_file" 2>/dev/null || true
+      KOOLDOTS_RUNTIME_WALLPAPER_SOURCE="$wallpaper_current"
+      export KOOLDOTS_RUNTIME_WALLPAPER_SOURCE
+      echo "${NOTE} Captured current wallpaper from $wallpaper_current" 2>&1 | tee -a "$log"
+    else
+      rm -f "$state_file" 2>/dev/null || true
+    fi
+  }
+fi
+if ! declare -f preserve_custom_sddm_configs >/dev/null 2>&1; then
+  preserve_custom_sddm_configs() { :; }
+fi
+if ! declare -f apply_user_patches >/dev/null 2>&1; then
+  apply_user_patches() {
+    local log="${1:-/dev/null}"
+    echo "${NOTE} apply_user_patches helper unavailable; skipping user-config patches." 2>&1 | tee -a "$log"
+  }
+fi
+if ! declare -f restore_upgrade_runtime_selection_state >/dev/null 2>&1; then
+  restore_upgrade_runtime_selection_state() {
+    local log="${1:-/dev/null}"
+    local cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+    local waybar_dir="$cfg_home/hypr/waybar"
+    local config_link="$waybar_dir/config"
+    local style_link="$waybar_dir/style.css"
+    local chassis
+    chassis="$(detect_waybar_config 2>/dev/null || echo "desktop")"
+    local default_config="$waybar_config"
+    [ "$chassis" = "laptop" ] && default_config="$waybar_config_laptop"
+    local default_style="$waybar_style"
+
+    # --- Config link validation and restoration ---
+    local restored_config=0
+    if [ -n "${KOOLDOTS_SAVED_WAYBAR_CONFIG:-}" ] && [ -f "$waybar_dir/configs/$KOOLDOTS_SAVED_WAYBAR_CONFIG" ]; then
+      rm -f "$config_link"
+      ln -sf "$waybar_dir/configs/$KOOLDOTS_SAVED_WAYBAR_CONFIG" "$config_link" 2>&1 | tee -a "$log"
+      echo "${OK} Restored waybar layout config: $KOOLDOTS_SAVED_WAYBAR_CONFIG" 2>&1 | tee -a "$log"
+      restored_config=1
+    fi
+
+    if [ "$restored_config" -eq 0 ]; then
+      local current_cfg_target=""
+      if [ -L "$config_link" ]; then
+        current_cfg_target="$(readlink "$config_link" || true)"
+      fi
+      local base_cfg_target=""
+      [ -n "$current_cfg_target" ] && base_cfg_target="$(basename "$current_cfg_target")"
+
+      if [ -n "$base_cfg_target" ] && [ -f "$waybar_dir/configs/$base_cfg_target" ]; then
+        rm -f "$config_link"
+        ln -sf "$waybar_dir/configs/$base_cfg_target" "$config_link" 2>&1 | tee -a "$log"
+        echo "${OK} Repaired waybar config link to: $base_cfg_target" 2>&1 | tee -a "$log"
+      else
+        # If config is a regular file, broken link, or points to missing target: remove and link to default
+        if [ -f "$default_config" ]; then
+          rm -f "$config_link"
+          ln -sf "$default_config" "$config_link" 2>&1 | tee -a "$log"
+          echo "${OK} Initialized default waybar config link: $(basename "$default_config")" 2>&1 | tee -a "$log"
+        fi
+      fi
+    fi
+
+    # --- Style link validation and restoration ---
+    local restored_style=0
+    if [ -n "${KOOLDOTS_SAVED_WAYBAR_STYLE:-}" ] && [ -f "$waybar_dir/style/$KOOLDOTS_SAVED_WAYBAR_STYLE" ]; then
+      rm -f "$style_link"
+      ln -sf "$waybar_dir/style/$KOOLDOTS_SAVED_WAYBAR_STYLE" "$style_link" 2>&1 | tee -a "$log"
+      echo "${OK} Restored waybar style: $KOOLDOTS_SAVED_WAYBAR_STYLE" 2>&1 | tee -a "$log"
+      restored_style=1
+    fi
+
+    if [ "$restored_style" -eq 0 ]; then
+      local current_style_target=""
+      if [ -L "$style_link" ]; then
+        current_style_target="$(readlink "$style_link" || true)"
+      fi
+      local base_style_target=""
+      [ -n "$current_style_target" ] && base_style_target="$(basename "$current_style_target")"
+
+      if [ -n "$base_style_target" ] && [ -f "$waybar_dir/style/$base_style_target" ]; then
+        rm -f "$style_link"
+        ln -sf "$waybar_dir/style/$base_style_target" "$style_link" 2>&1 | tee -a "$log"
+        echo "${OK} Repaired waybar style link to: $base_style_target" 2>&1 | tee -a "$log"
+      else
+        # If style is a regular file, broken link, or points to missing target: remove and link to default
+        if [ -f "$default_style" ]; then
+          rm -f "$style_link"
+          ln -sf "$default_style" "$style_link" 2>&1 | tee -a "$log"
+          echo "${OK} Initialized default waybar style link: $(basename "$default_style")" 2>&1 | tee -a "$log"
+        fi
+      fi
+    fi
+  }
+fi
+if ! declare -f restore_runtime_personal_state >/dev/null 2>&1; then
+  restore_runtime_personal_state() {
+    local log="${1:-/dev/null}"
+    local cfg_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+    local wallpaper_current="$cfg_home/hypr/wallpaper_effects/.wallpaper_current"
+    local rofi_link="$cfg_home/hypr/rofi/.current_wallpaper"
+    local state_file="${KOOLDOTS_RUNTIME_WALLPAPER_STATE_FILE:-}"
+    local source_path="${KOOLDOTS_RUNTIME_WALLPAPER_SOURCE:-}"
+
+    if [ "${KOOLDOTS_RUNTIME_INITIAL_STARTUP_MARKER:-0}" -eq 1 ]; then
+      mkdir -p "$cfg_home/hypr"
+      touch "$cfg_home/hypr/.initial_startup_done" 2>/dev/null || true
+    fi
+
+    if [ -n "$state_file" ] && [ -f "$state_file" ]; then
+      mkdir -p "$(dirname "$wallpaper_current")" "$(dirname "$rofi_link")"
+      cp -f "$state_file" "$wallpaper_current" 2>/dev/null || true
+
+      if [ -n "$source_path" ] && [ -f "$source_path" ]; then
+        ln -snf "$source_path" "$rofi_link" 2>/dev/null || true
+        echo "${INFO} Runtime wallpaper source restored from: $source_path" 2>&1 | tee -a "$log"
+      else
+        ln -snf "$wallpaper_current" "$rofi_link" 2>/dev/null || true
+        echo "${INFO} Runtime wallpaper source restored from: $wallpaper_current" 2>&1 | tee -a "$log"
+      fi
+
+      echo "${OK} Restored runtime wallpaper state after copy." 2>&1 | tee -a "$log"
+      rm -f "$state_file" 2>/dev/null || true
+    fi
+
+    if [ -L "$rofi_link" ]; then
+      local resolved_link=""
+      resolved_link="$(readlink -f "$rofi_link" 2>/dev/null || true)"
+      if [ -z "$resolved_link" ] || [ ! -f "$resolved_link" ]; then
+        if [ -f "$wallpaper_current" ]; then
+          ln -snf "$wallpaper_current" "$rofi_link" 2>/dev/null || true
+          echo "${NOTE} Repaired broken rofi wallpaper link to wallpaper_current fallback." 2>&1 | tee -a "$log"
+        fi
+      fi
+    elif [ ! -e "$rofi_link" ] && [ -f "$wallpaper_current" ]; then
+      ln -snf "$wallpaper_current" "$rofi_link" 2>/dev/null || true
+      echo "${NOTE} Initialized rofi wallpaper link from wallpaper_current fallback." 2>&1 | tee -a "$log"
+    fi
+  }
+fi
 if [ -f "$AUDIT_HELPER" ]; then
   # shellcheck source=./scripts/lib_audit.sh
   . "$AUDIT_HELPER"
@@ -173,14 +400,102 @@ version_gte() {
   [ "$1" = "$(echo -e "$1\n$2" | sort -V | tail -n1)" ]
 }
 
+# Parse installed Hyprland version (e.g. 0.55.4) from hyprctl/Hyprland.
+# hyprctl version requires a running daemon; fall back to the Hyprland binary
+# (which always reports its own version) when no version can be parsed.
+_parse_hyprland_ver_from_output() {
+  local output="$1"
+  local v
+  v="$(printf '%s\n' "$output" | sed -n 's/^Tag: v\([0-9][0-9.]*\).*/\1/p' | head -n1 || true)"
+  if [ -z "$v" ] && [ -n "$output" ]; then
+    v="$(printf '%s\n' "$output" | sed -n 's/.*[Hh]yprland[[:space:]]\+v\?\([0-9][0-9.]*\).*/\1/p' | head -n1 || true)"
+  fi
+  printf '%s' "$v"
+}
+get_hyprland_version() {
+  local ver=""
+  local full_output=""
+
+  # Try hyprctl first (works when daemon is running; some builds also work standalone)
+  if command -v hyprctl >/dev/null 2>&1; then
+    full_output="$(hyprctl version 2>/dev/null || true)"
+    ver="$(_parse_hyprland_ver_from_output "$full_output")"
+  fi
+
+  # Fall back to Hyprland binary — always works even when daemon is not running
+  if [ -z "$ver" ] && command -v Hyprland >/dev/null 2>&1; then
+    full_output="$(Hyprland --version 2>/dev/null || true)"
+    ver="$(_parse_hyprland_ver_from_output "$full_output")"
+  fi
+
+  if [ -z "$ver" ] && command -v hyprland >/dev/null 2>&1; then
+    full_output="$(hyprland --version 2>/dev/null || true)"
+    ver="$(_parse_hyprland_ver_from_output "$full_output")"
+  fi
+
+  printf '%s' "$ver"
+}
+
+hyprland_supports_lua() {
+  local ver
+  ver="$(get_hyprland_version)"
+  if [ -z "$ver" ]; then
+    return 1
+  fi
+  version_gte "$ver" "$MIN_LUA_HYPRLAND_VERSION"
+}
+
+warn_hyprland_too_low_for_lua() {
+  local log="${1:-/dev/null}"
+  local ver
+  ver="$(get_hyprland_version)"
+  if [ -z "$ver" ]; then
+    ver="unknown"
+  fi
+  echo "${WARN} Hyprland Version ${ver} is too low. Installing Hyprlang config, upgrade Hyprland and re-run copy.sh" 2>&1 | tee -a "$log"
+}
+
 get_installed_dotfiles_version() {
   local hypr_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hypr"
   if [ -d "$hypr_dir" ]; then
-    # Pick the highest semantic version among files named vX.Y.Z
-    find "$hypr_dir" -maxdepth 1 -type f -name 'v*.*.*' -printf '%f\n' 2>/dev/null |
+    local ver
+    # 1. Pick the highest semantic version among files named vX.Y.Z
+    ver=$(find "$hypr_dir" -maxdepth 1 -type f -name 'v*.*.*' -printf '%f\n' 2>/dev/null |
       sed 's/^v//' |
       sort -V |
-      tail -n1
+      tail -n1)
+    if [ -n "$ver" ]; then
+      echo "$ver"
+      return 0
+    fi
+    # 2. Check DOTS_VERSION in lua/env.lua
+    if [ -f "$hypr_dir/lua/env.lua" ]; then
+      ver=$(sed -n -E 's/^[[:space:]]*hl\.env\([[:space:]]*["'\'']DOTS_VERSION["'\''][[:space:]]*,[[:space:]]*["'\'']([^"'\'']+)["'\''].*$/\1/p' "$hypr_dir/lua/env.lua" | head -n1 || true)
+      if [ -n "$ver" ]; then
+        echo "$ver"
+        return 0
+      fi
+    fi
+    # 3. Check DOTS_VERSION in configs/ENVariables.conf or configs/system_env.lua
+    if [ -f "$hypr_dir/configs/ENVariables.conf" ]; then
+      ver=$(sed -n -E 's/^[[:space:]]*env[[:space:]]*=[[:space:]]*DOTS_VERSION[[:space:]]*,[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*$/\1/p' "$hypr_dir/configs/ENVariables.conf" | head -n1 || true)
+      if [ -n "$ver" ]; then
+        echo "$ver"
+        return 0
+      fi
+    fi
+    if [ -f "$hypr_dir/configs/system_env.lua" ]; then
+      ver=$(sed -n -E 's/^[[:space:]]*hl\.env\([[:space:]]*["'\'']DOTS_VERSION["'\''][[:space:]]*,[[:space:]]*["'\'']([^"'\'']+)["'\''].*$/\1/p' "$hypr_dir/configs/system_env.lua" | head -n1 || true)
+      if [ -n "$ver" ]; then
+        echo "$ver"
+        return 0
+      fi
+    fi
+    # 4. Fallback to exported $DOTS_VERSION
+    if [ -n "${DOTS_VERSION:-}" ]; then
+      echo "${DOTS_VERSION#v}"
+      return 0
+    fi
   fi
 }
 
@@ -191,6 +506,75 @@ express_supported() {
     return 1
   fi
   version_gte "$current_version" "$MIN_EXPRESS_VERSION"
+}
+config_home() {
+  echo "${XDG_CONFIG_HOME:-$HOME/.config}"
+}
+
+is_kooldots_config() {
+  local hypr_dir
+  hypr_dir="$(config_home)/hypr"
+  [ -d "$hypr_dir" ] || return 1
+  if find "$hypr_dir" -maxdepth 1 -type f -name 'v*.*.*' -print -quit | grep -q .; then
+    return 0
+  fi
+  local installed_ver
+  installed_ver="$(get_installed_dotfiles_version)"
+  if [ -n "$installed_ver" ]; then
+    return 0
+  fi
+  if [ -d "$hypr_dir/UserConfigs" ] || [ -d "$hypr_dir/configs" ] || [ -f "$hypr_dir/hyprland.lua" ] || [ -f "$hypr_dir/hyprland.conf" ]; then
+    return 0
+  fi
+  return 1
+}
+
+is_oem_lua_config() {
+  local cfg_home
+  local hypr_dir
+  cfg_home="$(config_home)"
+  hypr_dir="$cfg_home/hypr"
+
+  # Explicit Hyprlang workflow marker:
+  # if hyprland.lua.disable exists and hyprland.lua does not, treat host as conf mode.
+  if [ -f "$hypr_dir/hyprland.lua.disable" ] && [ ! -f "$hypr_dir/hyprland.lua" ]; then
+    return 1
+  fi
+
+  [ -f "$cfg_home/hyprland.lua" ] || [ -f "$hypr_dir/hyprland.lua" ]
+}
+
+require_kooldots_for_upgrade() {
+  if is_kooldots_config; then
+    return 0
+  fi
+  echo "${WARN} Existing KoolDots config not detected - run fresh install"
+  return 1
+}
+
+prepare_fresh_install_hypr() {
+  local log="${1:-/dev/null}"
+  local cfg_home
+  local hypr_dir
+  local backup_suffix
+  cfg_home="$(config_home)"
+  hypr_dir="$cfg_home/hypr"
+
+  if ! is_kooldots_config && ! is_oem_lua_config; then
+    return 0
+  fi
+
+  backup_suffix="$(get_backup_dirname)"
+
+  if [ -d "$hypr_dir" ]; then
+    mv "$hypr_dir" "${hypr_dir}-${backup_suffix}" 2>&1 | tee -a "$log"
+    echo "${NOTE} - Backed up existing hypr config to ${hypr_dir}-${backup_suffix}" 2>&1 | tee -a "$log"
+  fi
+
+  if [ -f "$cfg_home/hyprland.lua" ]; then
+    mv "$cfg_home/hyprland.lua" "$cfg_home/hyprland.lua-${backup_suffix}" 2>&1 | tee -a "$log"
+    echo "${NOTE} - Backed up existing hyprland.lua to ${cfg_home}/hyprland.lua-${backup_suffix}" 2>&1 | tee -a "$log"
+  fi
 }
 print_usage() {
   cat <<'EOF'
@@ -206,6 +590,7 @@ EOF
 
 UPGRADE_MODE=0
 EXPRESS_MODE=0
+MIGRATE_HYPR_TO_LUA=0
 RUN_MODE=""
 
 while [[ $# -gt 0 ]]; do
@@ -263,6 +648,9 @@ if [ -z "$RUN_MODE" ]; then
         EXPRESS_MODE=0
         ;;
       upgrade)
+        if ! require_kooldots_for_upgrade; then
+          continue
+        fi
         RUN_MODE="upgrade"
         UPGRADE_MODE=1
         EXPRESS_MODE=0
@@ -270,6 +658,9 @@ if [ -z "$RUN_MODE" ]; then
       express)
         if [ "$EXPRESS_SUPPORTED" -eq 0 ]; then
           echo "${WARN} Express mode requires installed dotfiles v${MIN_EXPRESS_VERSION} or newer. Please choose another option."
+          continue
+        fi
+        if ! require_kooldots_for_upgrade; then
           continue
         fi
         RUN_MODE="express"
@@ -301,6 +692,12 @@ if [ -z "$RUN_MODE" ]; then
   fi
 fi
 
+if [ "$RUN_MODE" = "upgrade" ] || [ "$RUN_MODE" = "express" ]; then
+  if ! require_kooldots_for_upgrade; then
+    exit 1
+  fi
+fi
+
 # Check if running as root. If root, script will exit
 if [[ $EUID -eq 0 ]]; then
   echo "${ERROR}  This script should ${WARNING}NOT${RESET} be executed as root!! Exiting......."
@@ -322,7 +719,7 @@ print_color() {
 # Check /etc/os-release for Ubuntu or Debian and warn about Hyprland version requirement
 if grep -iqE '^(ID_LIKE|ID)=.*(ubuntu|debian)' /etc/os-release >/dev/null 2>&1; then
   printf "\n%.0s" {1..1}
-  print_color $WARNING "\nThese Dotfiles are only supported on Hyprland v0.54 or greater. Do not install on older versions of Hyprland.\n"
+  print_color $WARNING "\nThese Dotfiles are only supported on Hyprland v0.55 or greater. Do not install on older versions of Hyprland.\n"
   while true; do
     echo -n "${CAT} Do you want to continue anyway? (y/N): "
     read _continue
@@ -348,7 +745,7 @@ fi
 printf "\n%.0s" {1..1}
 echo -e "\e[35m
     ╦╔═┌─┐┌─┐╦    ╔╦╗┌─┐┌┬┐┌─┐
-    ╠╩╗│ ││ │║     ║║│ │ │ └─┐ 2025
+    ╠╩╗│ ││ │║     ║║│ │ │ └─┐ 2026
     ╩ ╩└─┘└─┘╩═╝  ═╩╝└─┘ ┴ └─┘
 \e[0m"
 printf "\n%.0s" {1..1}
@@ -393,6 +790,9 @@ fi
 if [ "$EXPRESS_MODE" -eq 1 ]; then
   echo "${INFO} Express mode enabled. User-owned state will be preserved automatically while optional prompts are skipped." 2>&1 | tee -a "$LOG"
 fi
+if [ "$RUN_MODE" = "install" ]; then
+  prepare_fresh_install_hypr "$LOG"
+fi
 
 detect_nvidia_adjust "$LOG"
 detect_vm_adjust "$LOG"
@@ -413,17 +813,28 @@ report_waybar_weather_missing() {
 # activating hyprcursor on env by checking if the directory ~/.icons/Bibata-Modern-Ice/hyprcursors exists
 if [ -d "$HOME/.icons/Bibata-Modern-Ice/hyprcursors" ]; then
   HYPRCURSOR_ENV_FILE="$WORK_CONFIG_DIR/hypr/configs/ENVariables.conf"
-  echo "${INFO} Bibata-Hyprcursor directory detected. Activating Hyprcursor...." 2>&1 | tee -a "$LOG" || true
-  sed -i 's/^#env = HYPRCURSOR_THEME,Bibata-Modern-Ice/env = HYPRCURSOR_THEME,Bibata-Modern-Ice/' "$HYPRCURSOR_ENV_FILE"
-  sed -i 's/^#env = HYPRCURSOR_SIZE,24/env = HYPRCURSOR_SIZE,24/' "$HYPRCURSOR_ENV_FILE"
-  sed -i 's/^#env = XCURSOR_THEME,Bibata-Modern-Ice/env = XCURSOR_THEME,Bibata-Modern-Ice/' "$HYPRCURSOR_ENV_FILE"
-  sed -i 's/^#env = XCURSOR_SIZE,24/env = XCURSOR_SIZE,24/' "$HYPRCURSOR_ENV_FILE"
+  if [ -f "$HYPRCURSOR_ENV_FILE" ]; then
+    echo "${INFO} Bibata-Hyprcursor directory detected. Activating Hyprcursor...." 2>&1 | tee -a "$LOG" || true
+    sed -i 's/^#env = HYPRCURSOR_THEME,Bibata-Modern-Ice/env = HYPRCURSOR_THEME,Bibata-Modern-Ice/' "$HYPRCURSOR_ENV_FILE"
+    sed -i 's/^#env = HYPRCURSOR_SIZE,24/env = HYPRCURSOR_SIZE,24/' "$HYPRCURSOR_ENV_FILE"
+    sed -i 's/^#env = XCURSOR_THEME,Bibata-Modern-Ice/env = XCURSOR_THEME,Bibata-Modern-Ice/' "$HYPRCURSOR_ENV_FILE"
+    sed -i 's/^#env = XCURSOR_SIZE,24/env = XCURSOR_SIZE,24/' "$HYPRCURSOR_ENV_FILE"
+  fi
+  LUA_ENV_FILE="$WORK_CONFIG_DIR/hypr/lua/env.lua"
+  if [ -f "$LUA_ENV_FILE" ]; then
+    sed -i 's/^--[[:space:]]*hl\.env("HYPRCURSOR_THEME"/hl.env("HYPRCURSOR_THEME"/' "$LUA_ENV_FILE"
+    sed -i 's/^--[[:space:]]*hl\.env("HYPRCURSOR_SIZE"/hl.env("HYPRCURSOR_SIZE"/' "$LUA_ENV_FILE"
+    sed -i 's/^--[[:space:]]*hl\.env("XCURSOR_THEME"/hl.env("XCURSOR_THEME"/' "$LUA_ENV_FILE"
+    sed -i 's/^--[[:space:]]*hl\.env("XCURSOR_SIZE"/hl.env("XCURSOR_SIZE"/' "$LUA_ENV_FILE"
+  fi
 fi
 
 printf "\n%.0s" {1..1}
 
 layout=$(prompt_detect_layout)
-prompt_keyboard_layout "$layout" "$LOG"
+variant=$(prompt_detect_variant)
+model=$(prompt_detect_model)
+prompt_keyboard_layout "$layout" "$variant" "$model" "$LOG"
 
 enable_asusctl "$LOG"
 enable_blueman "$LOG"
@@ -435,28 +846,34 @@ if is_nixos; then
 else
   install_waybar_weather "$LOG"
 fi
+ensure_oh_my_zsh "$LOG"
 printf "\n%.0s" {1..1}
+
+prompt_express_upgrade "$EXPRESS_SUPPORTED" "$LOG"
 
 choose_default_editor "$LOG"
 resolution="$(prompt_resolution_choice)"
 echo "${OK} You have chosen $resolution resolution." 2>&1 | tee -a "$LOG"
 if [ "$resolution" == "< 1440p" ]; then
   # kitty font size
-  sed -i 's/font_size 16.0/font_size 14.0/' "$WORK_CONFIG_DIR/kitty/kitty.conf"
+  if [ -f "$WORK_CONFIG_DIR/hypr/UserConfigs/kitty.conf" ]; then
+    sed -i 's/font_size 16.0/font_size 14.0/' "$WORK_CONFIG_DIR/hypr/UserConfigs/kitty.conf"
+  fi
 
   # hyprlock matters
-  if [ -f "$WORK_CONFIG_DIR/hypr/hyprlock.conf" ]; then
-    mv "$WORK_CONFIG_DIR/hypr/hyprlock.conf" "$WORK_CONFIG_DIR/hypr/hyprlock-2k.conf"
-  fi
   if [ -f "$WORK_CONFIG_DIR/hypr/hyprlock-1080p.conf" ]; then
-    mv "$WORK_CONFIG_DIR/hypr/hyprlock-1080p.conf" "$WORK_CONFIG_DIR/hypr/hyprlock.conf"
+    cp -f "$WORK_CONFIG_DIR/hypr/hyprlock-1080p.conf" "$WORK_CONFIG_DIR/hypr/hyprlock.conf"
   fi
 
   # rofi fonts reduction
-  rofi_config_file="$WORK_CONFIG_DIR/rofi/0-shared-fonts.rasi"
+  rofi_config_file="$WORK_CONFIG_DIR/hypr/rofi/0-shared-fonts.rasi"
   if [ -f "$rofi_config_file" ]; then
     sed -i '/element-text {/,/}/s/[[:space:]]*font: "JetBrainsMono Nerd Font SemiBold 13"/font: "JetBrainsMono Nerd Font SemiBold 11"/' "$rofi_config_file" 2>&1 | tee -a "$LOG"
     sed -i '/configuration {/,/}/s/[[:space:]]*font: "JetBrainsMono Nerd Font SemiBold 15"/font: "JetBrainsMono Nerd Font SemiBold 13"/' "$rofi_config_file" 2>&1 | tee -a "$LOG"
+  fi
+elif [ "$resolution" == "≥ 1440p" ]; then
+  if [ -f "$WORK_CONFIG_DIR/hypr/hyprlock-2k.conf" ]; then
+    cp -f "$WORK_CONFIG_DIR/hypr/hyprlock-2k.conf" "$WORK_CONFIG_DIR/hypr/hyprlock.conf"
   fi
 fi
 
@@ -465,8 +882,17 @@ prompt_clock_12h "$LOG"
 printf "\n%.0s" {1..1}
 prompt_focus_transparency "$LOG"
 printf "\n%.0s" {1..1}
-printf "\n%.0s" {1..1}
-prompt_express_upgrade "$EXPRESS_SUPPORTED" "$LOG"
+# Upgrade/express: confirm Hyprlang -> Lua migration (default yes).
+# Lua requires Hyprland 0.55+; otherwise stay on Hyprlang.
+if [ "$RUN_MODE" = "upgrade" ] || [ "$RUN_MODE" = "express" ]; then
+  if hyprland_supports_lua; then
+    prompt_lua_migration "$LOG"
+  else
+    MIGRATE_HYPR_TO_LUA=0
+    export MIGRATE_HYPR_TO_LUA
+    warn_hyprland_too_low_for_lua "$LOG"
+  fi
+fi
 
 set -e
 
@@ -475,21 +901,38 @@ if [ ! -d "${XDG_CONFIG_HOME:-$HOME/.config}" ]; then
   echo "${ERROR} - ${XDG_CONFIG_HOME:-$HOME/.config} directory does not exist. Creating it now."
   mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}" && echo "Directory created successfully." || echo "Failed to create directory."
 fi
+seed_upgrade_userconfigs "$LOG"
+capture_upgrade_runtime_selection_state
+capture_runtime_personal_state "$LOG"
 
 printf "${INFO} - copying dotfiles ${SKY_BLUE}first${RESET} part\n"
 copy_phase1 "$LOG" "$RUN_MODE"
 printf "\n%.0s" {1..1}
-copy_waybar "$LOG"
+copy_waybar "$LOG" "$RUN_MODE"
 printf "\n%.0s" {1..1}
 printf "${INFO} - Copying dotfiles ${SKY_BLUE}second${RESET} part\n"
 copy_phase2 "$LOG"
+preserve_custom_sddm_configs "$LOG"
 ensure_lua_keybinds "$LOG"
+# Fresh copy defaults to Lua config when Hyprland is 0.55+.
+# Older Hyprland keeps Hyprlang (.conf) entrypoint.
+# When version detection fails on a fresh install (daemon not yet running),
+# default to Lua — 0.55+ is the minimum supported version.
+if [ "$RUN_MODE" = "install" ]; then
+  _hl_install_ver="$(get_hyprland_version)"
+  if [ -z "$_hl_install_ver" ] || version_gte "$_hl_install_ver" "$MIN_LUA_HYPRLAND_VERSION"; then
+    enable_fresh_install_lua_config "$LOG"
+  else
+    warn_hyprland_too_low_for_lua "$LOG"
+  fi
+  unset _hl_install_ver
+fi
 printf "\\n%.0s" {1..1}
 # waybar-weather config handling:
 # - install (fresh copy): always overwrite and prompt for units
 # - upgrade (non-express): copy only if missing; prompt only if copied
 # - express: copy only if missing; never prompt
-WAYBAR_WEATHER_SRC="$DOTFILES_DIR/config/waybar-weather"
+WAYBAR_WEATHER_SRC="$WORK_CONFIG_DIR/waybar-weather"
 WAYBAR_WEATHER_DEST="${XDG_CONFIG_HOME:-$HOME/.config}/waybar-weather"
 WAYBAR_WEATHER_COPIED=0
 
@@ -537,10 +980,53 @@ if [ "$EXPRESS_MODE" -eq 0 ] && [ "$WAYBAR_WEATHER_COPIED" -eq 1 ]; then
       else
         echo "${WARN} - waybar-weather config not found at $WEATHER_CFG" 2>&1 | tee -a "$LOG"
       fi
+      # Set user_env.lua and ENVariables.conf
+      USER_ENV_LUA="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/user_env.lua"
+      if [ -f "$USER_ENV_LUA" ]; then
+        if grep -qE '^[[:space:]]*hl\.env\([[:space:]]*["'\'']WEATHER_UNITS["'\'']' "$USER_ENV_LUA"; then
+          sed -i -E 's/^[[:space:]]*hl\.env\([[:space:]]*["'\'']WEATHER_UNITS["'\''].*/hl.env("WEATHER_UNITS", "imperial")/' "$USER_ENV_LUA"
+        elif grep -qE '^[[:space:]]*--[[:space:]]*hl\.env\([[:space:]]*["'\'']WEATHER_UNITS["'\'']' "$USER_ENV_LUA"; then
+          sed -i -E 's/^[[:space:]]*--[[:space:]]*hl\.env\([[:space:]]*["'\'']WEATHER_UNITS["'\''].*/hl.env("WEATHER_UNITS", "imperial")/' "$USER_ENV_LUA"
+        else
+          printf '\nhl.env("WEATHER_UNITS", "imperial")\n' >>"$USER_ENV_LUA"
+        fi
+        echo "${OK} - Set WEATHER_UNITS to imperial in user_env.lua" 2>&1 | tee -a "$LOG"
+      fi
+      USER_ENV_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/ENVariables.conf"
+      if [ -f "$USER_ENV_CONF" ]; then
+        if grep -qE '^[[:space:]]*env[[:space:]]*=[[:space:]]*WEATHER_UNITS' "$USER_ENV_CONF"; then
+          sed -i -E 's/^[[:space:]]*env[[:space:]]*=[[:space:]]*WEATHER_UNITS.*/env = WEATHER_UNITS,imperial/' "$USER_ENV_CONF"
+        elif grep -qE '^[[:space:]]*#[[:space:]]*env[[:space:]]*=[[:space:]]*WEATHER_UNITS' "$USER_ENV_CONF"; then
+          sed -i -E 's/^[[:space:]]*#[[:space:]]*env[[:space:]]*=[[:space:]]*WEATHER_UNITS.*/env = WEATHER_UNITS,imperial/' "$USER_ENV_CONF"
+        else
+          printf '\nenv = WEATHER_UNITS,imperial\n' >>"$USER_ENV_CONF"
+        fi
+      fi
       break
       ;;
     c | celsius | "")
-      # Default config already uses metric; no change needed
+      # Default config uses metric
+      USER_ENV_LUA="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/user_env.lua"
+      if [ -f "$USER_ENV_LUA" ]; then
+        if grep -qE '^[[:space:]]*hl\.env\([[:space:]]*["'\'']WEATHER_UNITS["'\'']' "$USER_ENV_LUA"; then
+          sed -i -E 's/^[[:space:]]*hl\.env\([[:space:]]*["'\'']WEATHER_UNITS["'\''].*/hl.env("WEATHER_UNITS", "metric")/' "$USER_ENV_LUA"
+        elif grep -qE '^[[:space:]]*--[[:space:]]*hl\.env\([[:space:]]*["'\'']WEATHER_UNITS["'\'']' "$USER_ENV_LUA"; then
+          sed -i -E 's/^[[:space:]]*--[[:space:]]*hl\.env\([[:space:]]*["'\'']WEATHER_UNITS["'\''].*/hl.env("WEATHER_UNITS", "metric")/' "$USER_ENV_LUA"
+        else
+          printf '\nhl.env("WEATHER_UNITS", "metric")\n' >>"$USER_ENV_LUA"
+        fi
+        echo "${OK} - Set WEATHER_UNITS to metric in user_env.lua" 2>&1 | tee -a "$LOG"
+      fi
+      USER_ENV_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/ENVariables.conf"
+      if [ -f "$USER_ENV_CONF" ]; then
+        if grep -qE '^[[:space:]]*env[[:space:]]*=[[:space:]]*WEATHER_UNITS' "$USER_ENV_CONF"; then
+          sed -i -E 's/^[[:space:]]*env[[:space:]]*=[[:space:]]*WEATHER_UNITS.*/env = WEATHER_UNITS,metric/' "$USER_ENV_CONF"
+        elif grep -qE '^[[:space:]]*#[[:space:]]*env[[:space:]]*=[[:space:]]*WEATHER_UNITS' "$USER_ENV_CONF"; then
+          sed -i -E 's/^[[:space:]]*#[[:space:]]*env[[:space:]]*=[[:space:]]*WEATHER_UNITS.*/env = WEATHER_UNITS,metric/' "$USER_ENV_CONF"
+        else
+          printf '\nenv = WEATHER_UNITS,metric\n' >>"$USER_ENV_CONF"
+        fi
+      fi
       break
       ;;
     *)
@@ -562,27 +1048,29 @@ if command -v ags >/dev/null 2>&1; then
     if [ -d "$WORK_CONFIG_DIR/ags" ]; then
       cp -r "$WORK_CONFIG_DIR/ags/" "$DIRPATH_AGS" 2>&1 | tee -a "$LOG"
     fi
-  elif [ "$EXPRESS_MODE" -eq 1 ]; then
-    echo "${NOTE} - Express mode: preserving existing ags config."
   else
-    read -p "${CAT} Do you want to overwrite your existing ${YELLOW}ags${RESET} config? [y/N] " answer_ags
-    case "$answer_ags" in
-    [Yy]*)
-      BACKUP_DIR=$(get_backup_dirname)
-      mv "$DIRPATH_AGS" "$DIRPATH_AGS-backup-$BACKUP_DIR" 2>&1 | tee -a "$LOG"
-      echo -e "${NOTE} - Backed up ags config to $DIRPATH_AGS-backup-$BACKUP_DIR"
+    if [ "$EXPRESS_MODE" -eq 1 ]; then
+      echo "${NOTE} Express mode: keeping existing ags config." 2>&1 | tee -a "$LOG"
+    else
+      read -p "${CAT} Do you want to overwrite your existing ${YELLOW}ags${RESET} config? [y/N] " answer_ags
+      case "$answer_ags" in
+      [Yy]*)
+        BACKUP_DIR=$(get_backup_dirname)
+        mv "$DIRPATH_AGS" "$DIRPATH_AGS-backup-$BACKUP_DIR" 2>&1 | tee -a "$LOG"
+        echo -e "${NOTE} - Backed up ags config to $DIRPATH_AGS-backup-$BACKUP_DIR"
 
-      if cp -r "$WORK_CONFIG_DIR/ags/" "$DIRPATH_AGS" 2>&1 | tee -a "$LOG"; then
-        echo "${OK} - ${YELLOW}ags configs${RESET} overwritten successfully."
-      else
-        echo "${ERROR} - Failed to copy ${YELLOW}ags${RESET} config."
-        exit 1
-      fi
-      ;;
-    *)
-      echo "${NOTE} - Skipping overwrite of ags config."
-      ;;
-    esac
+        if cp -r "$WORK_CONFIG_DIR/ags/" "$DIRPATH_AGS" 2>&1 | tee -a "$LOG"; then
+          echo "${OK} - ${YELLOW}ags configs${RESET} overwritten successfully."
+        else
+          echo "${ERROR} - Failed to copy ${YELLOW}ags${RESET} config."
+          exit 1
+        fi
+        ;;
+      *)
+        echo "${NOTE} - Skipping overwrite of ags config."
+        ;;
+      esac
+    fi
   fi
 fi
 
@@ -594,87 +1082,81 @@ printf "\\n%.0s" {1..1}
 INSTALLED_VERSION_AT_START="$INSTALLED_VERSION"
 
 # quickshell (ags alternative)
-# Check if quickshell is installed
-if command -v qs >/dev/null 2>&1; then
-  echo -e "${NOTE} - ${YELLOW}quickshell${RESET} is detected as installed"
+DIRPATH_QS="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell"
 
-  DIRPATH_QS="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell"
-
-  if [ ! -d "$DIRPATH_QS" ]; then
-    echo "${INFO} - quickshell config not found, copying new config."
-    if [ -d "$WORK_CONFIG_DIR/quickshell" ]; then
-      cp -r "$WORK_CONFIG_DIR/quickshell/" "$DIRPATH_QS" 2>&1 | tee -a "$LOG"
-    fi
-  elif [ "$EXPRESS_MODE" -eq 1 ]; then
-    echo "${NOTE} - Express mode: preserving existing quickshell config."
-  else
-    # If default shell.qml exists, it blocks named config subdirectory detection
-    # Remove it to enable the overview config to be found
-    if [ -f "$DIRPATH_QS/shell.qml" ]; then
-      echo "${NOTE} - Removing default shell.qml to enable quickshell overview config detection" 2>&1 | tee -a "$LOG"
-      rm "$DIRPATH_QS/shell.qml"
-    fi
-
-    read -p "${CAT} Do you want to overwrite your existing ${YELLOW}quickshell${RESET} config? [y/N] " answer_qs
-    case "$answer_qs" in
-    [Yy]*)
-      BACKUP_DIR=$(get_backup_dirname)
-      mv "$DIRPATH_QS" "$DIRPATH_QS-backup-$BACKUP_DIR" 2>&1 | tee -a "$LOG"
-      echo -e "${NOTE} - Backed up quickshell to $DIRPATH_QS-backup-$BACKUP_DIR"
-
-      cp -r "$WORK_CONFIG_DIR/quickshell/" "$DIRPATH_QS" 2>&1 | tee -a "$LOG"
-      if [ $? -eq 0 ]; then
-        echo "${OK} - ${YELLOW}quickshell${RESET} overwritten successfully."
-        # Remove default shell.qml from new copy to enable overview detection
-        rm -f "$DIRPATH_QS/shell.qml" 2>&1 | tee -a "$LOG"
-      else
-        echo "${ERROR} - Failed to copy ${YELLOW}quickshell${RESET} config."
-        exit 1
-      fi
-      ;;
-    *)
-      echo "${NOTE} - Skipping overwrite of quickshell config."
-      ;;
-    esac
+if [ "$RUN_MODE" = "install" ]; then
+  # Fresh install: clean replace (existing dir is backed up then recopied).
+  if [ -d "$DIRPATH_QS" ]; then
+    # Back up existing quickshell config
+    BACKUP_DIR=$(get_backup_dirname)
+    mv "$DIRPATH_QS" "$DIRPATH_QS-backup-$BACKUP_DIR" 2>&1 | tee -a "$LOG"
+    echo -e "${NOTE} - Backed up quickshell to $DIRPATH_QS-backup-$BACKUP_DIR"
   fi
 
-  # Ensure overview subdirectory exists and is up to date
+  echo "${INFO} - Copying quickshell config..." 2>&1 | tee -a "$LOG"
+  if [ -d "$WORK_CONFIG_DIR/quickshell" ]; then
+    if cp -r "$WORK_CONFIG_DIR/quickshell/" "$DIRPATH_QS" 2>&1 | tee -a "$LOG"; then
+      echo "${OK} - ${YELLOW}quickshell${RESET} copied successfully." 2>&1 | tee -a "$LOG"
+      # Remove default shell.qml from copy to enable overview detection
+      rm -f "$DIRPATH_QS/shell.qml" 2>&1 | tee -a "$LOG"
+    else
+      echo "${ERROR} - Failed to copy ${YELLOW}quickshell${RESET} config." 2>&1 | tee -a "$LOG"
+      exit 1
+    fi
+  fi
+
+  # Ensure overview and qs-hyprview subdirectories exist
   DIRPATH_OVERVIEW="$DIRPATH_QS/overview"
   if [ ! -d "$DIRPATH_OVERVIEW" ] && [ -d "$WORK_CONFIG_DIR/quickshell/overview" ]; then
     echo "${INFO} - Copying quickshell overview config..." 2>&1 | tee -a "$LOG"
     cp -r "$WORK_CONFIG_DIR/quickshell/overview" "$DIRPATH_QS/" 2>&1 | tee -a "$LOG"
     echo "${OK} - Quickshell overview config copied successfully" 2>&1 | tee -a "$LOG"
   fi
-
-  # Check for old quickshell startup commands and update them
-  HYPR_STARTUP="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/configs/Startup_Apps.conf"
-  if [ -f "$HYPR_STARTUP" ]; then
-    if grep -q '^exec-once = qs\s*$\|^exec-once = qs &' "$HYPR_STARTUP"; then
-      echo "${NOTE} - Found old Quickshell startup command, updating to new overview config..." 2>&1 | tee -a "$LOG"
-      # Replace old 'qs' or 'qs &' with new 'qs -c overview'
-      sed -i 's/^\(\s*\)exec-once = qs\s*$/\1exec-once = qs -c overview  # Quickshell Overview/' "$HYPR_STARTUP" 2>&1 | tee -a "$LOG"
-      sed -i 's/^\(\s*\)exec-once = qs &$/\1exec-once = qs -c overview  # Quickshell Overview/' "$HYPR_STARTUP" 2>&1 | tee -a "$LOG"
-      echo "${OK} - Updated Quickshell startup command to use overview config" 2>&1 | tee -a "$LOG"
-    fi
+  DIRPATH_QS_HYPRVIEW="$DIRPATH_QS/qs-hyprview"
+  if [ ! -d "$DIRPATH_QS_HYPRVIEW" ] && [ -d "$WORK_CONFIG_DIR/quickshell/qs-hyprview" ]; then
+    echo "${INFO} - Copying quickshell qs-hyprview config..." 2>&1 | tee -a "$LOG"
+    cp -r "$WORK_CONFIG_DIR/quickshell/qs-hyprview" "$DIRPATH_QS/" 2>&1 | tee -a "$LOG"
+    echo "${OK} - Quickshell qs-hyprview config copied successfully" 2>&1 | tee -a "$LOG"
+  fi
+else
+  # Upgrade/express: sync repo quickshell files in place so user-created
+  # quickshell apps are preserved instead of being moved to a backup.
+  echo "${INFO} - Syncing quickshell config (preserving user custom apps)..." 2>&1 | tee -a "$LOG"
+  if ! sync_quickshell_config "$LOG"; then
+    echo "${ERROR} - Failed to sync ${YELLOW}quickshell${RESET} config." 2>&1 | tee -a "$LOG"
   fi
 fi
+
 printf "\n%.0s" {1..1}
 
 restore_hypr_assets "$LOG" "$EXPRESS_MODE"
+restore_wlogout_selection "$LOG"
 printf "\\n%.0s" {1..1}
 
 restore_user_configs "$LOG" "$EXPRESS_MODE" "$INSTALLED_VERSION_AT_START"
-printf "\\n%.0s" {1..1}
-
-migrate_legacy_zoom_binds "$LOG"
+if [ -n "$FOCUS_TRANSPARENCY_PREF" ]; then
+  set_focus_transparency_preference "$FOCUS_TRANSPARENCY_PREF" \
+    "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/UserConfigs/user_window_rules.lua"
+fi
 printf "\\n%.0s" {1..1}
 
 restore_user_scripts "$LOG" "$EXPRESS_MODE"
 printf "\n%.0s" {1..1}
-restore_terminal_configs "$LOG" "$EXPRESS_MODE"
-printf "\\n%.0s" {1..1}
 
 restore_hypr_files "$LOG" "$EXPRESS_MODE"
+apply_user_patches "$LOG"
+restore_runtime_personal_state "$LOG"
+# After restores, migrate restored Hyprlang customizations to Lua when approved.
+if [ "$RUN_MODE" = "upgrade" ] || [ "$RUN_MODE" = "express" ]; then
+  migrate_hypr_to_lua_if_needed "$LOG" "${MIGRATE_HYPR_TO_LUA:-0}" || true
+fi
+ensure_lua_keybinds "$LOG"
+if [ -n "${KOOLDOTS_SELECTED_KB_LAYOUT:-}" ]; then
+  set_keyboard_layout_configs "$KOOLDOTS_SELECTED_KB_LAYOUT" "${KOOLDOTS_SELECTED_KB_VARIANT:-}" "${KOOLDOTS_SELECTED_KB_MODEL:-}" "$LOG"
+fi
+if [ -n "${KOOLDOTS_SELECTED_EDITOR:-}" ] || [ -n "${KOOLDOTS_SELECTED_VISUAL:-}" ]; then
+  apply_editor_selection_to_userconfigs "$LOG"
+fi
 printf "\n%.0s" {1..1}
 
 finalize_upgrade_bootstrap_state "$LOG" "$UPGRADE_MODE"
@@ -688,14 +1170,14 @@ rofi_DIR="$HOME/.local/share/rofi/themes"
 if [ ! -d "$rofi_DIR" ]; then
   mkdir -p "$rofi_DIR"
 fi
-if [ -d "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/themes" ]; then
-  if [ -z "$(ls -A ${XDG_CONFIG_HOME:-$HOME/.config}/rofi/themes)" ]; then
-    echo '/* Dummy Rofi theme */' >"${XDG_CONFIG_HOME:-$HOME/.config}/rofi/themes/dummy.rasi"
+if [ -d "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/themes" ]; then
+  if [ -z "$(ls -A ${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/themes)" ]; then
+    echo '/* Dummy Rofi theme */' >"${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/themes/dummy.rasi"
   fi
-  ln -snf "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/themes/"* "$HOME/.local/share/rofi/themes/"
+  ln -snf "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/themes/"* "$HOME/.local/share/rofi/themes/"
   # Delete the dummy file if it was created
-  if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/themes/dummy.rasi" ]; then
-    rm "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/themes/dummy.rasi"
+  if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/themes/dummy.rasi" ]; then
+    rm "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/themes/dummy.rasi"
   fi
 fi
 
@@ -746,101 +1228,179 @@ fi
 # Ensure waybar config uses the normalized default.
 # - If the current path is not a symlink (regular file), convert it to a symlink.
 # - If the symlink points somewhere else (or is broken), reset it to the new default.
-WAYBAR_CONFIG_LINK="${XDG_CONFIG_HOME:-$HOME/.config}/waybar/config"
+WAYBAR_CONFIG_LINK="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/config"
 WAYBAR_CONFIG_TARGET="$config_file"
-if [ -e "$WAYBAR_CONFIG_TARGET" ]; then
-  if [ -L "$WAYBAR_CONFIG_LINK" ]; then
-    current_target=$(readlink "$WAYBAR_CONFIG_LINK" || true)
-    if [ "$current_target" != "$WAYBAR_CONFIG_TARGET" ] || [ ! -e "$WAYBAR_CONFIG_LINK" ]; then
+if [ "$RUN_MODE" = "install" ]; then
+  if [ -e "$WAYBAR_CONFIG_TARGET" ]; then
+    if [ -L "$WAYBAR_CONFIG_LINK" ]; then
+      current_target=$(readlink "$WAYBAR_CONFIG_LINK" || true)
+      if [ "$current_target" != "$WAYBAR_CONFIG_TARGET" ] || [ ! -e "$WAYBAR_CONFIG_LINK" ]; then
+        ln -sf "$WAYBAR_CONFIG_TARGET" "$WAYBAR_CONFIG_LINK" 2>&1 | tee -a "$LOG"
+      fi
+    else
       ln -sf "$WAYBAR_CONFIG_TARGET" "$WAYBAR_CONFIG_LINK" 2>&1 | tee -a "$LOG"
     fi
   else
-    ln -sf "$WAYBAR_CONFIG_TARGET" "$WAYBAR_CONFIG_LINK" 2>&1 | tee -a "$LOG"
+    echo "${WARN} Waybar default config target not found at $WAYBAR_CONFIG_TARGET; leaving $WAYBAR_CONFIG_LINK as-is." 2>&1 | tee -a "$LOG"
   fi
 else
-  echo "${WARN} Waybar default config target not found at $WAYBAR_CONFIG_TARGET; leaving $WAYBAR_CONFIG_LINK as-is." 2>&1 | tee -a "$LOG"
+  restore_upgrade_runtime_selection_state "$LOG"
 fi
 
-if [ -x "$HOME/.config/hypr/scripts/GenerateWaybarGreenscreen.sh" ] && [ -f "$HOME/.config/waybar/configs/[TOP] Greenscreen Narrow" ]; then
-  "$HOME/.config/hypr/scripts/GenerateWaybarGreenscreen.sh" 2>&1 | tee -a "$LOG" || true
-  if [ -f "$HOME/.config/waybar/configs/[TOP] Greenscreen Auto" ] && [ "$config_file" = "$waybar_config" ]; then
-    ln -sf "$HOME/.config/waybar/configs/[TOP] Greenscreen Auto" "$HOME/.config/waybar/config" 2>&1 | tee -a "$LOG"
+# Fork: generate the Greenscreen auto (narrow/wide) layout and prefer it on desktops.
+GREENSCREEN_WAYBAR_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar"
+if [ -x "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/GenerateWaybarGreenscreen.sh" ] && [ -f "$GREENSCREEN_WAYBAR_DIR/configs/[TOP] Greenscreen Narrow" ]; then
+  "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/GenerateWaybarGreenscreen.sh" 2>&1 | tee -a "$LOG" || true
+  if [ -f "$GREENSCREEN_WAYBAR_DIR/configs/[TOP] Greenscreen Auto" ] && [ "$config_file" = "$waybar_config" ]; then
+    ln -sf "$GREENSCREEN_WAYBAR_DIR/configs/[TOP] Greenscreen Auto" "$GREENSCREEN_WAYBAR_DIR/config" 2>&1 | tee -a "$LOG"
   fi
 fi
 
 # Remove inappropriate waybar configs
-rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/waybar/configs/[TOP] Default$config_remove" \
-  "${XDG_CONFIG_HOME:-$HOME/.config}/waybar/configs/[BOT] Default$config_remove" \
-  "${XDG_CONFIG_HOME:-$HOME/.config}/waybar/configs/[TOP] Default$config_remove (old v1)" \
-  "${XDG_CONFIG_HOME:-$HOME/.config}/waybar/configs/[TOP] Default$config_remove (old v2)" \
-  "${XDG_CONFIG_HOME:-$HOME/.config}/waybar/configs/[TOP] Default$config_remove (old v3)" \
-  "${XDG_CONFIG_HOME:-$HOME/.config}/waybar/configs/[TOP] Default$config_remove (old v4)" 2>&1 | tee -a "$LOG" || true
+rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/configs/[TOP] Default$config_remove" \
+  "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/configs/[BOT] Default$config_remove" \
+  "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/configs/[TOP] Default$config_remove (old v1)" \
+  "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/configs/[TOP] Default$config_remove (old v2)" \
+  "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/configs/[TOP] Default$config_remove (old v3)" \
+  "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/configs/[TOP] Default$config_remove (old v4)" 2>&1 | tee -a "$LOG" || true
 
 printf "\n%.0s" {1..1}
 
-# for SDDM (simple_sddm_2)
-sddm_simple_sddm_2="/usr/share/sddm/themes/simple_sddm_2"
-if [ -d "$sddm_simple_sddm_2" ] && [ "$EXPRESS_MODE" -eq 1 ]; then
-  echo "${NOTE} Express mode: skipping SDDM wallpaper prompt." 2>&1 | tee -a "$LOG"
-elif [ -d "$sddm_simple_sddm_2" ]; then
-  while true; do
-    echo -n "${CAT} SDDM simple_sddm_2 theme detected! Apply current wallpaper as SDDM background? (y/n): "
-    read SDDM_WALL
-
-    # Remove any leading/trailing whitespace or newlines from input
-    SDDM_WALL=$(echo "$SDDM_WALL" | tr -d '\n' | tr -d ' ')
-
-    case $SDDM_WALL in
-    [Yy])
-      # Copy the wallpaper, ignore errors if the file exists or fails
-      sudo -n cp -r "$WORK_CONFIG_DIR/hypr/wallpaper_effects/.wallpaper_current" "/usr/share/sddm/themes/simple_sddm_2/Backgrounds/default" || true
-      echo "${NOTE} Current wallpaper applied as default SDDM background" 2>&1 | tee -a "$LOG"
-      break
-      ;;
-    [Nn])
-      echo "${NOTE} You chose not to apply the current wallpaper to SDDM." 2>&1 | tee -a "$LOG"
-      break
-      ;;
-    *)
-      echo "Please enter 'y' or 'n' to proceed."
-      ;;
-    esac
-  done
-fi
+# SDDM background auto-sync removed to avoid overriding user-selected themes/wallpapers.
 
 # additional wallpapers
 printf "\n%.0s" {1..1}
-echo "${MAGENTA}By default only a few wallpapers are copied${RESET}..."
 
-if [ "$EXPRESS_MODE" -eq 1 ]; then
-  echo "${NOTE} Express mode: skipping additional wallpaper download prompt." 2>&1 | tee -a "$LOG"
+# The additional wallpapers come from Wallpaper-Bank. The revision that was
+# installed is stored next to the wallpapers, so an existing install is
+# detected and only asked about again when a newer revision is available.
+WALLPAPER_BANK_REPO="${WALLPAPER_BANK_REPO:-https://github.com/LinuxBeginnings/Wallpaper-Bank.git}"
+WALLPAPER_BANK_MARKER="$PICTURES_DIR/wallpapers/.wallpaper-bank-revision"
+# Dynamically calculate threshold: only a few default wallpapers ship with the dots
+default_wallpapers_count=$(find "$SCRIPT_DIR/wallpapers" -type f 2>/dev/null | wc -l || echo 0)
+WALLPAPER_BANK_MIN_FILES=$(( ${default_wallpapers_count:-0} + 15 ))
+
+download_wallpaper_bank() {
+  local clone_dir revision
+  clone_dir=$(mktemp -d "${TMPDIR:-/tmp}/wallpaper-bank.XXXXXX") || return 1
+  trap 'rm -rf "$clone_dir"' EXIT INT TERM
+
+  if ! git clone --depth 1 --single-branch "$WALLPAPER_BANK_REPO" "$clone_dir/Wallpaper-Bank" >>"$LOG" 2>&1; then
+    echo "${ERROR} Downloading additional wallpapers failed" | tee -a "$LOG"
+    trap - EXIT INT TERM
+    rm -rf "$clone_dir"
+    return 1
+  fi
+
+  if [ ! -d "$clone_dir/Wallpaper-Bank/wallpapers" ]; then
+    echo "${ERROR} Wallpapers folder not found in repository." | tee -a "$LOG"
+    trap - EXIT INT TERM
+    rm -rf "$clone_dir"
+    return 1
+  fi
+
+  revision=$(git -C "$clone_dir/Wallpaper-Bank" rev-parse HEAD 2>/dev/null || true)
+  mkdir -p "$PICTURES_DIR/wallpapers"
+
+  if cp -R "$clone_dir/Wallpaper-Bank/wallpapers/." "$PICTURES_DIR/wallpapers/" >>"$LOG" 2>&1; then
+    if [ -n "$revision" ]; then
+      printf '%s\n' "$revision" >"$WALLPAPER_BANK_MARKER" 2>/dev/null || true
+    fi
+    echo "${OK} Additional wallpapers copied successfully." | tee -a "$LOG"
+    trap - EXIT INT TERM
+    rm -rf "$clone_dir"
+    return 0
+  fi
+
+  echo "${ERROR} Copying wallpapers failed" | tee -a "$LOG"
+  trap - EXIT INT TERM
+  rm -rf "$clone_dir"
+  return 1
+}
+
+wallpaper_bank_revision=""
+if [ -f "$WALLPAPER_BANK_MARKER" ]; then
+  wallpaper_bank_revision=$(awk 'NF {print $1; exit}' "$WALLPAPER_BANK_MARKER" 2>/dev/null || true)
+  if [[ ! "$wallpaper_bank_revision" =~ ^[0-9a-fA-F]{40,64}$ ]]; then
+    wallpaper_bank_revision=""
+  fi
+fi
+
+wallpaper_bank_files=0
+if [ -d "$PICTURES_DIR/wallpapers" ]; then
+  wallpaper_bank_files=$(find "$PICTURES_DIR/wallpapers" -type f 2>/dev/null | wc -l)
+fi
+wallpaper_bank_files=$(( ${wallpaper_bank_files:-0} + 0 ))
+
+wallpaper_bank_installed=0
+if [ -n "$wallpaper_bank_revision" ] || [ "$wallpaper_bank_files" -ge "$WALLPAPER_BANK_MIN_FILES" ]; then
+  wallpaper_bank_installed=1
+fi
+
+if [ "${WALLPAPER_BANK_FORCE_UPDATE:-0}" -eq 1 ]; then
+  echo "${NOTE} WALLPAPER_BANK_FORCE_UPDATE set: forcing additional wallpaper download..." 2>&1 | tee -a "$LOG"
+  download_wallpaper_bank || true
+elif [ "$EXPRESS_MODE" -eq 1 ]; then
+  if [ "$wallpaper_bank_installed" -eq 1 ]; then
+    echo "${NOTE} Express mode: additional wallpapers already installed. Skipping update check." 2>&1 | tee -a "$LOG"
+  else
+    echo "${NOTE} Express mode: skipping additional wallpaper download prompt." 2>&1 | tee -a "$LOG"
+  fi
+elif [ "$wallpaper_bank_installed" -eq 1 ]; then
+  echo "${INFO} Checking for additional wallpaper updates..." 2>&1 | tee -a "$LOG"
+  wallpaper_bank_latest=$(git -c http.connectTimeout=10 ls-remote "$WALLPAPER_BANK_REPO" HEAD 2>/dev/null | awk '{print $1; exit}' || true)
+  if [[ ! "$wallpaper_bank_latest" =~ ^[0-9a-fA-F]{40,64}$ ]]; then
+    wallpaper_bank_latest=""
+  fi
+
+  if [ -z "$wallpaper_bank_latest" ]; then
+    echo "${WARN} Could not check for wallpaper updates (remote unreachable or offline). Keeping the installed wallpapers." 2>&1 | tee -a "$LOG"
+  elif [ -z "$wallpaper_bank_revision" ]; then
+    printf '%s\n' "$wallpaper_bank_latest" >"$WALLPAPER_BANK_MARKER" 2>/dev/null || true
+    echo "${OK} Additional wallpapers already installed (recorded revision ${wallpaper_bank_latest:0:8}). Skipping download." 2>&1 | tee -a "$LOG"
+  elif [ "$wallpaper_bank_revision" = "$wallpaper_bank_latest" ]; then
+    echo "${OK} Additional wallpapers already installed and up to date (${wallpaper_bank_latest:0:8}). Skipping." 2>&1 | tee -a "$LOG"
+  else
+    echo "${NOTE} Wallpaper update available: installed ${wallpaper_bank_revision:0:8}, latest ${wallpaper_bank_latest:0:8}."
+    while true; do
+      echo -n "${CAT} Update the additional wallpapers? ${WARN} This downloads ~1GB (y/n): "
+      if ! read -r WALL; then
+        echo "${WARN} No input available. Keeping the installed wallpapers." 2>&1 | tee -a "$LOG"
+        break
+      fi
+
+      case $WALL in
+      [Yy])
+        echo "${NOTE} Updating additional wallpapers..."
+        if download_wallpaper_bank; then
+          break
+        fi
+        ;;
+      [Nn])
+        echo "${NOTE} Keeping the installed wallpapers." 2>&1 | tee -a "$LOG"
+        break
+        ;;
+      *)
+        echo "Please enter 'y' or 'n' to proceed."
+        ;;
+      esac
+    done
+  fi
 else
+  echo "${MAGENTA}By default only a few wallpapers are copied${RESET}..."
   while true; do
     echo "${NOTE} A number of these wallpapers are AI generated or enhanced. Select (N/n) if this is an issue for you. "
     echo -n "${CAT} Would you like to download additional wallpapers? ${WARN} This is 1GB in size (y/n): "
-    read WALL
+    if ! read -r WALL; then
+      echo "${WARN} No input available. Skipping additional wallpapers." 2>&1 | tee -a "$LOG"
+      break
+    fi
 
     case $WALL in
     [Yy])
       echo "${NOTE} Downloading additional wallpapers..."
-      if git clone "https://github.com/LinuxBeginnings/Wallpaper-Bank.git"; then
-        echo "${OK} Wallpapers downloaded successfully." 2>&1 | tee -a "$LOG"
-
-        # Check if wallpapers directory exists and create it if not
-        if [ ! -d "$PICTURES_DIR/wallpapers" ]; then
-          mkdir -p "$PICTURES_DIR/wallpapers"
-          echo "${OK} Created wallpapers directory." 2>&1 | tee -a "$LOG"
-        fi
-
-        if cp -R Wallpaper-Bank/wallpapers/* "$PICTURES_DIR/wallpapers/" >>"$LOG" 2>&1; then
-          echo "${OK} Wallpapers copied successfully." 2>&1 | tee -a "$LOG"
-          rm -rf Wallpaper-Bank 2>&1 # Remove cloned repository after copying wallpapers
-          break
-        else
-          echo "${ERROR} Copying wallpapers failed" 2>&1 | tee -a "$LOG"
-        fi
-      else
-        echo "${ERROR} Downloading additional wallpapers failed" 2>&1 | tee -a "$LOG"
+      if download_wallpaper_bank; then
+        break
       fi
       ;;
     [Nn])
@@ -864,19 +1424,30 @@ fi
 # Ensure waybar style uses the normalized default.
 # - If the current path is not a symlink (regular file), convert it to a symlink.
 # - If the symlink points somewhere else (or is broken), reset it to the new default.
-WAYBAR_STYLE_LINK="${XDG_CONFIG_HOME:-$HOME/.config}/waybar/style.css"
+# Ensure waybar style uses the normalized default or valid target.
+WAYBAR_STYLE_LINK="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/style.css"
 WAYBAR_STYLE_TARGET="$waybar_style"
-if [ -e "$WAYBAR_STYLE_TARGET" ]; then
-  if [ -L "$WAYBAR_STYLE_LINK" ]; then
-    current_target=$(readlink "$WAYBAR_STYLE_LINK" || true)
-    if [ "$current_target" != "$WAYBAR_STYLE_TARGET" ] || [ ! -e "$WAYBAR_STYLE_LINK" ]; then
+if [ "$RUN_MODE" = "install" ]; then
+  if [ -e "$WAYBAR_STYLE_TARGET" ]; then
+    if [ -L "$WAYBAR_STYLE_LINK" ]; then
+      current_target=$(readlink "$WAYBAR_STYLE_LINK" || true)
+      if [ "$current_target" != "$WAYBAR_STYLE_TARGET" ] || [ ! -e "$WAYBAR_STYLE_LINK" ]; then
+        ln -sf "$WAYBAR_STYLE_TARGET" "$WAYBAR_STYLE_LINK" 2>&1 | tee -a "$LOG"
+      fi
+    else
+      rm -f "$WAYBAR_STYLE_LINK"
       ln -sf "$WAYBAR_STYLE_TARGET" "$WAYBAR_STYLE_LINK" 2>&1 | tee -a "$LOG"
     fi
   else
-    ln -sf "$WAYBAR_STYLE_TARGET" "$WAYBAR_STYLE_LINK" 2>&1 | tee -a "$LOG"
+    echo "${WARN} Waybar default style target not found at $WAYBAR_STYLE_TARGET; leaving $WAYBAR_STYLE_LINK as-is." 2>&1 | tee -a "$LOG"
   fi
 else
-  echo "${WARN} Waybar default style target not found at $WAYBAR_STYLE_TARGET; leaving $WAYBAR_STYLE_LINK as-is." 2>&1 | tee -a "$LOG"
+  if [ ! -e "$WAYBAR_STYLE_LINK" ] || [ ! -L "$WAYBAR_STYLE_LINK" ]; then
+    if [ -f "$WAYBAR_STYLE_TARGET" ]; then
+      rm -f "$WAYBAR_STYLE_LINK"
+      ln -sf "$WAYBAR_STYLE_TARGET" "$WAYBAR_STYLE_LINK" 2>&1 | tee -a "$LOG"
+    fi
+  fi
 fi
 
 printf "\n%.0s" {1..1}
@@ -884,14 +1455,23 @@ printf "\n%.0s" {1..1}
 # initialize wallust to avoid config error on hyprland
 wallust_args=()
 # shellcheck source=/dev/null
-if [ -f "$DOTFILES_DIR/config/hypr/scripts/WallustConfig.sh" ]; then
-  . "$DOTFILES_DIR/config/hypr/scripts/WallustConfig.sh"
+if [ -f "$WORK_CONFIG_DIR/hypr/scripts/WallustConfig.sh" ]; then
+  . "$WORK_CONFIG_DIR/hypr/scripts/WallustConfig.sh"
 fi
-wallust "${wallust_args[@]}" run -s "$wallpaper" 2>&1 | tee -a "$LOG"
+if [ "$EXPRESS_MODE" -eq 1 ]; then
+  echo "${NOTE} Express upgrade selected: skipping wallust run entirely." 2>&1 | tee -a "$LOG"
+elif [ "$RUN_MODE" != "install" ] && [ "${KOOLDOTS_RUNTIME_THEME_RESTORED:-0}" -eq 1 ]; then
+  echo "${NOTE} Preserved existing Wallust/global theme colors from pre-upgrade state; skipping wallust regeneration." 2>&1 | tee -a "$LOG"
+else
+  wallust "${wallust_args[@]}" run -s "$wallpaper" 2>&1 | tee -a "$LOG"
+fi
 if is_nixos && ! command -v waybar-weather >/dev/null 2>&1; then
   echo "${WARN} waybar-weather binary is missing." 2>&1 | tee -a "$LOG"
   echo "Install the current NixOS-Hyprland version to install waybar-weather applet for Waybar" 2>&1 | tee -a "$LOG"
 fi
+
+# Ensure shell profile sources /etc/profile (fixes flatpak not showing in rofi on Debian)
+ensure_shell_profile_sources_etc_profile "$LOG"
 
 run_post_upgrade_audit "$LOG"
 

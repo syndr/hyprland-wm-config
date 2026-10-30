@@ -17,4 +17,4 @@ selection=$(hyprctl clients -j | jq -r '
     -display-columns 2,3 -display-column-separator "\t")
 
 addr="${selection%%$'\t'*}"
-[ -n "$addr" ] && hyprctl dispatch focuswindow "address:$addr"
+[ -n "$addr" ] && hyprctl dispatch "hl.dsp.focus({ window = 'address:$addr' })"

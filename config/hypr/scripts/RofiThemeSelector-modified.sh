@@ -5,7 +5,7 @@
 #  License: GNU GPLv3
 #  SPDX-License-Identifier: GPL-3.0-or-later
 # ==================================================
-# A modified version of Rofi-Theme-Selector, concentrating only on ~/.local and also, applying only 10 @themes in ${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config.rasi
+# A modified version of Rofi-Theme-Selector, concentrating only on ~/.local and also, applying only 10 @themes in ${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/config.rasi
 # as opposed to continous adding of //@theme
 
 # This code is released in public domain by Dave Davenport <qball@gmpclient.org>
@@ -42,7 +42,7 @@ fi
 
 TMP_CONFIG_FILE=$(${MKTEMP}).rasi
 #rofi_theme_dir="${HOME}/.local/share/rofi/themes"
-rofi_config_file="${XDG_CONFIG_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}}/rofi/config.rasi"
+rofi_config_file="${XDG_CONFIG_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}}/hypr/rofi/config.rasi"
 
 ##
 # Array with parts to the found themes.
@@ -57,7 +57,7 @@ declare -a theme_names
 ##
 # Find themes in defined directories
 find_themes() {
-    directories=("$HOME/.local/share/rofi/themes" "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/themes")
+    directories=("$HOME/.local/share/rofi/themes" "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/themes")
     
     for TD in "${directories[@]}"; do
         if [ -d "$TD" ]; then
@@ -86,8 +86,8 @@ add_theme_to_config() {
     # Determine the correct path for the theme
     if [[ -f "$HOME/.local/share/rofi/themes/$theme_name.rasi" ]]; then
         theme_path="$HOME/.local/share/rofi/themes/$theme_name.rasi"
-    elif [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/rofi/themes/$theme_name.rasi" ]]; then
-        theme_path="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/themes/$theme_name.rasi"
+    elif [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/themes/$theme_name.rasi" ]]; then
+        theme_path="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/themes/$theme_name.rasi"
     else
         echo "Theme not found: $theme_name"
         return 1
@@ -139,13 +139,10 @@ create_config_copy()
 ##
 create_theme_list()
 {
-    OLDIFS=${IFS}
-    IFS='|'
-    for themen in ${theme_names[@]}
-    do
-        echo "${themen}"
-    done
-    IFS=${OLDIFS}
+    # One theme name per line. The previous IFS='|' dance was vestigial
+    # (nothing in the list contains '|') and the unquoted expansion
+    # re-split on IFS, breaking names containing spaces.
+    printf '%s\n' "${theme_names[@]}"
 }
 
 ##
@@ -169,12 +166,15 @@ select_theme()
 Current theme: <b>${CUR}</b>
 <span weight=\"bold\" size=\"xx-small\">When setting a new theme this will override previous theme settings.
 Please update your config file if you have local modifications.</span>"""
-        THEME_FLAG=
+        # Build the theme flag as an array so a path containing whitespace
+        # (or glob chars) is passed as a single argument instead of being
+        # re-split by the shell.
+        local THEME_ARGS=()
         if [ -n "${SELECTED}" ]
         then
-            THEME_FLAG="-theme ${themes[${SELECTED}]}"
+            THEME_ARGS=(-theme "${themes[${SELECTED}]}")
         fi
-        RES=$( create_theme_list | ${ROFI} ${THEME_FLAG} ${MORE_FLAGS[@]} -cycle -selected-row "${SELECTED}" -mesg "${MESG}")
+        RES=$( create_theme_list | "${ROFI}" "${THEME_ARGS[@]}" "${MORE_FLAGS[@]}" -cycle -selected-row "${SELECTED}" -mesg "${MESG}")
         RTR=$?
         if [ "${RTR}" = 10 ]
         then

@@ -7,27 +7,27 @@
 # ==================================================
 # Backup helper utilities shared by copy.sh (and future scripts).
 
-# Backup-directory suffix shared across a single installer run.
+# Create a unique backup directory name with month, day, hours, and minutes.
 #
-# Every backup created during a run and every later restore must agree on this
-# name. Callers use command substitution -- $(get_backup_dirname) -- so a
-# function-local cache would not survive the subshell; instead copy.sh exports
-# KOOL_RUN_BACKUP_SUFFIX once in the parent shell and we honor it here. Without
-# it (standalone callers) we fall back to a fresh timestamp.
+# The name is CACHED: the first call fixes it for the rest of the run, so every
+# backup and every later restore agree on one suffix. A caller must therefore
+# NOT shadow the variable with `local BACKUP_DIR` before calling - that hides
+# the cached value, a fresh timestamp is generated instead, and a restore then
+# looks in a directory that does not exist.
 get_backup_dirname() {
-  # Fork: copy.sh exports an authoritative per-run suffix; honor it first.
+  # Fork: copy.sh exports an authoritative per-run suffix in the parent shell,
+  # which survives the $(...) subshells the BACKUP_DIR cache does not.
   if [ -n "${KOOL_RUN_BACKUP_SUFFIX:-}" ]; then
-    printf '%s\n' "$KOOL_RUN_BACKUP_SUFFIX"
+    echo "$KOOL_RUN_BACKUP_SUFFIX"
     return
   fi
-  # Upstream: self-caching exported BACKUP_DIR so repeated subshell calls agree.
   if [ -n "${BACKUP_DIR:-}" ]; then
-    printf '%s\n' "$BACKUP_DIR"
+    echo "$BACKUP_DIR"
     return
   fi
   BACKUP_DIR="back-up_$(date +"%m%d_%H%M")"
   export BACKUP_DIR
-  printf '%s\n' "$BACKUP_DIR"
+  echo "$BACKUP_DIR"
 }
 
 # Move a directory to a timestamped backup alongside the original.

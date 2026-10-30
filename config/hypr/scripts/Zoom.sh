@@ -25,7 +25,7 @@ MAX="${KOOL_ZOOM_MAX:-8.0}"
 case "${1:-}" in
   in | out) ;;
   reset)
-    hyprctl keyword cursor:zoom_factor 1.0 >/dev/null
+    hyprctl eval "hl.config({ cursor = { zoom_factor = 1.0 } })" >/dev/null
     exit 0
     ;;
   *)
@@ -47,4 +47,4 @@ new=$(awk -v cur="$current" -v step="$STEP" -v dir="$1" -v min="$MIN" -v max="$M
   printf "%.4f", v
 }')
 
-hyprctl keyword cursor:zoom_factor "$new" >/dev/null
+hyprctl eval "hl.config({ cursor = { zoom_factor = ${new} } })" >/dev/null
