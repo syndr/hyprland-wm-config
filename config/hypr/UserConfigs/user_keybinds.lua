@@ -183,6 +183,25 @@ bind("", "XF86Launch9", function()
   pcall(hl.dispatch, hl.dsp.layout(msg))
   knob_fit_all[id] = not knob_fit_all[id]
 end, { description = "Knob: fit all columns / back to 1/3 (scrolling)" })
+
+-- Toggles for macro-pad buttons, F19 and F24 (F20-F23 are media/touchpad keys
+-- on the us layout).
+--   F19: hover focus (input:follow_mouse 1 <-> 2; 2 focuses only on click)
+--   F24: scrolling view follows focus (scrolling:follow_focus)
+local function notify_toggle(label, state)
+  hl.exec_cmd(string.format("notify-send -e -u low -t 1500 '%s' '%s'", label, state))
+end
+bind("", "F19", function()
+  local on = hl.get_config("input.follow_mouse") ~= 1
+  hl.config({ input = { follow_mouse = on and 1 or 2 } })
+  notify_toggle("Hover focus", on and "on" or "off (click to focus)")
+end, { description = "Toggle hover focus" })
+bind("", "F24", function()
+  -- get_config reports booleans as 0/1.
+  local on = hl.get_config("scrolling.follow_focus") ~= 1
+  hl.config({ scrolling = { follow_focus = on } })
+  notify_toggle("Scroll follows focus", on and "on" or "off")
+end, { description = "Toggle scrolling view follows focus" })
 bind("SUPER", "BackSpace", exec_cmd("pkill rofi || true && rofi -show drun -modi drun,filebrowser,run,window"), { description = "app launcher" })
 bind("SUPER", "grave", exec_cmd(scriptsDir .. "/LockScreen.sh"), { description = "lock screen" })
 bind("SUPER SHIFT", "L", exec_cmd(userScripts .. "/ScreenHackSelect.sh"), { description = "screensaver hack picker" })
