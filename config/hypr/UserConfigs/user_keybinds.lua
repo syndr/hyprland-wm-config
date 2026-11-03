@@ -169,6 +169,34 @@ bind("SUPER ALT SHIFT", "R", hl.dsp.layout("colresize -conf"), { description = "
 --   pan knob:   F13 / F14 turn, F15 press
 --   width knob: F16 / F17 turn, F18 press
 local KNOB_PAN_PX = 200
+-- Shift the view by px toward the end (sign > 0) or start of the workspace.
+-- hl.set_scrolling_offset (Hyprland after 0.56.2) pans without side effects;
+-- "move" also refocuses and re-fits the column at screen centre.
+local function pan_view(sign, px)
+  local off = hl.get_scrolling_offset and hl.get_scrolling_offset()
+  if type(off) == "number" then
+    hl.set_scrolling_offset(math.max(0, off + sign * px))
+  else
+    pcall(hl.dispatch, hl.dsp.layout("move " .. (sign > 0 and "-" or "+") .. px))
+  end
+end
+
+-- Extent of the tiled windows along axis, plus the one spanning mid.
+local function tiled_span(ws_id, axis, mid)
+  local lo, hi, mid_lo, mid_hi
+  for _, w in ipairs(hl.get_windows()) do
+    if w.workspace and w.workspace.id == ws_id and not w.floating and w.at and w.size then
+      local a, len = w.at[axis], w.size[axis]
+      lo = (not lo or a < lo) and a or lo
+      hi = (not hi or a + len > hi) and a + len or hi
+      if a <= mid and a + len > mid then
+        mid_lo, mid_hi = a, a + len
+      end
+    end
+  end
+  return lo, hi, mid_lo, mid_hi
+end
+
 -- Pan by up to KNOB_PAN_PX, stopping once the first/last column is fully on
 -- screen so the view never scrolls into empty space. Portrait monitors (odd
 -- transform) run direction=down workspaces, so pan along y there.
@@ -184,24 +212,23 @@ local function knob_pan(sign)
   local view_lo = vertical and mon.y or mon.x
   -- width is the unrotated mode width: the scroll axis length either way.
   local view_len = mon.width / scale
-  local lo, hi
-  for _, w in ipairs(hl.get_windows()) do
-    if w.workspace and w.workspace.id == ws.id and not w.floating and w.at and w.size then
-      local a, len = w.at[axis], w.size[axis]
-      lo = (not lo or a < lo) and a or lo
-      hi = (not hi or a + len > hi) and a + len or hi
-    end
-  end
+  local mid = view_lo + view_len / 2
+  local lo, hi, mid_lo, mid_hi = tiled_span(ws.id, axis, mid)
   if not lo then
     return
   end
   local gaps = hl.get_config("general.gaps_out")
   local gap = type(gaps) == "table" and (gaps.left or 0) or 0
-  -- "move +N" shifts the columns by +N, so the view moves the other way.
-  local room = sign > 0 and (hi - (view_lo + view_len - gap)) or ((view_lo + gap) - lo)
-  local step = math.min(KNOB_PAN_PX, math.floor(room))
-  if step > 0 then
-    pcall(hl.dispatch, hl.dsp.layout("move " .. (sign > 0 and "-" or "+") .. step))
+  local room = math.floor(sign > 0 and (hi - (view_lo + view_len - gap)) or ((view_lo + gap) - lo))
+  if room <= 0 then
+    return
+  end
+  pan_view(sign, math.min(KNOB_PAN_PX, room))
+  -- The "move" re-fit snaps back any pan that leaves the centre column partly
+  -- off screen, e.g. tall rows on portrait monitors. Step past it instead.
+  if tiled_span(ws.id, axis, mid) == lo and mid_lo then
+    local past = sign > 0 and (mid_hi - mid) or (mid - mid_lo)
+    pan_view(sign, math.min(room, math.ceil(past) + KNOB_PAN_PX // 4))
   end
 end
 bind("", "XF86Tools", function() knob_pan(-1) end, { description = "Knob: pan view back (scrolling)" })
