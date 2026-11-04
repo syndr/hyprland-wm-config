@@ -4,6 +4,17 @@
 
 ## Fixed
 
+- **Brightness keys step in hardware levels, not percent.**
+  `scripts/Brightness.sh` used to add 10% and let `brightnessctl set N%` round
+  back onto the panel's real levels, so on a panel with few levels every press
+  was a full hardware notch and a smaller percentage would have been a no-op.
+  It now reads the raw level and range from `brightnessctl -m` and moves by
+  `KOOL_BRIGHTNESS_STEP` percent of the range (default 3) or one hardware
+  level, whichever is larger, clamped to `[1, max]` so the backlight never
+  switches off. Override via `env = KOOL_BRIGHTNESS_STEP,5` in
+  `UserConfigs/ENVariables.conf` (example added there). `--inc`/`--dec`/`--get`
+  are unchanged, so the keybinds and waybar scroll hooks need no edit.
+
 - **Grey screen after upgrading past #19 (`feat(startup)`).** That change
   stopped sourcing the vendor `configs/Startup_Apps.conf` in favour of systemd
   user units that were assumed to exist in `~/.config/systemd/user/` -- they
