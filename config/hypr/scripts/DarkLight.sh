@@ -166,7 +166,7 @@ for pid in waybar rofi swaync ags swaybg; do
 done
 
 # Initialize swww if needed
-swww query || swww-daemon --format xrgb
+swww query || swww-daemon
 
 # Set swww options
 swww="swww img"

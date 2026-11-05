@@ -17,7 +17,7 @@ else
   WWW_CMD="swww"
   WWW_DAEMON="swww-daemon"
   WWW_CACHE_DIR="$HOME/.cache/swww"
-  WWW_DAEMON_ARGS=(--format xrgb)
+  WWW_DAEMON_ARGS=()
 fi
 # One-time cache clear when migrating from swww to awww
 if [ "$WWW_CMD" = "awww" ]; then
