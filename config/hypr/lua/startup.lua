@@ -12,57 +12,68 @@
 local scriptsDir = "$HOME/.config/hypr/scripts"
 local userScripts = "$HOME/.config/hypr/UserScripts"
 local wallDir = "$HOME/Pictures/wallpapers"
-local session = os.getenv("HYPRLAND_INSTANCE_SIGNATURE") or "default"
-local function shell_quote(value)
-  return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
-end
-local function exec_once(cmd)
-  -- Why this wrapper exists:
-  -- 1) Enforce once-per-Hypr-session startup behavior using marker files.
-  -- 2) Avoid startup race conditions by waiting for Wayland/Hypr sockets.
-  -- 3) Capture per-command logs to simplify troubleshooting in user setups.
 
-  local key = cmd:gsub("[^%w_.-]", "_"):sub(1, 80)
-  local marker = "/tmp/hypr-lua-exec-once-" .. session .. "-" .. key
-  local log = "/tmp/hypr-lua-startup-" .. key .. ".log"
-  local readiness =
-    'runtime=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}; export XDG_RUNTIME_DIR="$runtime"; for _ in $(seq 1 200); do if [ -n "$WAYLAND_DISPLAY" ] && [ -S "$runtime/$WAYLAND_DISPLAY" ]; then break; fi; for sock in "$runtime"/wayland-[0-9]*; do [ -S "$sock" ] || continue; case "$(basename "$sock")" in *awww*) continue ;; esac; export WAYLAND_DISPLAY="$(basename "$sock")"; break 2; done; sleep 0.1; done; if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then hypr_sock="$runtime/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket.sock"; for _ in $(seq 1 200); do [ -S "$hypr_sock" ] && break; sleep 0.1; done; fi'
-  local inner = readiness .. "; " .. cmd
-  local script = "[ -e "
-    .. shell_quote(marker)
-    .. " ] || { touch "
-    .. shell_quote(marker)
-    .. " && sh -lc "
-    .. shell_quote(inner)
-    .. " >>"
-    .. shell_quote(log)
-    .. " 2>&1 & }"
-  os.execute("sh -lc " .. shell_quote(script))
+-- exec_once (once-per-session marker + session readiness gate + per-command log)
+-- lives in lua/user_startup_helper.lua and is shared with
+-- UserConfigs/user_startup.lua, so the system and user startup lists cannot
+-- drift apart again. Only the marker/log prefixes differ here, which keeps the
+-- two lists separately debuggable.
+local configHome = os.getenv("XDG_CONFIG_HOME") or ((os.getenv("HOME") or "") .. "/.config")
+local helperPath = configHome .. "/hypr/lua/user_startup_helper.lua"
+local helperOk, startupHelper = pcall(dofile, helperPath)
+if not (helperOk and type(startupHelper) == "table" and startupHelper.exec_once) then
+  error("system_startup: failed to load " .. helperPath .. ": " .. tostring(startupHelper))
 end
+
+local function exec_once(cmd)
+  return startupHelper.exec_once(cmd, {
+    marker_prefix = "/tmp/hypr-lua-exec-once-",
+    log_prefix = "/tmp/hypr-lua-startup-",
+  })
+end
+
 -- Prefer lifecycle-hook orchestration for clarity while keeping exec_once
 -- reliability semantics for real-world startup behavior.
 local startup_commands = {
-  scriptsDir .. "/WallpaperDaemon.sh",
+  -- Long-lived daemons (wallpaper daemon, waybar, swaync, hypridle, nm-applet,
+  -- clipboard history, quickshell overview, the polkit agent, IdlePowerWatch)
+  -- are NOT started here. They are systemd user units pulled in by
+  -- hyprland-session.target; scripts/lib_units.sh ships and enables them. See
+  -- docs/adr/run-session-daemons-as-systemd-user-units.md.
+  --
+  -- Why: an exec-once child inherits Hyprland's pre-raise RLIMIT_NOFILE soft
+  -- limit of 1024, so it is the first thing to die when file descriptors run
+  -- short. A unit sets LimitNOFILE; an exec-once cannot.
+  --
+  -- What belongs here: one-shots and anything that manipulates compositor
+  -- state and so has to run inside a live Hyprland.
+
+  -- Export the session environment into the user manager. uwsm already does
+  -- this; the plain hyprland.desktop session does not, and without it the
+  -- units have no WAYLAND_DISPLAY and cannot reach the compositor.
+  "dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP WEATHER_UNITS KITTY_CONFIG_DIRECTORY",
+  "systemctl --user import-environment WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP WEATHER_UNITS KITTY_CONFIG_DIRECTORY",
+  -- Bring up the systemd session. Under uwsm `uwsm finalize` starts
+  -- graphical-session.target, which pulls hyprland-session.target. Under the
+  -- plain hyprland.desktop session nothing else starts it; hyprland-session.target
+  -- BindsTo graphical-session.target, so starting ours pulls the whole set up.
+  'grep -q "wayland-wm@" /proc/self/cgroup && exec uwsm finalize || exec systemctl --user start hyprland-session.target',
+  -- Fix an unresolvable Ghostty theme before the terminal is ever opened.
+  scriptsDir .. "/GhosttyThemeGuard.sh",
   "$HOME/.config/hypr/initial-boot.sh",
-  "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP",
-  "systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP",
-  scriptsDir .. "/Polkit.sh",
-  "nm-applet",
-  -- nm-tray now optional for ubuntu
-  -- "nm-tray",
-  "swaync",
-  scriptsDir .. "/PortalHyprland.sh",
-  "sh $HOME/.config/hypr/scripts/ApplyThemeMode.sh",
-  "sh " .. scriptsDir .. "/WaybarStartup.sh",
-  "qs -c overview",
-  "hypridle",
-  -- Re-renders hypridle.conf and reloads hypridle on AC/battery transitions.
-  scriptsDir .. "/IdlePowerWatch.sh",
+  -- Compositor state -- needs hyprctl and a running Hyprland.
+  "hyprpm reload",
+  scriptsDir .. "/KeybindsLayoutInit.sh",
+  scriptsDir .. "/HideXwaylandBridge.sh",
+  -- Re-read the config when a file it loads is saved. Hyprland watches only
+  -- the entrypoint; everything else arrives through dofile.
+  scriptsDir .. "/LuaConfigWatch.sh",
   scriptsDir .. "/Hyprsunset.sh init",
-  -- NOTE: Dropterminal is currently certified only with kitty. Not all terminals behave correctly as a dropdown.
+  -- NOTE: Dropterminal is currently certified only with kitty.
   scriptsDir .. "/Dropterminal.sh --startup kitty",
-  "wl-paste --type text --watch cliphist store",
-  "wl-paste --type image --watch cliphist store",
+  -- Re-apply the selected Rainbow Borders mode for a login where no wallpaper
+  -- resolves and the wallpaper pass never runs.
+  scriptsDir .. "/RainbowBordersStartup.sh",
 }
 
 local function run_startup_commands()

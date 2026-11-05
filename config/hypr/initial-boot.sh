@@ -8,9 +8,8 @@
 # However, I do highly suggest not to touch it since again, as long as the marker exist, script wont run
 
 # Variables
-scriptsDir=$HOME/.config/hypr/scripts
-wallpaper=$HOME/.config/hypr/wallpaper_effects/.wallpaper_current
-waybar_style="$HOME/.config/waybar/style/[Extra] Neon Circuit.css"
+scriptsDir=${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts
+wallpaper=${XDG_CONFIG_HOME:-$HOME/.config}/hypr/wallpaper_effects/.wallpaper_current
 kvantum_theme="catppuccin-mocha-blue"
 color_scheme="prefer-dark"
 gtk_theme="Flat-Remix-GTK-Blue-Dark"
@@ -166,13 +165,6 @@ if [ ! -f "$HOME/.config/hypr/.initial_startup_done" ]; then
 		    fi
 
 	    rm -f "$preserve_theme_state_marker"
-
-		# waybar style
-	#if [ -L "$HOME/.config/waybar/config" ]; then
-    ##    	ln -sf "$waybar_style" "$HOME/.config/waybar/style.css"
-    #   	"$scriptsDir/Refresh.sh" > /dev/null 2>&1 & 
-	#fi
-
 
     # Create a marker file to indicate that the script has been executed.
     touch "$HOME/.config/hypr/.initial_startup_done"

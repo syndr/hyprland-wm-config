@@ -14,7 +14,7 @@ iDIR="${XDG_CONFIG_HOME:-$HOME/.config}/swaync/images"
 # shellcheck source=/dev/null
 . "$scriptsDir/WallpaperCmd.sh" 2>/dev/null || true
 
-rofi_theme="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/config-wallpaper.rasi"
+rofi_theme="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/config-wallpaper.rasi"
 lock_cache_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/wallpaper_effects"
 lock_wallpaper_link="$lock_cache_dir/.hyprlock_current"
 lock_wallpaper_current="$lock_cache_dir/.wallpaper_current"
@@ -152,7 +152,7 @@ if [[ -z "$focused_monitor" ]]; then
   exit 1
 fi
 
-per_monitor_rofi_link="${XDG_CONFIG_HOME:-$HOME/.config}/rofi/.current_wallpaper_${focused_monitor}"
+per_monitor_rofi_link="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/.current_wallpaper_${focused_monitor}"
 per_monitor_wallpaper_current="$lock_cache_dir/.wallpaper_current_${focused_monitor}"
 
 scale_factor=$(hyprctl monitors -j | jq -r --arg mon "$focused_monitor" '.[] | select(.name == $mon) | .scale')
@@ -226,7 +226,7 @@ menu() {
       cache_gif_image="$HOME/.cache/gif_preview/${pic_name}.png"
       if [[ ! -f "$cache_gif_image" ]]; then
         mkdir -p "$HOME/.cache/gif_preview"
-        magick "$pic_path[0]" -resize 1920x1080 "$cache_gif_image"
+        magick "${pic_path}[0]" -resize 1920x1080 "$cache_gif_image"
       fi
       printf "%s\x00icon\x1f%s\n" "$pic_name" "$cache_gif_image"
     elif [[ "$pic_name" =~ \.(mp4|mkv|mov|webm|MP4|MKV|MOV|WEBM)$ ]]; then
@@ -314,6 +314,7 @@ set_hyprlock_wallpaper() {
 }
 
 main() {
+  "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/RofiFocusedWallpaperLink.sh" >/dev/null 2>&1 || true
   choice=$(menu | $rofi_command)
   choice=$(echo "$choice" | xargs)
 

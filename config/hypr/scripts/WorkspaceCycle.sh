@@ -32,9 +32,9 @@ current_workspace="$(hyprctl activeworkspace -j | jq -r '.id')"
 [ -n "$focused_name" ] || exit 0
 [ -f "$workspaces_conf" ] || {
   if [ "$direction" = "next" ]; then
-    hyprctl dispatch workspace e+1 >/dev/null 2>&1
+    hyprctl dispatch "hl.dsp.focus({ workspace = 'e+1' })" >/dev/null 2>&1
   else
-    hyprctl dispatch workspace e-1 >/dev/null 2>&1
+    hyprctl dispatch "hl.dsp.focus({ workspace = 'e-1' })" >/dev/null 2>&1
   fi
   exit 0
 }
@@ -62,9 +62,9 @@ mapfile -t monitor_workspaces < <(
 
 if [ "${#monitor_workspaces[@]}" -eq 0 ]; then
   if [ "$direction" = "next" ]; then
-    hyprctl dispatch workspace e+1 >/dev/null 2>&1
+    hyprctl dispatch "hl.dsp.focus({ workspace = 'e+1' })" >/dev/null 2>&1
   else
-    hyprctl dispatch workspace e-1 >/dev/null 2>&1
+    hyprctl dispatch "hl.dsp.focus({ workspace = 'e-1' })" >/dev/null 2>&1
   fi
   exit 0
 fi
@@ -89,4 +89,4 @@ if [ -z "$target_workspace" ]; then
   fi
 fi
 
-hyprctl dispatch workspace "$target_workspace" >/dev/null 2>&1
+hyprctl dispatch "hl.dsp.focus({ workspace = '$target_workspace' })" >/dev/null 2>&1

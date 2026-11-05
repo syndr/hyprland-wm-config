@@ -172,22 +172,43 @@ do_status() {
     fi
 }
 
-# The screen counts as off when the compositor has parked every output, OR
-# when a backlight has been switched off behind the compositor's back. The
-# second case is the uConsole power key: uconsole-sleep drives DRM/backlight
-# directly, so Hyprland still believes its outputs are lit and keeps handing
-# out frame callbacks.
+# The screen counts as off when no output is lit: every output is parked by
+# the compositor, or its backlight has been switched off behind the
+# compositor's back. The second case is the uConsole power key:
+# uconsole-sleep drives DRM/backlight directly, so Hyprland still believes its
+# outputs are lit and keeps handing out frame callbacks.
+#
+# A backlight only speaks for its own connector. A docked laptop whose panel is
+# forced off (bl_power != 0) while external monitors run must not read as dark.
 screen_is_off() {
-    local monitors bl
+    local monitors name bl dev
     monitors=$(hyprctl monitors -j 2>/dev/null)
-    if [ -n "$monitors" ] && ! printf '%s' "$monitors" | grep -q '"dpmsStatus": *true'; then
+    [ -n "$monitors" ] || return 1
+    if ! command -v jq >/dev/null 2>&1; then
+        printf '%s' "$monitors" | grep -q '"dpmsStatus": *true' && return 1
         return 0
     fi
-    for bl in /sys/class/backlight/*/bl_power; do
-        [ -r "$bl" ] || continue
-        [ "$(cat "$bl" 2>/dev/null)" = "0" ] || return 0
-    done
-    return 1
+
+    while IFS= read -r name; do
+        [ -n "$name" ] || continue
+        local backlit=""
+        for bl in /sys/class/backlight/*; do
+            [ -r "$bl/bl_power" ] || continue
+            # device -> .../drm/card0/card0-eDP-1; the connector is eDP-1.
+            dev=$(readlink -f "$bl/device" 2>/dev/null)
+            dev="${dev##*/}"
+            [ "${dev#card*-}" = "$name" ] || continue
+            backlit=$(cat "$bl/bl_power" 2>/dev/null)
+            break
+        done
+        # No backlight for this output, or one that is on: something is lit.
+        if [ -z "$backlit" ] || [ "$backlit" = "0" ]; then
+            return 1
+        fi
+    done < <(printf '%s' "$monitors" | jq -r '.[] | select(.dpmsStatus == true and (.disabled | not)) | .name')
+
+    # Every powered output has its backlight off, or none is powered at all.
+    return 0
 }
 
 # Follow the screen state for as long as a locker is up. ScreenPower.sh

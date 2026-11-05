@@ -51,7 +51,7 @@ case "${1:-}" in
     on)
         if ! screen_is_on; then
             idle_log "dpms on (locker: $(locker_state))"
-            hyprctl dispatch dpms on >/dev/null 2>&1
+            hyprctl dispatch "hl.dsp.dpms({ action = 'on' })" >/dev/null 2>&1
         fi
         # Always resume, even when another caller already lit the panel: the
         # hack must not be left stopped behind a visible screen.
@@ -62,7 +62,7 @@ case "${1:-}" in
         # freeze a visible frame for a beat.
         if screen_is_on; then
             idle_log "dpms off (locker: $(locker_state))"
-            hyprctl dispatch dpms off >/dev/null 2>&1
+            hyprctl dispatch "hl.dsp.dpms({ action = 'off' })" >/dev/null 2>&1
         fi
         [ -x "$PAUSE" ] && "$PAUSE" pause
         ;;

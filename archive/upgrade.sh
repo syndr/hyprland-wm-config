@@ -86,7 +86,6 @@ target_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
 # Specify the update source directories, their corresponding target directories, and their exclusions
 declare -A directories=(
     ["config/hypr/"]="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/"
-    ["config/kitty/"]="${XDG_CONFIG_HOME:-$HOME/.config}/kitty/"
     ["config/Kvantum/"]="${XDG_CONFIG_HOME:-$HOME/.config}/Kvantum/"
     ["config/nvim/"]="${XDG_CONFIG_HOME:-$HOME/.config}/nvim/"
     ["config/qt5ct/"]="${XDG_CONFIG_HOME:-$HOME/.config}/qt5ct"
@@ -98,7 +97,7 @@ declare -A directories=(
     ["config/ags/"]="${XDG_CONFIG_HOME:-$HOME/.config}/ags/"
     ["config/quickshell/"]="${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/"
     ["config/fastfetch/"]="${XDG_CONFIG_HOME:-$HOME/.config}/fastfetch/"
-    ["config/wallust/"]="${XDG_CONFIG_HOME:-$HOME/.config}/wallust/"
+    ["config/hypr/wallust/"]="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/wallust/"
     ["config/wlogout/"]="${XDG_CONFIG_HOME:-$HOME/.config}/wlogout/"
     # Add more directories to compare as needed
 )

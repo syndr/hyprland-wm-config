@@ -2,7 +2,7 @@
   all: unset;
 }
 
-@import '../../../.config/waybar/wallust/colors-waybar.css';
+@import '../../../.config/hypr/waybar/wallust/colors-waybar.css';
 
 /* define some colors */
 @define-color border-color @color12;
@@ -140,7 +140,7 @@ widget {
   -gtk-outline-radius: 1.159rem;
   margin: 0.341rem;
   /* background-color: #26233A; */
-  background-image: url('../../rofi/.current_wallpaper');
+  background-image: url('../../hypr/rofi/.current_wallpaper');
   background-size: cover;
   background-position: center;
   border: 0.068rem solid alpha(@color4, 0.5);

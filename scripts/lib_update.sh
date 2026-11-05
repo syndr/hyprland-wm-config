@@ -103,6 +103,31 @@ run_repo_update() {
     fi
   fi
 
+  # Patch existing user and system lua configs to fix startup readiness race condition
+  local hypr_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hypr"
+  if [ -d "$hypr_dir" ]; then
+    for f in "$hypr_dir/UserConfigs"/*.lua "$hypr_dir/configs"/*.lua "$hypr_dir/lua"/*.lua; do
+      [ -f "$f" ] || continue
+      if grep -q 'break 2;' "$f" 2>/dev/null; then
+        sed -i 's/break 2;/break;/g' "$f"
+      fi
+    done
+  fi
+
+  # Apply non-destructive user-config patches (patches/*.sh) so fixes reach
+  # UserConfigs/UserScripts without overwriting user edits.
+  if ! declare -f apply_user_patches >/dev/null 2>&1; then
+    if [ -f "$repo_dir/scripts/lib_patches.sh" ]; then
+      # shellcheck source=/dev/null
+      . "$repo_dir/scripts/lib_patches.sh"
+    fi
+  fi
+  if declare -f apply_user_patches >/dev/null 2>&1; then
+    apply_user_patches "$log_file"
+  else
+    echo "${NOTE:-[NOTE]} Skipping user-config patches (helper unavailable)." | tee -a "$log_file"
+  fi
+
   read -n1 -s -r -p "Press any key to return to the main menu..."
   echo
 

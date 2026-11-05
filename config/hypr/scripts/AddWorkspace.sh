@@ -24,5 +24,5 @@ fi
 
 next_id=$((max_id + 1))
 
-hyprctl keyword workspace "${next_id},monitor:${monitor}" >/dev/null
-hyprctl dispatch workspace "$next_id" >/dev/null
+hyprctl eval "hl.workspace_rule({ workspace = '${next_id}', monitor = '${monitor}' })" >/dev/null
+hyprctl dispatch "hl.dsp.focus({ workspace = '$next_id' })" >/dev/null

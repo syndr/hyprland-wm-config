@@ -15,3 +15,15 @@
 -- })
 --
 -- hl.animation({ leaf = "windows", enabled = true, speed = 5, bezier = "wind", style = "slide" })
+
+-- Curves are defined here as well: an animation preset from the Animations menu
+-- replaces lua/animations.lua and need not define them.
+hl.curve("winIn", { type = "bezier", points = { { 0.1, 1.1 }, { 0.1, 1.1 } } })
+hl.curve("winOut", { type = "bezier", points = { { 0.3, -0.3 }, { 0, 1 } } })
+hl.curve("smoothOut", { type = "bezier", points = { { 0.5, 0 }, { 0.99, 0.99 } } })
+hl.animation({ leaf = "windowsIn", enabled = true, speed = 5, bezier = "winIn", style = "gnomed" })
+hl.animation({ leaf = "windowsOut", enabled = true, speed = 3, bezier = "smoothOut", style = "gnomed" })
+-- borderangle drives rainbow borders; off with the fixed Greenscreen palette.
+hl.animation({ leaf = "borderangle", enabled = false })
+hl.animation({ leaf = "workspacesIn", enabled = true, speed = 5, bezier = "winIn", style = "slidevert" })
+hl.animation({ leaf = "workspacesOut", enabled = true, speed = 5, bezier = "winOut", style = "slidevert" })

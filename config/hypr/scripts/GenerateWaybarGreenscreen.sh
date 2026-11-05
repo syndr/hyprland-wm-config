@@ -2,7 +2,7 @@
 
 set -u
 
-WAYBAR_DIR="${HOME}/.config/waybar"
+WAYBAR_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar"
 CONFIG_DIR="${WAYBAR_DIR}/configs"
 WIDE_TEMPLATE="${CONFIG_DIR}/[TOP] Greenscreen"
 NARROW_TEMPLATE="${CONFIG_DIR}/[TOP] Greenscreen Narrow"

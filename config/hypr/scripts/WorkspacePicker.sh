@@ -7,7 +7,7 @@ set -euo pipefail
 mode="${1:-pick}"
 target_monitor="${2:-}" # Can be monitor name
 workspaces_conf="$HOME/.config/hypr/workspaces.conf"
-rofi_config="$HOME/.config/rofi/config.rasi"
+rofi_config="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/config.rasi"
 chooser_theme='window { location: northwest; anchor: northwest; x-offset: 8px; y-offset: 8px; width: 10em; } listview { lines: 4; }'
 
 require_cmd() {
@@ -103,4 +103,4 @@ choice=$(
 target_workspace="$(printf '%s' "$choice" | sed 's/^[^0-9]*//')"
 [ -n "$target_workspace" ] || exit 0
 
-hyprctl dispatch workspace "$target_workspace" >/dev/null 2>&1
+hyprctl dispatch "hl.dsp.focus({ workspace = '$target_workspace' })" >/dev/null 2>&1

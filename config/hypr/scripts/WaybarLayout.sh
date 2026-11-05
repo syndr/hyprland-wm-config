@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
-# /* ---- 💫 https://github.com/JaKooLit 💫 ---- */  ##
+# ==================================================
+#  KoolDots (2026)
+#  Project URL: https://github.com/LinuxBeginnings
+#  License: GNU GPLv3
+#  SPDX-License-Identifier: GPL-3.0-or-later
+# ==================================================
 # Script for waybar layout or configs
 
 IFS=$'\n\t'
 
 # Define directories
-waybar_layouts="$HOME/.config/waybar/configs"
-waybar_config="$HOME/.config/waybar/config"
-SCRIPTSDIR="$HOME/.config/hypr/scripts"
+waybar_layouts="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/configs"
+waybar_config="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/waybar/config"
+SCRIPTSDIR="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts"
 greenscreen_auto="[TOP] Greenscreen Auto"
-rofi_config="$HOME/.config/rofi/config-waybar-layout.rasi"
+rofi_config="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/rofi/config-waybar-layout.rasi"
 msg=' 🎌 NOTE: Some waybar LAYOUT NOT fully compatible with some STYLES'
 
 # Apply selected configuration
@@ -52,6 +57,7 @@ main() {
     done
 
     # Launch rofi with the annotated list, pre‑selecting the active row
+    "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/RofiFocusedWallpaperLink.sh" >/dev/null 2>&1 || true
     choice=$(printf '%s\n' "${options[@]}" \
         | rofi -i -dmenu \
                -config "$rofi_config" \
@@ -67,13 +73,7 @@ main() {
 
     case "$choice" in
         "no panel")
-            # waybar normally runs as waybar.service; stopping the unit keeps
-            # Restart= from bringing it straight back.
-            if systemctl --user is-active --quiet waybar.service 2>/dev/null; then
-                systemctl --user stop waybar.service
-            else
-                pgrep -x "waybar" && pkill waybar || true
-            fi
+            pgrep -x "waybar" && { pkill -INT -x waybar || true; sleep 0.2; pkill -9 -x waybar || true; systemctl --user stop waybar.service >/dev/null 2>&1 || true; }
             ;;
         *)
             apply_config "$choice"

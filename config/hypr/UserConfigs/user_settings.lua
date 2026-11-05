@@ -7,6 +7,53 @@
 -- User settings overrides template.
 -- Add your personal hl.config(...) values here.
 
+hl.config({
+  input = {
+    kb_layout = "us",
+    kb_variant = "",
+    kb_model = "",
+    kb_options = "",
+    kb_rules = "",
+    repeat_rate = 50,
+    repeat_delay = 300,
+    sensitivity = 0,
+    numlock_by_default = true,
+    left_handed = false,
+    follow_mouse = 1,
+    float_switch_override_focus = false,
+    touchpad = {
+      disable_while_typing = true,
+      natural_scroll = true,
+      clickfinger_behavior = false,
+      middle_button_emulation = false,
+      tap_to_click = true,
+      drag_lock = false,
+    },
+    touchdevice = {
+      enabled = true,
+    },
+    tablet = {
+      transform = 0,
+      left_handed = 0,
+    },
+  },
+})
+
+-- Multi-language example:
+-- NOTE: If specifying multiple layouts in kb_layout, kb_variant must have matching
+-- comma separators (e.g. kb_layout = "fr,de", kb_variant = "azerty," or kb_variant = "").
+--
+-- hl.config({
+--   input = {
+--     kb_layout = "fr,de",
+--     kb_variant = "azerty,",
+--     kb_options = "grp:alt_shift_toggle",
+--   },
+--   misc = {
+--     focus_on_activate = true,
+--   },
+-- })
+
 -- Example:
 -- hl.config({
 --   general = {
@@ -25,3 +72,30 @@
 -- 		warp_on_change_workspace = 0,
 -- 	},
 -- })
+
+-- Fork settings. Each block is applied separately so one key a given
+-- Hyprland build does not know cannot drop the rest.
+local function try_config(spec)
+  local ok, err = pcall(hl.config, spec)
+  if not ok then
+    print("[WARN] user_settings: " .. tostring(err))
+  end
+end
+
+try_config({ debug = { disable_logs = true } })
+try_config({ dwindle = { split_width_multiplier = 1.5 } })
+-- Scrolling: new columns open at a third of the monitor, so three fit side by
+-- side; SUPER SHIFT R / SUPER ALT SHIFT R step the width up / down through
+-- explicit_column_widths. Hover-focus scrolls a column
+-- into view once 15% of it is on screen.
+try_config({
+  scrolling = {
+    column_width = 0.333,
+    follow_min_visible = 0.15,
+    explicit_column_widths = "0.2, 0.25, 0.3, 0.333, 0.4, 0.45, 0.5, 0.55, 0.6, 0.667, 0.75, 0.8, 0.9, 1.0",
+  },
+})
+-- 2 = auto (software cursor only where the hardware cursor is known broken).
+try_config({ cursor = { no_hardware_cursors = 2 } })
+-- The zoom binds need every wheel event; see user_keybinds.lua.
+try_config({ binds = { scroll_event_delay = 0 } })
