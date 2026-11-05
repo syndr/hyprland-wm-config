@@ -55,6 +55,28 @@ hackerer_theme_installed() {
     && [ -f "$HOME/.local/share/color-schemes/Hackerer.colors" ]
 }
 
+# XCursor-only themes render at one pixel size and shrink on fractionally
+# scaled monitors; Hyprland scales hyprcursor themes per monitor. Add a
+# hyprcursor build to the active cursor theme if it lacks one.
+ensure_hyprcursor_theme() {
+  local log="$1"
+  local theme dir
+  theme="$(gsettings get org.gnome.desktop.interface cursor-theme 2>/dev/null | tr -d "'")"
+  [ -n "$theme" ] || return 0
+  for dir in "${XDG_DATA_HOME:-$HOME/.local/share}/icons/$theme" "$HOME/.icons/$theme"; do
+    [ -d "$dir/cursors" ] || continue
+    if [ -f "$dir/manifest.hl" ] || [ -f "$dir/manifest.toml" ]; then
+      return 0
+    fi
+    if command -v python3 >/dev/null 2>&1 && command -v hyprcursor-util >/dev/null 2>&1; then
+      python3 "$(dirname "${BASH_SOURCE[0]}")/xcursor-to-hyprcursor.py" "$dir" 2>&1 | tee -a "$log"
+    else
+      echo "${WARN:-[WARN]} Cursor '$theme' is XCursor-only; install python3 and hyprcursor for per-monitor cursor scaling." 2>&1 | tee -a "$log"
+    fi
+    return 0
+  done
+}
+
 apply_hackerer_theme() {
   # The Hackerer theme now lives in its own repository and is fetched at
   # install time rather than vendored here. See https://github.com/syndr/hackerer-theme
@@ -78,6 +100,7 @@ apply_hackerer_theme() {
   if git clone --depth 1 --branch "$repo_ref" "$repo_url" "$tmp/hackerer-theme" >>"$log" 2>&1; then
     if [ -f "$tmp/hackerer-theme/install.sh" ]; then
       bash "$tmp/hackerer-theme/install.sh" 2>&1 | tee -a "$log"
+      ensure_hyprcursor_theme "$log"
       echo "${OK:-[OK]} - Hackerer theme installed from $repo_url." 2>&1 | tee -a "$log"
       rm -rf "$tmp"
       return 0
