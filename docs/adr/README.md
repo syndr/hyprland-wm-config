@@ -30,6 +30,7 @@ decision, add a **new** ADR that supersedes the old one rather than editing it.
 ## Index
 
 - [Adopt the swaylock-plugin xscreensaver screensaver lockscreen](adopt-swaylock-plugin-screensaver-lockscreen.md)
+- [Enable the uconsole-battery CPU profile menu from the waybar generator](enable-uconsole-battery-cpu-menu-from-waybar-generator.md)
 - [Generate hypridle.conf from IdleSettings.conf](generate-hypridle-config-from-idle-settings.md)
 - [Run session daemons as systemd user units](run-session-daemons-as-systemd-user-units.md)
 

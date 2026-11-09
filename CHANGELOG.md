@@ -73,6 +73,17 @@
 
 ## Added
 
+- **CPU profile menu on the Greenscreen battery module, where it can work.**
+  `GenerateWaybarGreenscreen.sh` replaces a marker comment in the three tier
+  templates' `custom/uconsole-battery` block with the waybar `menu` keys that
+  `uconsole-battery --waybar-menu-snippet --if-available` prints, which it
+  does only on a host with `uconsole-sleep` >= 1.8 and `uconsole-tweaks` >=
+  0.6.0. Left click then picks Automatic / Performance / Balanced / Power
+  save for the current boot; elsewhere the module is unchanged. The dark
+  Greenscreen style underlines the module while a profile is set by hand
+  (`.cpu-manual`). See
+  [`docs/adr/enable-uconsole-battery-cpu-menu-from-waybar-generator.md`](docs/adr/enable-uconsole-battery-cpu-menu-from-waybar-generator.md).
+
 - **The screensaver no longer burns power while the screen is off.**
   swaylock-plugin has no DPMS handling and forwards its plugin client's
   buffers straight through, so an xscreensaver hack running under Xwayland +
