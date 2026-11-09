@@ -59,6 +59,12 @@ The keys, the menu file path and the menu's commands stay owned by
   must keep the failure mode "no output, non-zero exit".
 - Left click on the battery module is reserved for the menu on hosts where it
   is enabled. Middle and right click keep their bindings.
+- From `uconsole-tweaks` 0.6.1 the keys also include `"signal": 13`, which
+  lets a menu selection refresh the module at once. The templates must
+  therefore not give the `custom/uconsole-battery` module a `signal` key of
+  their own, and no other Greenscreen module may use 13 (1, 2, 3 and 9 are in
+  use today). A host can move it with `WAYBAR_SIGNAL` in
+  `uconsole-battery.conf`.
 - The generator runs one extra short command per render. Hosts without
   `uconsole-battery` skip it.
 - Selecting `[TOP] Greenscreen` (or a narrow tier) directly, without the
