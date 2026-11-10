@@ -653,6 +653,12 @@ window#waybar.greenscreen-wide #tray {
   animation: blink 0.5s linear infinite alternate;
 }
 
+/* A CPU profile was picked by hand from the module's menu, so the governor
+   service's automatic logic is off until reboot or "Automatic". */
+#custom-uconsole-battery.cpu-manual {
+  text-decoration-line: underline;
+}
+
 @keyframes blink {
   to {
     color: @bg_light;
