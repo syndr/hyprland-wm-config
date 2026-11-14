@@ -368,6 +368,15 @@ elif [ "$icon_theme_mode" = "legacy" ]; then
     set_custom_icon_theme "$next_mode"
 fi
 
+# Flatpak apps read the Qt palette from kdeglobals, not qt6ct/Kvantum. Hand
+# the mode's KDE colour scheme to the sync script when the profile names one;
+# otherwise it re-inlines whatever kdeglobals already points at.
+flatpak_kde_scheme=""
+if [ "$use_direct_qt_theme" = "1" ]; then
+    flatpak_kde_scheme="$(pick_mode_value "${DARK_KDE_COLOR_SCHEME:-}" "${LIGHT_KDE_COLOR_SCHEME:-}")"
+fi
+"${SCRIPTSDIR}/FlatpakThemeSync.sh" "$flatpak_kde_scheme" >/dev/null 2>&1 || true
+
 update_theme_mode
 
 ${SCRIPTSDIR}/WallustSwww.sh &&

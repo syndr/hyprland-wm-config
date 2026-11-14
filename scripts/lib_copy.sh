@@ -77,6 +77,44 @@ ensure_hyprcursor_theme() {
   done
 }
 
+sync_flatpak_theme() {
+  # Flatpak apps get the session's Qt style variables but none of the host's
+  # Qt plugins. FlatpakThemeSync.sh (shipped in hypr/scripts) owns the global
+  # override and the inline kdeglobals colours that keep them themed; run the
+  # deployed copy so the installer and DarkLight.sh share one implementation.
+  local log="$1"
+  local hypr_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hypr"
+  local script="$hypr_dir/scripts/FlatpakThemeSync.sh"
+  local scheme=""
+
+  command -v flatpak >/dev/null 2>&1 || return 0
+  if [ ! -f "$script" ]; then
+    echo "${WARN:-[WARN]} $script is missing; Flatpak apps keep their current theming." 2>&1 | tee -a "$log"
+    return 0
+  fi
+  # Name the scheme from the active theme profile, the way DarkLight.sh does.
+  # The theme's own installer only writes it to kdeglobals when kwriteconfig6
+  # exists, so without this a fresh host has nothing to inline until the first
+  # theme toggle. Sourced in a subshell to keep the profile out of this shell.
+  scheme="$(
+    [ -f "$hypr_dir/UserConfigs/ThemeConfig.conf" ] && . "$hypr_dir/UserConfigs/ThemeConfig.conf"
+    profile="$hypr_dir/themes/${ACTIVE_THEME_FAMILY:-Hackerer}.conf"
+    [ -f "$profile" ] && . "$profile"
+    if [ "$(cat "$HOME/.cache/.theme_mode" 2>/dev/null)" = "Light" ]; then
+      printf '%s' "${LIGHT_KDE_COLOR_SCHEME:-}"
+    else
+      printf '%s' "${DARK_KDE_COLOR_SCHEME:-}"
+    fi
+  )" 2>/dev/null || scheme=""
+
+  if bash "$script" "$scheme" >>"$log" 2>&1; then
+    echo "${OK:-[OK]} - Flatpak apps synced to the desktop theme." 2>&1 | tee -a "$log"
+  else
+    echo "${WARN:-[WARN]} Flatpak theme sync reported a problem; see $log." 2>&1 | tee -a "$log"
+  fi
+  return 0
+}
+
 apply_hackerer_theme() {
   # The Hackerer theme now lives in its own repository and is fetched at
   # install time rather than vendored here. See https://github.com/syndr/hackerer-theme
