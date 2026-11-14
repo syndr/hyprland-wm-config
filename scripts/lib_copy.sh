@@ -77,6 +77,27 @@ ensure_hyprcursor_theme() {
   done
 }
 
+sync_flatpak_theme() {
+  # Flatpak apps get the session's Qt style variables but none of the host's
+  # Qt plugins. FlatpakThemeSync.sh (shipped in hypr/scripts) owns the global
+  # override and the inline kdeglobals colours that keep them themed; run the
+  # deployed copy so the installer and DarkLight.sh share one implementation.
+  local log="$1"
+  local script="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/FlatpakThemeSync.sh"
+
+  command -v flatpak >/dev/null 2>&1 || return 0
+  if [ ! -f "$script" ]; then
+    echo "${WARN:-[WARN]} $script is missing; Flatpak apps keep their current theming." 2>&1 | tee -a "$log"
+    return 0
+  fi
+  if bash "$script" >>"$log" 2>&1; then
+    echo "${OK:-[OK]} - Flatpak apps synced to the desktop theme." 2>&1 | tee -a "$log"
+  else
+    echo "${WARN:-[WARN]} Flatpak theme sync reported a problem; see $log." 2>&1 | tee -a "$log"
+  fi
+  return 0
+}
+
 apply_hackerer_theme() {
   # The Hackerer theme now lives in its own repository and is fetched at
   # install time rather than vendored here. See https://github.com/syndr/hackerer-theme
