@@ -27,8 +27,8 @@
 #     app cannot resolve `ColorScheme=<name>` to a file, so without the
 #     [Colors:*] groups inline it falls back to Breeze Light.
 #
-# With an argument, that scheme becomes the active one; without, the scheme
-# kdeglobals already names is re-inlined.
+# With an argument, that scheme becomes the active one; without one (or when
+# it is not installed), the scheme kdeglobals already names is re-inlined.
 
 set -u
 
@@ -80,16 +80,19 @@ sync_overrides() {
 }
 
 sync_kdeglobals() {
-    local name="$requested_scheme"
-    local scheme_file tmp
+    local name="" scheme_file="" candidate tmp
 
-    [ -n "$name" ] || name="$(current_scheme_name)"
+    # Prefer the requested scheme; fall back to the one kdeglobals names.
+    for candidate in "$requested_scheme" "$(current_scheme_name)"; do
+        [ -n "$candidate" ] || continue
+        if scheme_file="$(find_scheme_file "$candidate")"; then
+            name="$candidate"
+            break
+        fi
+        log "colour scheme '$candidate' not found"
+    done
     if [ -z "$name" ]; then
-        log "no KDE colour scheme set; kdeglobals left alone"
-        return 0
-    fi
-    if ! scheme_file="$(find_scheme_file "$name")"; then
-        log "colour scheme '$name' not found; kdeglobals left alone"
+        log "no usable KDE colour scheme; kdeglobals left alone"
         return 0
     fi
 
