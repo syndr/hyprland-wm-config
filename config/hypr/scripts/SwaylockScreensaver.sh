@@ -15,7 +15,16 @@
 # timeout, and before sleep -- all via loginctl lock-session). Hosts without
 # the package fall through to hyprlock, silently.
 
-command -v swaylock-screensaver >/dev/null || exec hyprlock
+command -v swaylock-screensaver >/dev/null || exec hyprlock -q
+
+# Reap any hyprlock before the screensaver locker goes up. One can only be
+# here as the fallback from an earlier swaylock-plugin crash, and with
+# misc.allow_session_lock_restore the locker started below takes the session
+# lock from it without telling it: it then survives the unlock, never gets
+# another frame, and logs a label warning several times a second for good
+# (and holds the "pidof hyprlock" dpms gates open). The compositor keeps the
+# session locked while no lock client is attached, so this opens no gap.
+pkill -x hyprlock 2>/dev/null
 
 # Same state file the picker has always written; thumbnails from the
 # pre-package cache location; recovery lands in hyprlock (fail-secure).
@@ -34,4 +43,8 @@ if [ -x "$SCRIPTS_DIR/ScreensaverPause.sh" ]; then
     setsid -f "$SCRIPTS_DIR/ScreensaverPause.sh" watch >/dev/null 2>&1 || true
 fi
 
-exec swaylock-screensaver "$@"
+# Not exec'd: a swaylock-plugin that crashes or is killed has to land in
+# hyprlock, and -q keeps that fallback out of the journal. hypridle's
+# "|| hyprlock" stays behind this as the net for a wrapper that cannot run.
+swaylock-screensaver "$@" && exit 0
+exec hyprlock -q
