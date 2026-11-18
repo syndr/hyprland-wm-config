@@ -155,6 +155,8 @@
 	// Icon is picked from format-icons by the JSON `percentage`; the
 	// tooltip and CSS class (charging/warning/critical/...) come from
 	// the script, so #custom-uconsole-battery mirrors the #battery CSS.
+	// Not a uConsole: exec-if fails, the module hides and nothing is run.
+	"exec-if": "test -x /usr/local/bin/uconsole-battery",
 	"exec": "/usr/local/bin/uconsole-battery",
 	"return-type": "json",
 	"interval": 30,
