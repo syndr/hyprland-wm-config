@@ -223,6 +223,8 @@
 "custom/uconsole-battery#forest_narrow": {
   // Voltage-based gauge (uconsole-tweaks: /usr/local/bin/uconsole-battery);
   // AXP223 kernel capacity is stuck at 100%. See #battery CSS notes.
+  // Not a uConsole: exec-if fails, the module hides and nothing is run.
+  "exec-if": "test -x /usr/local/bin/uconsole-battery",
   "exec": "/usr/local/bin/uconsole-battery",
   "return-type": "json",
   "interval": 30,
