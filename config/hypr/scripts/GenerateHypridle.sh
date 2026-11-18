@@ -184,29 +184,31 @@ EOF
         cat <<EOF
     # Lock, and spawn the post-lock watchdog detached; it exits on unlock.
     # SwaylockScreensaver.sh runs swaylock-plugin with an xscreensaver hack
-    # background (picker: SUPER SHIFT L) and execs hyprlock itself when the
-    # package is absent; the || catches a swaylock-plugin that fails or is
-    # killed, so a lock trigger can never leave the session unlocked.
+    # background (picker: SUPER SHIFT L). It reaps a stale hyprlock first and
+    # falls back to hyprlock itself when the package is absent or
+    # swaylock-plugin dies; the || is the net for a wrapper that cannot run,
+    # so a lock trigger can never leave the session unlocked.
     lock_cmd = (\$scriptsDir/SwaylockScreensaver.sh || hyprlock) & setsid -f \$scriptsDir/IdleWatchdog.sh
 EOF
     else
         cat <<EOF
     # SwaylockScreensaver.sh runs swaylock-plugin with an xscreensaver hack
-    # background (picker: SUPER SHIFT L) and execs hyprlock itself when the
-    # package is absent; the || catches a swaylock-plugin that fails or is
-    # killed, so a lock trigger can never leave the session unlocked.
+    # background (picker: SUPER SHIFT L). It reaps a stale hyprlock first and
+    # falls back to hyprlock itself when the package is absent or
+    # swaylock-plugin dies; the || is the net for a wrapper that cannot run,
+    # so a lock trigger can never leave the session unlocked.
     lock_cmd = \$scriptsDir/SwaylockScreensaver.sh || hyprlock
 EOF
     fi
 
     cat <<EOF
-    # Reap a locker that outlived its unlock. hyprlock can orphan itself after
-    # a successful auth, and every dpms-off listener below is gated on
-    # a "pidof" check for the locker -- a lingering process holds those gates
-    # open, so the screen starts blanking a few seconds after you stop typing
-    # while you are actively using the machine. Also resumes the screensaver,
-    # so a hack stopped for a dark panel can never be left stopped.
-    unlock_cmd = killall hyprlock; \$scriptsDir/ScreensaverPause.sh resume
+    # External unlock: runs only for "loginctl unlock-session" (over ssh, or
+    # from a fingerprint/proximity helper), never for a password typed into
+    # the locker. Both lockers unlock cleanly on SIGUSR1. Stale lockers are
+    # reaped by SwaylockScreensaver.sh, not here. Also resumes the
+    # screensaver, so a hack stopped for a dark panel can never be left
+    # stopped.
+    unlock_cmd = pkill -USR1 -x swaylock-plugin; pkill -USR1 -x hyprlock; \$scriptsDir/ScreensaverPause.sh resume
     before_sleep_cmd = loginctl lock-session
     after_sleep_cmd = \$scriptsDir/ScreenPower.sh on
     ignore_dbus_inhibit = false
