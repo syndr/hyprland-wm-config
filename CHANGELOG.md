@@ -73,6 +73,22 @@
 
 ## Added
 
+- **Flatpak apps follow the desktop theme instead of crashing or going
+  light.** Flatpak passes the session's Qt style variables into the sandbox
+  but none of the host's Qt plugins, so `QT_QUICK_CONTROLS_STYLE=org.hyprland.style`
+  made Qt-Quick apps (KWeather, KClock) abort with `module "org.hyprland.style"
+  is not installed`, and with it removed they fell back to Breeze Light.
+  `FlatpakThemeSync.sh` now owns the fix: a user-level global override that
+  unsets `QT_QUICK_CONTROLS_STYLE` and `QT_STYLE_OVERRIDE`, selects the KDE
+  platform theme, and exposes `kdeglobals`, `~/.themes` and `~/.icons`
+  read-only; plus the active KDE colour scheme written inline into
+  `kdeglobals`, which is the only form a sandboxed app can read. The installer
+  runs it after the theme step and `DarkLight.sh` runs it on every toggle.
+  - Theme profiles can name the scheme per mode with `DARK_KDE_COLOR_SCHEME` /
+    `LIGHT_KDE_COLOR_SCHEME`; empty keeps the current one.
+  - The shipped `user_env.lua` no longer pins `QT_QUICK_CONTROLS_STYLE` to
+    `Basic` as a Flatpak guard, so native Qt-Quick apps get `org.hyprland.style`
+    where the installer detects it. Existing `user_env.lua` files are untouched.
 - **The screensaver no longer burns power while the screen is off.**
   swaylock-plugin has no DPMS handling and forwards its plugin client's
   buffers straight through, so an xscreensaver hack running under Xwayland +

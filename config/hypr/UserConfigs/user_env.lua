@@ -16,9 +16,10 @@
 -- Fork theming: Kvantum is the Qt widget style (matches qt6ct style=kvantum).
 -- The Hackerer Kvantum theme is optional: https://github.com/syndr/hackerer-theme
 hl.env("QT_STYLE_OVERRIDE", "kvantum")
--- Flatpak-safety guard: org.hyprland.style leaks into Flatpak sandboxes, which
--- can't see it, and makes Qt-Quick apps error.
-hl.env("QT_QUICK_CONTROLS_STYLE", "Basic")
+-- QT_QUICK_CONTROLS_STYLE is left to the installer's autodetect
+-- (system_env.lua). org.hyprland.style would break Qt-Quick Flatpak apps, so
+-- scripts/FlatpakThemeSync.sh strips it at the sandbox boundary instead; rerun
+-- that script if Flatpak is installed after these dotfiles.
 -- broodwar cursor (Hackerer theme).
 hl.env("HYPRCURSOR_THEME", "broodwar")
 hl.env("HYPRCURSOR_SIZE", "24")

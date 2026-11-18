@@ -673,6 +673,7 @@ if [ -z "$RUN_MODE" ]; then
           mkdir -p "$update_log_dir"
           update_theme_log="$update_log_dir/update-theme-$(date +%d-%H%M%S).log"
           prompt_apply_hackerer_theme "$SCRIPT_DIR" "$REPO_CONFIG_DIR" "$update_theme_log" "update"
+          sync_flatpak_theme "$update_theme_log"
         fi
         # After update, continue showing the menu without exiting
         continue
@@ -1201,6 +1202,9 @@ fi
 # silently killed the whole run right here, skipping the exec-bit pass,
 # systemd overrides, and waybar normalization below.
 prompt_apply_hackerer_theme "$SCRIPT_DIR" "$WORK_CONFIG_DIR" "$LOG" "install" || true
+
+# Runs after the theme step so kdeglobals already names the scheme to inline.
+sync_flatpak_theme "$LOG"
 
 # Set some files as executable
 chmod +x "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/"* 2>&1 | tee -a "$LOG"
