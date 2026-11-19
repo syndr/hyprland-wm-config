@@ -24,7 +24,17 @@ command -v swaylock-screensaver >/dev/null || exec hyprlock -q
 # another frame, and logs a label warning several times a second for good
 # (and holds the "pidof hyprlock" dpms gates open). The compositor keeps the
 # session locked while no lock client is attached, so this opens no gap.
-pkill -x hyprlock 2>/dev/null
+#
+# Each one gets a marker first. A fallback hyprlock is the tail of an earlier
+# "SwaylockScreensaver.sh || hyprlock" still waiting in hypridle; if it just
+# died, that shell would read it as a failed locker and start a fresh
+# hyprlock, which this takeover would orphan all over again. The marker tells
+# that earlier wrapper (below) the kill was deliberate.
+REAP_DIR="${XDG_RUNTIME_DIR:-/tmp}"
+for pid in $(pidof hyprlock 2>/dev/null); do
+    : > "$REAP_DIR/kool-hyprlock-reaped.$pid"
+    kill "$pid" 2>/dev/null || rm -f "$REAP_DIR/kool-hyprlock-reaped.$pid"
+done
 
 # Same state file the picker has always written; thumbnails from the
 # pre-package cache location; recovery lands in hyprlock (fail-secure).
@@ -47,4 +57,17 @@ fi
 # hyprlock, and -q keeps that fallback out of the journal. hypridle's
 # "|| hyprlock" stays behind this as the net for a wrapper that cannot run.
 swaylock-screensaver "$@" && exit 0
-exec hyprlock -q
+
+# Not exec'd either: when a later lock trigger reaps this hyprlock (above),
+# exit 0 so hypridle's "|| hyprlock" does not answer by starting another.
+# Any other failure still propagates and lands in that net.
+hyprlock -q &
+fallback_pid=$!
+rm -f "$REAP_DIR/kool-hyprlock-reaped.$fallback_pid"   # stale, from a reused pid
+wait "$fallback_pid"
+rc=$?
+if [ -e "$REAP_DIR/kool-hyprlock-reaped.$fallback_pid" ]; then
+    rm -f "$REAP_DIR/kool-hyprlock-reaped.$fallback_pid"
+    exit 0
+fi
+exit "$rc"
